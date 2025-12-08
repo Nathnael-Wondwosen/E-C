@@ -1,0 +1,12 @@
+{
+  "name": "@b2b-commerce/shared",
+  "version": "1.0.0",
+  "description": "Shared utilities and types for B2B E-Commerce Platform",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "joi": "^17.7.0"
+  }
+}

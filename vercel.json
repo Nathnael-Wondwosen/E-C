@@ -1,0 +1,35 @@
+{
+  "github": {
+    "silent": true
+  },
+  "builds": [
+    {
+      "src": "frontend/admin-dashboard/package.json",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": [
+          "frontend/admin-dashboard/**"
+        ]
+      }
+    },
+    {
+      "src": "frontend/customer-portal/package.json",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": [
+          "frontend/customer-portal/**"
+        ]
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/admin/(.*)",
+      "dest": "frontend/admin-dashboard/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "frontend/customer-portal/$1"
+    }
+  ]
+}
