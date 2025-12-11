@@ -2,6 +2,10 @@
 
 An advanced B2B E-Commerce platform built with microservices architecture.
 
+## Shared Configuration
+
+This project uses a shared configuration approach with a root `.env` file and shared utilities in the `shared/` directory for consistent settings across all services.
+
 ## Technology Stack
 
 - **Frontend**: Next.js with Tailwind CSS
@@ -27,6 +31,8 @@ ecommerce-platform/
 │   ├── admin-dashboard/
 │   └── customer-portal/
 ├── shared/
+│   ├── schemas/
+│   └── utils/
 └── docs/
 ```
 
@@ -45,7 +51,9 @@ This project is configured for Vercel deployment:
    npm install
    ```
 
-2. Run development servers:
+2. Set up environment variables by copying `.env.example` to `.env` and filling in the values
+
+3. Run development servers:
    ```bash
    npm run dev
    ```
