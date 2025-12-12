@@ -4,6 +4,7 @@ services:
     name: ecommerce-api-gateway
     runtime: docker
     plan: free
+    rootDir: services/api-gateway
     envVars:
       - key: NODE_ENV
         value: production
@@ -53,6 +54,7 @@ services:
     name: ecommerce-user-service
     runtime: docker
     plan: free
+    rootDir: services/user-service
     envVars:
       - key: NODE_ENV
         value: production
@@ -66,6 +68,7 @@ services:
     name: ecommerce-product-service
     runtime: docker
     plan: free
+    rootDir: services/product-service
     envVars:
       - key: NODE_ENV
         value: production
@@ -79,6 +82,7 @@ services:
     name: ecommerce-order-service
     runtime: docker
     plan: free
+    rootDir: services/order-service
     envVars:
       - key: NODE_ENV
         value: production
@@ -92,6 +96,7 @@ services:
     name: ecommerce-payment-service
     runtime: docker
     plan: free
+    rootDir: services/payment-service
     envVars:
       - key: NODE_ENV
         value: production
@@ -103,6 +108,7 @@ services:
     name: ecommerce-search-service
     runtime: docker
     plan: free
+    rootDir: services/search-service
     envVars:
       - key: NODE_ENV
         value: production
@@ -114,6 +120,7 @@ services:
     name: ecommerce-notification-service
     runtime: docker
     plan: free
+    rootDir: services/notification-service
     envVars:
       - key: NODE_ENV
         value: production
@@ -125,6 +132,7 @@ services:
     name: ecommerce-admin-dashboard
     runtime: node
     plan: free
+    rootDir: .
     buildCommand: npm install && npm run build --workspace=frontend/admin-dashboard
     startCommand: npm run start --workspace=frontend/admin-dashboard
     envVars:
@@ -142,6 +150,7 @@ services:
     name: ecommerce-customer-portal
     runtime: node
     plan: free
+    rootDir: .
     buildCommand: npm install && npm run build --workspace=frontend/customer-portal
     startCommand: npm run start --workspace=frontend/customer-portal
     envVars:
