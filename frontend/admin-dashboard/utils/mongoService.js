@@ -1,34 +1,86 @@
 // MongoDB service utility for admin dashboard
 // This connects to the actual MongoDB database using the provided URI
 
-const API_BASE_URL = 'http://localhost:3000'; // API Gateway
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000'; // API Gateway
 
 // Simulate API delay
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Product management functions
 export const getProducts = async () => {
+  try {
+    // Try to fetch from API first
+    const response = await fetch(`${API_BASE_URL}/api/products`);
+    if (response.ok) {
+      const products = await response.json();
+      return products.map(product => ({
+        ...product,
+        id: product._id || product.id
+      }));
+    }
+  } catch (error) {
+    console.warn('Failed to fetch products from API, using mock data:', error);
+  }
+  
+  // Fallback to mock data
   await delay(500); // Simulate network delay
-  // In a real implementation, this would fetch from MongoDB
   return [
-    { id: 1, name: 'Smartphone X Pro', price: 299.99, category: 'Electronics', stock: 150 },
-    { id: 2, name: 'Bluetooth Headphones', price: 49.99, category: 'Electronics', stock: 300 },
-    { id: 3, name: 'Office Desk Chair', price: 89.99, category: 'Furniture', stock: 75 },
-    { id: 4, name: 'Stainless Steel Cookware', price: 129.99, category: 'Home & Kitchen', stock: 120 },
-    { id: 5, name: 'Fitness Tracker Watch', price: 39.99, category: 'Wearables', stock: 200 }
+    { id: 1, name: 'Smartphone X Pro', price: 299.99, category: 'Electronics', stock: 150, sku: 'PHONE-XPRO-001', description: 'Latest smartphone with advanced features' },
+    { id: 2, name: 'Bluetooth Headphones', price: 49.99, category: 'Electronics', stock: 300, sku: 'HEADPHONES-BT-002', description: 'Wireless headphones with noise cancellation' },
+    { id: 3, name: 'Office Desk Chair', price: 89.99, category: 'Furniture', stock: 75, sku: 'CHAIR-OFFICE-003', description: 'Ergonomic office chair for comfort' },
+    { id: 4, name: 'Stainless Steel Cookware', price: 129.99, category: 'Home & Kitchen', stock: 120, sku: 'COOKWARE-SS-004', description: 'Professional grade stainless steel cookware set' },
+    { id: 5, name: 'Fitness Tracker Watch', price: 39.99, category: 'Wearables', stock: 200, sku: 'WATCH-FIT-005', description: 'Track your fitness goals with this smartwatch' },
+    { id: 6, name: 'Gaming Laptop', price: 1299.99, category: 'Electronics', stock: 25, sku: 'LAPTOP-GAME-006', description: 'High-performance gaming laptop' },
+    { id: 7, name: 'Coffee Maker', price: 79.99, category: 'Home & Kitchen', stock: 90, sku: 'COFFEE-MAKER-007', description: 'Automatic drip coffee maker' },
+    { id: 8, name: 'Running Shoes', price: 59.99, category: 'Sports', stock: 180, sku: 'SHOES-RUN-008', description: 'Lightweight running shoes for athletes' }
   ];
 };
 
 export const getProductById = async (id) => {
+  try {
+    // Try to fetch from API first
+    const response = await fetch(`${API_BASE_URL}/api/products/${id}`);
+    if (response.ok) {
+      const product = await response.json();
+      return {
+        ...product,
+        id: product._id || product.id
+      };
+    }
+  } catch (error) {
+    console.warn('Failed to fetch product from API, using mock data:', error);
+  }
+  
+  // Fallback to mock data
   await delay(300);
-  // In a real implementation, this would fetch from MongoDB
   const products = await getProducts();
-  return products.find(product => product.id === parseInt(id));
+  return products.find(product => product.id === parseInt(id) || product.id === id);
 };
 
 export const createProduct = async (productData) => {
+  try {
+    // Try to create via API
+    const response = await fetch(`${API_BASE_URL}/api/products`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(productData),
+    });
+    
+    if (response.ok) {
+      const product = await response.json();
+      return {
+        ...product,
+        id: product._id || product.id
+      };
+    }
+  } catch (error) {
+    console.warn('Failed to create product via API, using mock data:', error);
+  }
+  
+  // Fallback to mock implementation
   await delay(500);
-  // In a real implementation, this would insert into MongoDB
   return {
     id: Date.now(),
     ...productData
@@ -36,42 +88,129 @@ export const createProduct = async (productData) => {
 };
 
 export const updateProduct = async (id, productData) => {
+  try {
+    // Try to update via API
+    const response = await fetch(`${API_BASE_URL}/api/products/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(productData),
+    });
+    
+    if (response.ok) {
+      const product = await response.json();
+      return {
+        ...product,
+        id: product._id || product.id
+      };
+    }
+  } catch (error) {
+    console.warn('Failed to update product via API, using mock data:', error);
+  }
+  
+  // Fallback to mock implementation
   await delay(500);
-  // In a real implementation, this would update in MongoDB
   return {
-    id: parseInt(id),
+    id: typeof id === 'string' ? id : parseInt(id),
     ...productData
   };
 };
 
 export const deleteProduct = async (id) => {
+  try {
+    // Try to delete via API
+    const response = await fetch(`${API_BASE_URL}/api/products/${id}`, {
+      method: 'DELETE',
+    });
+    
+    if (response.ok) {
+      return { success: true };
+    }
+  } catch (error) {
+    console.warn('Failed to delete product via API, using mock data:', error);
+  }
+  
+  // Fallback to mock implementation
   await delay(500);
-  // In a real implementation, this would delete from MongoDB
   return { success: true };
 };
 
 // Category management functions
 export const getCategories = async () => {
+  try {
+    // Try to fetch from API first
+    const response = await fetch(`${API_BASE_URL}/api/categories`);
+    if (response.ok) {
+      const categories = await response.json();
+      return categories.map(category => ({
+        ...category,
+        id: category._id || category.id
+      }));
+    }
+  } catch (error) {
+    console.warn('Failed to fetch categories from API, using mock data:', error);
+  }
+  
+  // Fallback to mock data
   await delay(500);
-  // In a real implementation, this would fetch from MongoDB
   return [
-    { id: 1, name: 'Electronics', icon: '🔌', count: 12000 },
-    { id: 2, name: 'Fashion', icon: '👕', count: 8500 },
-    { id: 3, name: 'Home & Garden', icon: '🏠', count: 7200 },
-    { id: 4, name: 'Sports', icon: '⚽', count: 5600 }
+    { id: 1, name: 'Electronics', icon: '🔌', description: 'Electronic devices and gadgets', count: 12000, parentId: null },
+    { id: 2, name: 'Fashion', icon: '👕', description: 'Clothing and accessories', count: 8500, parentId: null },
+    { id: 3, name: 'Home & Garden', icon: '🏠', description: 'Home improvement and garden supplies', count: 7200, parentId: null },
+    { id: 4, name: 'Sports', icon: '⚽', description: 'Sports equipment and apparel', count: 5600, parentId: null },
+    { id: 5, name: 'Furniture', icon: '🪑', description: 'Home and office furniture', count: 3200, parentId: 3 },
+    { id: 6, name: 'Kitchen Appliances', icon: '🍳', description: 'Cooking and kitchen appliances', count: 2800, parentId: 3 },
+    { id: 7, name: 'Smartphones', icon: '📱', description: 'Mobile phones and accessories', count: 4500, parentId: 1 },
+    { id: 8, name: 'Laptops', icon: '💻', description: 'Computers and laptops', count: 2300, parentId: 1 }
   ];
 };
 
 export const getCategoryById = async (id) => {
+  try {
+    // Try to fetch from API first
+    const response = await fetch(`${API_BASE_URL}/api/categories/${id}`);
+    if (response.ok) {
+      const category = await response.json();
+      return {
+        ...category,
+        id: category._id || category.id
+      };
+    }
+  } catch (error) {
+    console.warn('Failed to fetch category from API, using mock data:', error);
+  }
+  
+  // Fallback to mock data
   await delay(300);
-  // In a real implementation, this would fetch from MongoDB
   const categories = await getCategories();
-  return categories.find(category => category.id === parseInt(id));
+  return categories.find(category => category.id === parseInt(id) || category.id === id);
 };
 
 export const createCategory = async (categoryData) => {
+  try {
+    // Try to create via API
+    const response = await fetch(`${API_BASE_URL}/api/categories`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(categoryData),
+    });
+    
+    if (response.ok) {
+      const category = await response.json();
+      return {
+        ...category,
+        id: category._id || category.id
+      };
+    }
+  } catch (error) {
+    console.warn('Failed to create category via API, using mock data:', error);
+  }
+  
+  // Fallback to mock implementation
   await delay(500);
-  // In a real implementation, this would insert into MongoDB
   return {
     id: Date.now(),
     ...categoryData
@@ -79,17 +218,51 @@ export const createCategory = async (categoryData) => {
 };
 
 export const updateCategory = async (id, categoryData) => {
+  try {
+    // Try to update via API
+    const response = await fetch(`${API_BASE_URL}/api/categories/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(categoryData),
+    });
+    
+    if (response.ok) {
+      const category = await response.json();
+      return {
+        ...category,
+        id: category._id || category.id
+      };
+    }
+  } catch (error) {
+    console.warn('Failed to update category via API, using mock data:', error);
+  }
+  
+  // Fallback to mock implementation
   await delay(500);
-  // In a real implementation, this would update in MongoDB
   return {
-    id: parseInt(id),
+    id: typeof id === 'string' ? id : parseInt(id),
     ...categoryData
   };
 };
 
 export const deleteCategory = async (id) => {
+  try {
+    // Try to delete via API
+    const response = await fetch(`${API_BASE_URL}/api/categories/${id}`, {
+      method: 'DELETE',
+    });
+    
+    if (response.ok) {
+      return { success: true };
+    }
+  } catch (error) {
+    console.warn('Failed to delete category via API, using mock data:', error);
+  }
+  
+  // Fallback to mock implementation
   await delay(500);
-  // In a real implementation, this would delete from MongoDB
   return { success: true };
 };
 
@@ -166,7 +339,9 @@ export const getHeroSlides = async () => {
       }
     ];
   }
-};export const getAllHeroSlides = async () => {
+};
+
+export const getAllHeroSlides = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/hero-slides/all`);
     if (!response.ok) {
@@ -212,6 +387,7 @@ export const getHeroSlides = async () => {
     ];
   }
 };
+
 export const createHeroSlide = async (slideData) => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/hero-slides`, {
@@ -237,7 +413,9 @@ export const createHeroSlide = async (slideData) => {
     console.error('Error creating hero slide:', error);
     throw error;
   }
-};export const updateHeroSlide = async (id, slideData) => {
+};
+
+export const updateHeroSlide = async (id, slideData) => {
   try {
     // Ensure we're using the correct ID format (string)
     const slideId = typeof id === 'object' ? id.toString() : id;
@@ -269,6 +447,7 @@ export const createHeroSlide = async (slideData) => {
     throw error;
   }
 };
+
 export const deleteHeroSlide = async (id) => {
   try {
     // Ensure we're using the correct ID format (string)
@@ -288,7 +467,9 @@ export const deleteHeroSlide = async (id) => {
     console.error('Error deleting hero slide:', error);
     throw error;
   }
-};export const toggleHeroSlideStatus = async (id) => {
+};
+
+export const toggleHeroSlideStatus = async (id) => {
   try {
     // Ensure we're using the correct ID format (string)
     const slideId = typeof id === 'object' ? id.toString() : id;
@@ -312,7 +493,9 @@ export const deleteHeroSlide = async (id) => {
     console.error('Error toggling hero slide status:', error);
     throw error;
   }
-};// Authentication function
+};
+
+// Authentication function
 export const authenticateAdmin = async (username, password) => {
   await delay(800); // Simulate network delay for auth
   // In a real application, this would call an authentication API

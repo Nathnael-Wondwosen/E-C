@@ -1,13 +1,14 @@
 import Head from 'next/head';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { getCachedHeroSlides, getAppwriteImageUrl, getGlobalBackgroundImage } from '../utils/heroDataService';
+import { getCachedHeroSlides, getAppwriteImageUrl, getGlobalBackgroundImage, getCategories } from '../utils/heroDataService';
 export default function Home() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [heroSlides, setHeroSlides] = useState([]);
   const [loadingHeroSlides, setLoadingHeroSlides] = useState(true);
   const [globalBackgroundImage, setGlobalBackgroundImage] = useState('/hero-background.jpg');
+  const [loadingCategories, setLoadingCategories] = useState(true);
   const [currentDealIndex, setCurrentDealIndex] = useState(0);
   const [currentPromoIndex, setCurrentPromoIndex] = useState(0);
   
@@ -25,12 +26,35 @@ export default function Home() {
     loadGlobalBackgroundImage();
   }, []);
   
+  // Load categories on component mount
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        setLoadingCategories(true);
+        const fetchedCategories = await getCategories();
+        // Convert MongoDB _id to id for frontend compatibility
+        const convertedCategories = fetchedCategories.map(category => ({
+          ...category,
+          id: category._id || category.id
+        }));
+        setCategories(convertedCategories);
+      } catch (error) {
+        console.error('Error loading categories:', error);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+    
+    loadCategories();
+  }, []);
+  
   const [currentCategoryIndex, setCurrentCategoryIndex] = useState(0);  const [currentNewCategoryIndex, setCurrentNewCategoryIndex] = useState(0);
   const [currentHeroCategoryIndex, setCurrentHeroCategoryIndex] = useState(0);
   const [currentViralProductIndex, setCurrentViralProductIndex] = useState(0);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [currentNewsIndex, setCurrentNewsIndex] = useState(0);
   const [currentBlogIndex, setCurrentBlogIndex] = useState(0);
+  const [categories, setCategories] = useState([]);
   const [visibleCategories, setVisibleCategories] = useState([]);  // Sample carousel data (fallback if API fails)
   const fallbackCarouselSlides = [
     {
@@ -58,39 +82,6 @@ export default function Home() {
 
   // Use hero slides from API or fallback data
   const carouselSlides = loadingHeroSlides ? fallbackCarouselSlides : (heroSlides.length > 0 ? heroSlides : fallbackCarouselSlides);
-  // Sample categories
-  const categories = [
-    { id: 1, name: 'Electronics', icon: '🔌', count: 12000, image: '/placeholder-category.jpg' },
-    { id: 2, name: 'Fashion', icon: '👕', count: 8500, image: '/placeholder-category.jpg' },
-    { id: 3, name: 'Home & Garden', icon: '🏠', count: 7200, image: '/placeholder-category.jpg' },
-    { id: 4, name: 'Sports', icon: '⚽', count: 5600, image: '/placeholder-category.jpg' },
-    { id: 5, name: 'Beauty', icon: '💄', count: 4800, image: '/placeholder-category.jpg' },
-    { id: 6, name: 'Automotive', icon: '🚗', count: 6300, image: '/placeholder-category.jpg' },
-    { id: 7, name: 'Industrial', icon: '⚙️', count: 9200, image: '/placeholder-category.jpg' },
-    { id: 8, name: 'Toys', icon: '🧸', count: 3400, image: '/placeholder-category.jpg' },
-    { id: 9, name: 'Books', icon: '📚', count: 5200, image: '/placeholder-category.jpg' },
-    { id: 10, name: 'Health', icon: '⚕️', count: 4100, image: '/placeholder-category.jpg' },
-    { id: 11, name: 'Jewelry', icon: '💍', count: 3800, image: '/placeholder-category.jpg' },
-    { id: 12, name: 'Food & Beverage', icon: '🍎', count: 7600, image: '/placeholder-category.jpg' },
-    { id: 13, name: 'Office Supplies', icon: '📎', count: 3200, image: '/placeholder-category.jpg' },
-    { id: 14, name: 'Pet Care', icon: '🐶', count: 2900, image: '/placeholder-category.jpg' },
-    { id: 15, name: 'Tools', icon: '🔧', count: 6700, image: '/placeholder-category.jpg' },
-    { id: 16, name: 'Baby Products', icon: '👶', count: 4300, image: '/placeholder-category.jpg' },
-    { id: 17, name: 'Furniture', icon: '🪑', count: 5100, image: '/placeholder-category.jpg' },
-    { id: 18, name: 'Lighting', icon: '💡', count: 3700, image: '/placeholder-category.jpg' },
-    { id: 19, name: 'Appliances', icon: 'washer', count: 4500, image: '/placeholder-category.jpg' },
-    { id: 20, name: 'Computers', icon: '💻', count: 8900, image: '/placeholder-category.jpg' },
-    { id: 21, name: 'Phones', icon: '📱', count: 11200, image: '/placeholder-category.jpg' },
-    { id: 22, name: 'Audio', icon: '🎧', count: 3200, image: '/placeholder-category.jpg' },
-    { id: 23, name: 'Cameras', icon: '📷', count: 2800, image: '/placeholder-category.jpg' },
-    { id: 24, name: 'Gaming', icon: '🎮', count: 4300, image: '/placeholder-category.jpg' },
-    { id: 25, name: 'Travel', icon: '🧳', count: 2100, image: '/placeholder-category.jpg' },
-    { id: 26, name: 'Outdoors', icon: '⛺', count: 3500, image: '/placeholder-category.jpg' },
-    { id: 27, name: 'Crafts', icon: '✂️', count: 1900, image: '/placeholder-category.jpg' },
-    { id: 28, name: 'Music', icon: '🎵', count: 2700, image: '/placeholder-category.jpg' },
-    { id: 29, name: 'Movies', icon: '🎬', count: 3100, image: '/placeholder-category.jpg' },
-    { id: 30, name: 'Software', icon: '🖥️', count: 5600, image: '/placeholder-category.jpg' },
-  ];
 
   // Sample featured products
   const featuredProducts = [

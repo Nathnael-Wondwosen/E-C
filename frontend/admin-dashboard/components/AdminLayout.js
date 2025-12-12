@@ -45,7 +45,9 @@ export default function AdminLayout({ children, title = "Admin Dashboard" }) {
         { name: 'All Products', href: '/products' },
         { name: 'Add New', href: '/products/new' },
         { name: 'Categories', href: '/categories' },
-        { name: 'Inventory', href: '/products/inventory' }
+        { name: 'Inventory', href: '/products/inventory' },
+        { name: 'Auto Categorize', href: '/auto-categorize' },
+        { name: 'Variants & Comparison', href: '/product-variants' }
       ]
     },
     { 
