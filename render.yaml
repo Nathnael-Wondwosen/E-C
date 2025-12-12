@@ -1,0 +1,152 @@
+services:
+  # API Gateway
+  - type: web
+    name: ecommerce-api-gateway
+    runtime: docker
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: USER_SERVICE_URL
+        fromService:
+          name: ecommerce-user-service
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: PRODUCT_SERVICE_URL
+        fromService:
+          name: ecommerce-product-service
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: ORDER_SERVICE_URL
+        fromService:
+          name: ecommerce-order-service
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: PAYMENT_SERVICE_URL
+        fromService:
+          name: ecommerce-payment-service
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: SEARCH_SERVICE_URL
+        fromService:
+          name: ecommerce-search-service
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: NOTIFICATION_SERVICE_URL
+        fromService:
+          name: ecommerce-notification-service
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+    healthCheckPath: /health
+    autoDeploy: true
+  # User Service
+  - type: web
+    name: ecommerce-user-service
+    runtime: docker
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+    healthCheckPath: /health
+    autoDeploy: true
+
+  # Product Service
+  - type: web
+    name: ecommerce-product-service
+    runtime: docker
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+    healthCheckPath: /health
+    autoDeploy: true
+
+  # Order Service
+  - type: web
+    name: ecommerce-order-service
+    runtime: docker
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+    healthCheckPath: /health
+    autoDeploy: true
+
+  # Payment Service
+  - type: web
+    name: ecommerce-payment-service
+    runtime: docker
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+    healthCheckPath: /health
+    autoDeploy: true
+
+  # Search Service
+  - type: web
+    name: ecommerce-search-service
+    runtime: docker
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+    healthCheckPath: /health
+    autoDeploy: true
+
+  # Notification Service
+  - type: web
+    name: ecommerce-notification-service
+    runtime: docker
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+    healthCheckPath: /health
+    autoDeploy: true
+
+  # Admin Dashboard
+  - type: web
+    name: ecommerce-admin-dashboard
+    runtime: docker
+    plan: free
+    buildCommand: npm install && npm run build --workspace=frontend/admin-dashboard
+    startCommand: npm run start --workspace=frontend/admin-dashboard
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_BASE_URL
+        fromService:
+          name: ecommerce-api-gateway
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+    autoDeploy: true  # Customer Portal
+  - type: web
+    name: ecommerce-customer-portal
+    runtime: docker
+    plan: free
+    buildCommand: npm install && npm run build --workspace=frontend/customer-portal
+    startCommand: npm run start --workspace=frontend/customer-portal
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_BASE_URL
+        fromService:
+          name: ecommerce-api-gateway
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+    autoDeploy: true

@@ -10,7 +10,7 @@ const nextConfig = {
   output: 'standalone',
   // Environment variables
   env: {
-    API_BASE_URL: process.env.API_BASE_URL,
+    API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || process.env.API_BASE_URL,
     ALGOLIA_APP_ID: process.env.ALGOLIA_APP_ID,
     ALGOLIA_SEARCH_KEY: process.env.ALGOLIA_SEARCH_KEY,
     CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,

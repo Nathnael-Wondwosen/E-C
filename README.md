@@ -14,7 +14,6 @@ This project uses a shared configuration approach with a root `.env` file and sh
 - **Search**: Algolia
 - **CMS**: Strapi (or Contentful)
 - **Deployment**: Vercel (Frontend), Render/Railway (Backend Services)
-
 ## Project Structure
 
 ```
@@ -44,6 +43,25 @@ This project is configured for Vercel deployment:
 2. Backend services should be deployed separately to platforms like Render or Railway
 3. Environment variables should be configured in Vercel dashboard
 
+## Render Deployment (Recommended)
+
+This project includes a `render.yaml` file for easy deployment to Render:
+
+1. Fork this repository to your GitHub account
+2. Sign up at [render.com](https://render.com)
+3. Click "New Web Service"
+4. Connect your GitHub repository
+5. Select the branch you want to deploy
+6. Render will automatically detect the `render.yaml` configuration
+7. Add environment variables in the Render dashboard:
+   - `MONGODB_URI` - Your MongoDB connection string
+   - `CLOUDINARY_CLOUD_NAME` - Your Cloudinary cloud name
+   - `CLOUDINARY_API_KEY` - Your Cloudinary API key
+   - `CLOUDINARY_API_SECRET` - Your Cloudinary API secret
+8. Click "Create Web Service"
+
+All services will be deployed automatically with proper interconnections.
+
 ## Development Setup
 
 1. Install dependencies:
@@ -60,10 +78,19 @@ This project is configured for Vercel deployment:
 
 ## Deployment
 
+### Option 1: Vercel (Frontend only)
 1. Connect repository to Vercel
 2. Configure environment variables in Vercel dashboard
 3. Deploy!
 
+### Option 2: Render (Complete stack - Recommended)
+1. Fork this repository to your GitHub account
+2. Sign up at [render.com](https://render.com)
+3. Import your repository using the `render.yaml` blueprint
+4. Configure environment variables for each service
+5. Deploy all services with one click
+
+For detailed instructions, see [Render Deployment Guide](docs/render-deployment-guide.md).
 ## Microservices Architecture
 
 Each service is independently deployable and scalable.

@@ -94,16 +94,15 @@ app.get('/', (req, res) => {
   res.json({ 
     message: 'API Gateway is running!',
     services: {
-      user: 'http://localhost:3001',
-      product: 'http://localhost:3002',
-      order: 'http://localhost:3003',
-      payment: 'http://localhost:3004',
-      search: 'http://localhost:3005',
-      notification: 'http://localhost:3006'
+      user: process.env.USER_SERVICE_URL || 'http://localhost:3001',
+      product: process.env.PRODUCT_SERVICE_URL || 'http://localhost:3002',
+      order: process.env.ORDER_SERVICE_URL || 'http://localhost:3003',
+      payment: process.env.PAYMENT_SERVICE_URL || 'http://localhost:3004',
+      search: process.env.SEARCH_SERVICE_URL || 'http://localhost:3005',
+      notification: process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3006'
     }
   });
 });
-
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', service: 'API Gateway' });
 });
