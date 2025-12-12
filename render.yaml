@@ -47,6 +47,7 @@ services:
           envVarKey: RENDER_EXTERNAL_URL
     healthCheckPath: /health
     autoDeploy: true
+
   # User Service
   - type: web
     name: ecommerce-user-service
@@ -134,7 +135,9 @@ services:
           name: ecommerce-api-gateway
           type: web
           envVarKey: RENDER_EXTERNAL_URL
-    autoDeploy: true  # Customer Portal
+    autoDeploy: true
+
+  # Customer Portal
   - type: web
     name: ecommerce-customer-portal
     runtime: docker

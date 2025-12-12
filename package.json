@@ -10,7 +10,8 @@
   "scripts": {
     "dev": "concurrently \"npm run dev --workspace=frontend/admin-dashboard\" \"npm run dev --workspace=frontend/customer-portal\"",
     "build": "npm run build --workspaces",
-    "test": "npm run test --workspaces"
+    "test": "npm run test --workspaces",
+    "start": "echo 'This is a multi-service application. Please use render.yaml for deployment.'"
   },
   "devDependencies": {
     "concurrently": "^7.6.0"
