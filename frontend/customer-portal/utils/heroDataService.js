@@ -3,7 +3,7 @@
 
 import { getCloudinaryImageUrl } from './cloudinaryService';
 
-const API_BASE_URL = 'http://localhost:3000'; // API Gateway
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000'; // API Gateway
 
 // Cache for hero slides to improve performance
 let heroSlidesCache = null;
@@ -15,10 +15,25 @@ let globalBackgroundImageCache = null;
 let globalBackgroundImageTimestamp = null;
 const GLOBAL_BACKGROUND_CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
 
+// Cache for services
+let servicesCache = null;
+let servicesCacheTimestamp = null;
+const SERVICES_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Cache for special offers
+let specialOffersCache = null;
+let specialOffersCacheTimestamp = null;
+const SPECIAL_OFFERS_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 // Cache for categories
 let categoriesCache = null;
 let categoriesCacheTimestamp = null;
 const CATEGORIES_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Cache for products
+let productsCache = null;
+let productsCacheTimestamp = null;
+const PRODUCTS_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 // Fetch hero slides from API
 export async function getHeroSlides() {
@@ -54,10 +69,37 @@ export async function getCachedHeroSlides() {
 }
 
 // Convert file ID to image URL using Cloudinary
-export function getAppwriteImageUrl(fileId, width = 1920, height = 1080) {
+export function getCloudinaryImageUrlFromFileId(fileId, width = 1920, height = 1080) {
   return getCloudinaryImageUrl(fileId, width, height);
 }
 
+// Fetch services from API
+export async function getServices() {
+  // Check if we have valid cached data
+  const now = Date.now();
+  if (servicesCache && servicesCacheTimestamp && (now - servicesCacheTimestamp) < SERVICES_CACHE_DURATION) {
+    return servicesCache;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/services`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const services = await response.json();
+    
+    // Update cache
+    servicesCache = services;
+    servicesCacheTimestamp = now;
+    
+    return services;
+  } catch (error) {
+    console.error('Error fetching services:', error);
+    // Return cached data if available, otherwise return empty array
+    return servicesCache || [];
+  }
+}
 // Fetch categories from API
 export async function getCategories() {
   // Check if we have valid cached data
@@ -83,6 +125,62 @@ export async function getCategories() {
     console.error('Error fetching categories:', error);
     // Return cached data if available, otherwise return empty array
     return categoriesCache || [];
+  }
+}
+
+// Fetch products from API
+export async function getProducts() {
+  // Check if we have valid cached data
+  const now = Date.now();
+  if (productsCache && productsCacheTimestamp && (now - productsCacheTimestamp) < PRODUCTS_CACHE_DURATION) {
+    return productsCache;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/products`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const products = await response.json();
+    
+    // Update cache
+    productsCache = products;
+    productsCacheTimestamp = now;
+    
+    return products;
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    // Return cached data if available, otherwise return empty array
+    return productsCache || [];
+  }
+}
+
+// Fetch special offers from API
+export async function getSpecialOffers() {
+  // Check if we have valid cached data
+  const now = Date.now();
+  if (specialOffersCache && specialOffersCacheTimestamp && (now - specialOffersCacheTimestamp) < SPECIAL_OFFERS_CACHE_DURATION) {
+    return specialOffersCache;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/special-offers/active`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const offers = await response.json();
+    
+    // Update cache
+    specialOffersCache = offers;
+    specialOffersCacheTimestamp = now;
+    
+    return offers;
+  } catch (error) {
+    console.error('Error fetching special offers:', error);
+    // Return cached data if available, otherwise return empty array
+    return specialOffersCache || [];
   }
 }
 

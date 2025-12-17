@@ -509,6 +509,164 @@ export const authenticateAdmin = async (username, password) => {
   return { success: false, message: 'Invalid credentials' };
 };
 
+// Special Offers management functions
+export const getSpecialOffers = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/special-offers`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const offers = await response.json();
+    // Convert MongoDB _id to id for frontend compatibility
+    return offers.map(offer => ({
+      ...offer,
+      id: offer._id.toString() // Ensure ID is a string
+    }));
+  } catch (error) {
+    console.error('Error fetching special offers:', error);
+    // Return default offers if API fails
+    return [
+      {
+        id: '1',
+        title: "Flash Sale - 24 Hours Only",
+        subtitle: "Up to 70% off on selected electronics",
+        description: "Limited time offer on our best selling electronics. Don't miss out on these amazing deals!",
+        imageUrl: "/images/flash-sale.jpg",
+        discount: "70%",
+        expiryDate: "2025-12-15",
+        isActive: true
+      },
+      {
+        id: '2',
+        title: "Buy 1 Get 1 Free",
+        subtitle: "On all clothing items this week",
+        description: "Take advantage of our BOGO offer on all clothing items. Perfect opportunity to refresh your wardrobe!",
+        imageUrl: "/images/bogo.jpg",
+        discount: "50%",
+        expiryDate: "2025-12-20",
+        isActive: true
+      },
+      {
+        id: '3',
+        title: "Free Gift with Purchase",
+        subtitle: "Free gift on orders over $150",
+        description: "Spend $150 or more and receive a free premium gift. Limited quantities available while supplies last.",
+        imageUrl: "/images/free-gift.jpg",
+        discount: "Free",
+        expiryDate: "2025-12-25",
+        isActive: false
+      }
+    ];
+  }
+};
+
+export const createSpecialOffer = async (offerData) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/special-offers`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(offerData),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+    }
+    
+    const offer = await response.json();
+    // Convert MongoDB _id to id for frontend compatibility
+    return {
+      ...offer,
+      id: offer._id.toString() // Ensure ID is a string
+    };
+  } catch (error) {
+    console.error('Error creating special offer:', error);
+    throw error;
+  }
+};
+
+export const updateSpecialOffer = async (id, offerData) => {
+  try {
+    // Ensure we're using the correct ID format (string)
+    const offerId = typeof id === 'object' ? id.toString() : id;
+    
+    // Remove immutable fields from offerData to avoid conflicts
+    const { id: _, _id, createdAt, updatedAt, ...dataToUpdate } = offerData;
+    
+    const response = await fetch(`${API_BASE_URL}/api/special-offers/${offerId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(dataToUpdate),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+    }
+    
+    const offer = await response.json();
+    // Convert MongoDB _id to id for frontend compatibility
+    return {
+      ...offer,
+      id: offer._id.toString() // Ensure ID is a string
+    };
+  } catch (error) {
+    console.error('Error updating special offer:', error);
+    throw error;
+  }
+};
+
+export const deleteSpecialOffer = async (id) => {
+  try {
+    // Ensure we're using the correct ID format (string)
+    const offerId = typeof id === 'object' ? id.toString() : id;
+    
+    const response = await fetch(`${API_BASE_URL}/api/special-offers/${offerId}`, {
+      method: 'DELETE',
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error deleting special offer:', error);
+    throw error;
+  }
+};
+
+export const toggleSpecialOfferStatus = async (id) => {
+  try {
+    // Ensure we're using the correct ID format (string)
+    const offerId = typeof id === 'object' ? id.toString() : id;
+    
+    const response = await fetch(`${API_BASE_URL}/api/special-offers/${offerId}/toggle`, {
+      method: 'PATCH',
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+    }
+    
+    const offer = await response.json();
+    // Convert MongoDB _id to id for frontend compatibility
+    return {
+      ...offer,
+      id: offer._id.toString() // Ensure ID is a string
+    };
+  } catch (error) {
+    console.error('Error toggling special offer status:', error);
+    throw error;
+  }
+};
+
 export default {
   getProducts,
   getProductById,
@@ -529,5 +687,10 @@ export default {
   updateHeroSlide,
   deleteHeroSlide,
   toggleHeroSlideStatus,
+  getSpecialOffers,
+  createSpecialOffer,
+  updateSpecialOffer,
+  deleteSpecialOffer,
+  toggleSpecialOfferStatus,
   authenticateAdmin
 };

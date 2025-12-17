@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Head from 'next/head';
@@ -35,7 +35,7 @@ export default function AdminLayout({ children, title = "Admin Dashboard" }) {
   };
 
   // Navigation items for the sidebar
-  const navigationItems = [
+  const navigationItems = useMemo(() => [
     { name: 'Dashboard', href: '/dashboard', icon: '📊' },
     { 
       name: 'Products', 
@@ -44,6 +44,7 @@ export default function AdminLayout({ children, title = "Admin Dashboard" }) {
       submenu: [
         { name: 'All Products', href: '/products' },
         { name: 'Add New', href: '/products/new' },
+        { name: 'B2B Products', href: '/b2b/products' },
         { name: 'Categories', href: '/categories' },
         { name: 'Inventory', href: '/products/inventory' },
         { name: 'Auto Categorize', href: '/auto-categorize' },
@@ -90,19 +91,23 @@ export default function AdminLayout({ children, title = "Admin Dashboard" }) {
         { name: 'Hero Carousel', href: '/sections/hero-carousel' },
         { name: 'Special Offers', href: '/sections/special-offers' },
         { name: 'Category Slider', href: '/sections/category-slider' },
-        { name: 'News & Blog', href: '/sections/news-blog' }
+        { name: 'News & Blog', href: '/sections/news-blog' },
+        { name: 'Full Width Banners', href: '/banners' },
+        { name: 'Partners', href: '/partners' }
       ]
     },
+    { name: 'Navbar Management', href: '/navbar-management', icon: '🔗' },
+    { name: 'Services', href: '/services', icon: '🛠️' },
     { name: 'Analytics', href: '/analytics', icon: '📈' },
     { name: 'Settings', href: '/settings', icon: '⚙️' },
-  ];
+  ], []);
 
-  const [openSubmenus, setOpenSubmenus] = useState({});
+  const [openSubmenus, setOpenSubmenus] = useState(() => ({}));
 
-  const toggleSubmenu = (index) => {
+  const toggleSubmenu = (name) => {
     setOpenSubmenus(prev => ({
       ...prev,
-      [index]: !prev[index]
+      [name]: !prev[name]
     }));
   };
 
@@ -131,12 +136,12 @@ export default function AdminLayout({ children, title = "Admin Dashboard" }) {
               </button>
             </div>
             <nav className="flex-1 px-2 py-4 space-y-1">
-              {navigationItems.map((item, index) => (
+              {navigationItems.map((item) => (
                 <div key={item.name}>
                   {item.submenu ? (
                     <>
                       <button
-                        onClick={() => toggleSubmenu(index)}
+                        onClick={() => toggleSubmenu(item.name)}
                         className="flex items-center justify-between w-full px-4 py-3 text-base font-medium text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
                       >
                         <div className="flex items-center">
@@ -144,7 +149,7 @@ export default function AdminLayout({ children, title = "Admin Dashboard" }) {
                           {item.name}
                         </div>
                         <svg 
-                          className={`h-5 w-5 transform transition-transform ${openSubmenus[index] ? 'rotate-180' : ''}`} 
+                          className={`h-5 w-5 transform transition-transform ${openSubmenus[item.name] ? 'rotate-180' : ''}`} 
                           fill="none" 
                           viewBox="0 0 24 24" 
                           stroke="currentColor"
@@ -152,7 +157,7 @@ export default function AdminLayout({ children, title = "Admin Dashboard" }) {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                         </svg>
                       </button>
-                      {openSubmenus[index] && (
+                      {openSubmenus[item.name] && (
                         <div className="ml-8 mt-1 space-y-1">
                           {item.submenu.map((subItem) => (
                             <Link 
@@ -190,12 +195,12 @@ export default function AdminLayout({ children, title = "Admin Dashboard" }) {
           </div>
           <div className="mt-5 flex-grow flex flex-col">
             <nav className="flex-1 px-2 space-y-1">
-              {navigationItems.map((item, index) => (
+              {navigationItems.map((item) => (
                 <div key={item.name}>
                   {item.submenu ? (
                     <>
                       <button
-                        onClick={() => toggleSubmenu(index)}
+                        onClick={() => toggleSubmenu(item.name)}
                         className="flex items-center justify-between w-full px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
                       >
                         <div className="flex items-center">
@@ -203,7 +208,7 @@ export default function AdminLayout({ children, title = "Admin Dashboard" }) {
                           {item.name}
                         </div>
                         <svg 
-                          className={`h-5 w-5 transform transition-transform ${openSubmenus[index] ? 'rotate-180' : ''}`} 
+                          className={`h-5 w-5 transform transition-transform ${openSubmenus[item.name] ? 'rotate-180' : ''}`} 
                           fill="none" 
                           viewBox="0 0 24 24" 
                           stroke="currentColor"
@@ -211,7 +216,7 @@ export default function AdminLayout({ children, title = "Admin Dashboard" }) {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                         </svg>
                       </button>
-                      {openSubmenus[index] && (
+                      {openSubmenus[item.name] && (
                         <div className="ml-8 mt-1 space-y-1">
                           {item.submenu.map((subItem) => (
                             <Link 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import Link from 'next/link';
 
 export default function PageSectionsManagement() {
   const [sections, setSections] = useState([
@@ -12,7 +13,8 @@ export default function PageSectionsManagement() {
     { id: 6, name: 'Trending Products Text', enabled: true, order: 6 },
     { id: 7, name: 'Random Products', enabled: true, order: 7 },
     { id: 8, name: 'News & Blog', enabled: true, order: 8 },
-    { id: 9, name: 'Footer', enabled: true, order: 9 }
+    { id: 9, name: 'Partners', enabled: true, order: 9 },
+    { id: 10, name: 'Footer', enabled: true, order: 10 }
   ]);
   const [editingSection, setEditingSection] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -160,6 +162,16 @@ export default function PageSectionsManagement() {
                           <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
                         </svg>
                       </button>
+                      {section.name === 'Partners' && (
+                        <Link href="/partners">
+                          <a className="p-2 rounded-full text-blue-500 hover:text-blue-700 hover:bg-blue-100">
+                            <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                              <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                            </svg>
+                          </a>
+                        </Link>
+                      )}
                     </div>
                   </div>
                 </li>
@@ -272,9 +284,19 @@ export default function PageSectionsManagement() {
                           </label>
                           <div className="mt-1 border border-gray-300 rounded-md p-4 bg-gray-50">
                             <p className="text-sm text-gray-500">
-                              This section would contain editable content in a full implementation.
-                              For example, you could edit carousel images, product listings, or text content.
+                              {editingSection.name === 'Partners' 
+                                ? 'Manage partner logos, websites, and display order. Partners will appear in a carousel on the homepage.'
+                                : 'This section would contain editable content in a full implementation. For example, you could edit carousel images, product listings, or text content.'}
                             </p>
+                            {editingSection.name === 'Partners' && (
+                              <div className="mt-3">
+                                <Link href="/partners">
+                                  <a className="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                                    Manage Partners →
+                                  </a>
+                                </Link>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

@@ -23,6 +23,20 @@ const productSchema = Joi.object({
     sku: Joi.string().required(),
     images: Joi.array().items(Joi.string().uri()).optional()
   })).optional(),
+  // B2B-specific fields
+  productType: Joi.string().valid('B2C', 'B2B').default('B2C'),
+  moq: Joi.number().integer().min(1).optional(), // Minimum Order Quantity
+  bulkPricing: Joi.array().items(Joi.object({
+    quantity: Joi.number().integer().min(1).required(),
+    price: Joi.number().positive().required()
+  })).optional(),
+  leadTime: Joi.number().integer().min(0).optional(), // in days
+  shippingOptions: Joi.array().items(Joi.string()).optional(),
+  certifications: Joi.array().items(Joi.string()).optional(),
+  supplierId: Joi.string().optional(),
+  companyId: Joi.string().optional(),
+  businessType: Joi.string().valid('manufacturer', 'distributor', 'wholesaler', 'retailer').optional(),
+  country: Joi.string().optional(),
   createdAt: Joi.date().default(Date.now),
   updatedAt: Joi.date().default(Date.now)
 });

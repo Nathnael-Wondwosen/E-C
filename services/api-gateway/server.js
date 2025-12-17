@@ -864,7 +864,7 @@ app.post('/api/products', async (req, res) => {
       // Handle images array
       images: Array.isArray(req.body.images) ? req.body.images.filter(url => typeof url === 'string') : [],
       // Handle thumbnail
-      thumbnail: typeof req.body.thumbnail === 'string' ? req.body.thumbnail : (Array.isArray(req.body.images) && req.body.images.length > 0 ? req.body.images[0] : ''),
+      thumbnail: typeof req.body.thumbnail === 'string' ? req.body.thumbnail : '',
       // Handle premium features
       isFeatured: Boolean(req.body.isFeatured),
       isHotDeal: Boolean(req.body.isHotDeal),
@@ -934,7 +934,7 @@ app.put('/api/products/:id', async (req, res) => {
       // Handle images array
       images: Array.isArray(req.body.images) ? req.body.images.filter(url => typeof url === 'string') : undefined,
       // Handle thumbnail
-      thumbnail: typeof req.body.thumbnail === 'string' ? req.body.thumbnail : (Array.isArray(req.body.images) && req.body.images.length > 0 ? req.body.images[0] : undefined),
+      thumbnail: typeof req.body.thumbnail === 'string' ? req.body.thumbnail : undefined,
       // Handle premium features
       isFeatured: req.body.isFeatured !== undefined ? Boolean(req.body.isFeatured) : undefined,
       isHotDeal: req.body.isHotDeal !== undefined ? Boolean(req.body.isHotDeal) : undefined,
@@ -1051,6 +1051,1297 @@ app.delete('/api/products/:id', async (req, res) => {
 
 // File upload endpoint for Appwrite (removed)
 // Appwrite upload endpoint removed
+
+// Special Offers Routes
+app.get('/api/special-offers', async (req, res) => {
+  try {
+    console.log('Fetching all special offers');
+    if (!db) {
+      console.log('Database connection not available');
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('special_offers');
+    console.log('Collection accessed, fetching special offers');
+    const offers = await collection.find({}).toArray();
+    console.log('Special offers fetched successfully:', offers.length);
+    res.json(offers);
+  } catch (error) {
+    console.error('Error fetching special offers:', error);
+    res.status(500).json({ error: 'Failed to fetch special offers' });
+  }
+});
+
+app.get('/api/special-offers/active', async (req, res) => {
+  try {
+    console.log('Fetching active special offers');
+    if (!db) {
+      console.log('Database connection not available');
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('special_offers');
+    console.log('Collection accessed, fetching active special offers');
+    const offers = await collection.find({ isActive: true }).toArray();
+    console.log('Active special offers fetched successfully:', offers.length);
+    res.json(offers);
+  } catch (error) {
+    console.error('Error fetching active special offers:', error);
+    res.status(500).json({ error: 'Failed to fetch active special offers' });
+  }
+});
+
+app.post('/api/special-offers', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('special_offers');
+    const offerData = {
+      ...req.body,
+      isActive: req.body.isActive !== undefined ? req.body.isActive : true, // Default to active if not specified
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    const result = await collection.insertOne(offerData);
+    const newOffer = await collection.findOne({ _id: result.insertedId });
+    res.status(201).json(newOffer);
+  } catch (error) {
+    console.error('Error creating special offer:', error);
+    res.status(500).json({ error: 'Failed to create special offer' });
+  }
+});
+
+app.put('/api/special-offers/:id', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('special_offers');
+    const offerId = req.params.id;
+    
+    // Remove immutable fields from the update data
+    const { _id, id, createdAt, ...updateData } = req.body;
+    
+    // Try to find and update by ObjectId first
+    let updateFilter;
+    let offer;
+    try {
+      updateFilter = { _id: new ObjectId(offerId) };
+      offer = await collection.findOne(updateFilter);
+    } catch (objectIdError) {
+      // If ObjectId conversion fails, try to find by string ID
+      console.log('ObjectId conversion failed, trying string ID:', offerId);
+      updateFilter = { _id: offerId };
+      offer = await collection.findOne(updateFilter);
+    }
+    
+    // If still not found, try with id field
+    if (!offer) {
+      updateFilter = { id: offerId };
+      offer = await collection.findOne(updateFilter);
+    }
+    
+    if (!offer) {
+      return res.status(404).json({ error: 'Offer not found' });
+    }
+    
+    const result = await collection.updateOne(
+      updateFilter,
+      { 
+        $set: { 
+          ...updateData,
+          updatedAt: new Date()
+        }
+      }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Offer not found' });
+    }
+    
+    const updatedOffer = await collection.findOne(updateFilter);
+    res.json(updatedOffer);
+  } catch (error) {
+    console.error('Error updating special offer:', error);
+    res.status(500).json({ error: 'Failed to update special offer' });
+  }
+});
+
+app.delete('/api/special-offers/:id', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('special_offers');
+    const offerId = req.params.id;
+    
+    // Try to find and delete by ObjectId first
+    let result;
+    try {
+      result = await collection.deleteOne({ _id: new ObjectId(offerId) });
+    } catch (objectIdError) {
+      // If ObjectId conversion fails, try to find by string ID
+      console.log('ObjectId conversion failed, trying string ID:', offerId);
+      result = await collection.deleteOne({ _id: offerId });
+    }
+    
+    // If still not found, try with id field
+    if (result.deletedCount === 0) {
+      result = await collection.deleteOne({ id: offerId });
+    }
+    
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: 'Offer not found' });
+    }
+    
+    res.json({ message: 'Offer deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting special offer:', error);
+    res.status(500).json({ error: 'Failed to delete special offer' });
+  }
+});
+
+app.patch('/api/special-offers/:id/toggle', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('special_offers');
+    const offerId = req.params.id;
+    
+    // First, get the current offer to check its status
+    let offer;
+    try {
+      offer = await collection.findOne({ _id: new ObjectId(offerId) });
+    } catch (objectIdError) {
+      // If ObjectId conversion fails, try to find by string ID
+      console.log('ObjectId conversion failed, trying string ID:', offerId);
+      offer = await collection.findOne({ _id: offerId });
+    }
+    
+    // If still not found, try with id field
+    if (!offer) {
+      offer = await collection.findOne({ id: offerId });
+    }
+    
+    if (!offer) {
+      return res.status(404).json({ error: 'Offer not found' });
+    }
+    
+    // Toggle the isActive status
+    const newStatus = !offer.isActive;
+    
+    // Update using the same ID format that was found
+    let updateFilter;
+    if (offer._id instanceof ObjectId) {
+      updateFilter = { _id: offer._id };
+    } else if (offer.id) {
+      updateFilter = { id: offer.id };
+    } else {
+      updateFilter = { _id: offer._id };
+    }
+    
+    const result = await collection.updateOne(
+      updateFilter,
+      { 
+        $set: { 
+          isActive: newStatus,
+          updatedAt: new Date()
+        }
+      }
+    );
+    
+    // Find the updated offer using the same ID format
+    const updatedOffer = await collection.findOne(updateFilter);
+    res.json(updatedOffer);
+  } catch (error) {
+    console.error('Error toggling special offer status:', error);
+    res.status(500).json({ error: 'Failed to toggle special offer status' });
+  }
+});
+
+// Banners Routes
+app.get('/api/banners', async (req, res) => {
+  try {
+    console.log('Fetching all banners');
+    if (!db) {
+      console.log('Database connection not available');
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('banners');
+    console.log('Collection accessed, fetching banners');
+    const banners = await collection.find({}).toArray();
+    console.log('Banners fetched successfully:', banners.length);
+    res.json(banners);
+  } catch (error) {
+    console.error('Error fetching banners:', error);
+    res.status(500).json({ error: 'Failed to fetch banners' });
+  }
+});
+
+app.get('/api/banners/active', async (req, res) => {
+  try {
+    console.log('Fetching active banners');
+    if (!db) {
+      console.log('Database connection not available');
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('banners');
+    console.log('Collection accessed, fetching active banners');
+    const banners = await collection.find({ isActive: true }).toArray();
+    console.log('Active banners fetched successfully:', banners.length);
+    res.json(banners);
+  } catch (error) {
+    console.error('Error fetching active banners:', error);
+    res.status(500).json({ error: 'Failed to fetch active banners' });
+  }
+});
+
+app.post('/api/banners', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('banners');
+    const bannerData = {
+      ...req.body,
+      isActive: req.body.isActive !== undefined ? req.body.isActive : true, // Default to active if not specified
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    const result = await collection.insertOne(bannerData);
+    const newBanner = await collection.findOne({ _id: result.insertedId });
+    res.status(201).json(newBanner);
+  } catch (error) {
+    console.error('Error creating banner:', error);
+    res.status(500).json({ error: 'Failed to create banner' });
+  }
+});
+
+app.put('/api/banners/:id', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('banners');
+    const bannerId = req.params.id;
+    
+    // Remove immutable fields from the update data
+    const { _id, id, createdAt, ...updateData } = req.body;
+    
+    // Try to find and update by ObjectId first
+    let updateFilter;
+    let banner;
+    try {
+      updateFilter = { _id: new ObjectId(bannerId) };
+      banner = await collection.findOne(updateFilter);
+    } catch (objectIdError) {
+      // If ObjectId conversion fails, try to find by string ID
+      console.log('ObjectId conversion failed, trying string ID:', bannerId);
+      updateFilter = { _id: bannerId };
+      banner = await collection.findOne(updateFilter);
+    }
+    
+    // If still not found, try with id field
+    if (!banner) {
+      updateFilter = { id: bannerId };
+      banner = await collection.findOne(updateFilter);
+    }
+    
+    if (!banner) {
+      return res.status(404).json({ error: 'Banner not found' });
+    }
+    
+    const result = await collection.updateOne(
+      updateFilter,
+      { 
+        $set: { 
+          ...updateData,
+          updatedAt: new Date()
+        }
+      }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Banner not found' });
+    }
+    
+    const updatedBanner = await collection.findOne(updateFilter);
+    res.json(updatedBanner);
+  } catch (error) {
+    console.error('Error updating banner:', error);
+    res.status(500).json({ error: 'Failed to update banner' });
+  }
+});
+
+app.delete('/api/banners/:id', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('banners');
+    const bannerId = req.params.id;
+    
+    // Try to find and delete by ObjectId first
+    let result;
+    try {
+      result = await collection.deleteOne({ _id: new ObjectId(bannerId) });
+    } catch (objectIdError) {
+      // If ObjectId conversion fails, try to find by string ID
+      console.log('ObjectId conversion failed, trying string ID:', bannerId);
+      result = await collection.deleteOne({ _id: bannerId });
+    }
+    
+    // If still not found, try with id field
+    if (result.deletedCount === 0) {
+      result = await collection.deleteOne({ id: bannerId });
+    }
+    
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: 'Banner not found' });
+    }
+    
+    res.json({ message: 'Banner deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting banner:', error);
+    res.status(500).json({ error: 'Failed to delete banner' });
+  }
+});
+
+app.patch('/api/banners/:id/toggle', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('banners');
+    const bannerId = req.params.id;
+    
+    // First, get the current banner to check its status
+    let banner;
+    try {
+      banner = await collection.findOne({ _id: new ObjectId(bannerId) });
+    } catch (objectIdError) {
+      // If ObjectId conversion fails, try to find by string ID
+      console.log('ObjectId conversion failed, trying string ID:', bannerId);
+      banner = await collection.findOne({ _id: bannerId });
+    }
+    
+    // If still not found, try with id field
+    if (!banner) {
+      banner = await collection.findOne({ id: bannerId });
+    }
+    
+    if (!banner) {
+      return res.status(404).json({ error: 'Banner not found' });
+    }
+    
+    // Toggle the isActive status
+    const newStatus = !banner.isActive;
+    
+    // Update using the same ID format that was found
+    let updateFilter;
+    if (banner._id instanceof ObjectId) {
+      updateFilter = { _id: banner._id };
+    } else if (banner.id) {
+      updateFilter = { id: banner.id };
+    } else {
+      updateFilter = { _id: banner._id };
+    }
+    
+    const result = await collection.updateOne(
+      updateFilter,
+      { 
+        $set: { 
+          isActive: newStatus,
+          updatedAt: new Date()
+        }
+      }
+    );
+    
+    // Find the updated banner using the same ID format
+    const updatedBanner = await collection.findOne(updateFilter);
+    res.json(updatedBanner);
+  } catch (error) {
+    console.error('Error toggling banner status:', error);
+    res.status(500).json({ error: 'Failed to toggle banner status' });
+  }
+});
+
+// News and Blog Posts Routes
+app.get('/api/news-blog-posts', async (req, res) => {
+  try {
+    console.log('Fetching all news and blog posts');
+    if (!db) {
+      console.log('Database connection not available');
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('news_blog_posts');
+    console.log('Collection accessed, fetching news and blog posts');
+    const posts = await collection.find({}).toArray();
+    console.log('News and blog posts fetched successfully:', posts.length);
+    res.json(posts);
+  } catch (error) {
+    console.error('Error fetching news and blog posts:', error);
+    res.status(500).json({ error: 'Failed to fetch news and blog posts' });
+  }
+});
+
+app.get('/api/news-blog-posts/active', async (req, res) => {
+  try {
+    console.log('Fetching active news and blog posts');
+    if (!db) {
+      console.log('Database connection not available');
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('news_blog_posts');
+    console.log('Collection accessed, fetching active news and blog posts');
+    const posts = await collection.find({ isActive: true }).toArray();
+    console.log('Active news and blog posts fetched successfully:', posts.length);
+    res.json(posts);
+  } catch (error) {
+    console.error('Error fetching active news and blog posts:', error);
+    res.status(500).json({ error: 'Failed to fetch active news and blog posts' });
+  }
+});
+
+app.post('/api/news-blog-posts', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('news_blog_posts');
+    const postData = {
+      ...req.body,
+      isActive: req.body.isActive !== undefined ? req.body.isActive : true, // Default to active if not specified
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    const result = await collection.insertOne(postData);
+    const newPost = await collection.findOne({ _id: result.insertedId });
+    res.status(201).json(newPost);
+  } catch (error) {
+    console.error('Error creating news/blog post:', error);
+    res.status(500).json({ error: 'Failed to create news/blog post' });
+  }
+});
+
+app.put('/api/news-blog-posts/:id', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('news_blog_posts');
+    const postId = req.params.id;
+    
+    // Remove immutable fields from the update data
+    const { _id, id, createdAt, ...updateData } = req.body;
+    
+    // Try to find and update by ObjectId first
+    let updateFilter;
+    let post;
+    try {
+      updateFilter = { _id: new ObjectId(postId) };
+      post = await collection.findOne(updateFilter);
+    } catch (objectIdError) {
+      // If ObjectId conversion fails, try to find by string ID
+      console.log('ObjectId conversion failed, trying string ID:', postId);
+      updateFilter = { _id: postId };
+      post = await collection.findOne(updateFilter);
+    }
+    
+    // If still not found, try with id field
+    if (!post) {
+      updateFilter = { id: postId };
+      post = await collection.findOne(updateFilter);
+    }
+    
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    
+    const result = await collection.updateOne(
+      updateFilter,
+      { 
+        $set: { 
+          ...updateData,
+          updatedAt: new Date()
+        }
+      }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    
+    const updatedPost = await collection.findOne(updateFilter);
+    res.json(updatedPost);
+  } catch (error) {
+    console.error('Error updating news/blog post:', error);
+    res.status(500).json({ error: 'Failed to update news/blog post' });
+  }
+});
+
+app.delete('/api/news-blog-posts/:id', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('news_blog_posts');
+    const postId = req.params.id;
+    
+    // Try to find and delete by ObjectId first
+    let result;
+    try {
+      result = await collection.deleteOne({ _id: new ObjectId(postId) });
+    } catch (objectIdError) {
+      // If ObjectId conversion fails, try to find by string ID
+      console.log('ObjectId conversion failed, trying string ID:', postId);
+      result = await collection.deleteOne({ _id: postId });
+    }
+    
+    // If still not found, try with id field
+    if (result.deletedCount === 0) {
+      result = await collection.deleteOne({ id: postId });
+    }
+    
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    
+    res.json({ message: 'Post deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting news/blog post:', error);
+    res.status(500).json({ error: 'Failed to delete news/blog post' });
+  }
+});
+
+app.patch('/api/news-blog-posts/:id/toggle', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('news_blog_posts');
+    const postId = req.params.id;
+    
+    // First, get the current post to check its status
+    let post;
+    try {
+      post = await collection.findOne({ _id: new ObjectId(postId) });
+    } catch (objectIdError) {
+      // If ObjectId conversion fails, try to find by string ID
+      console.log('ObjectId conversion failed, trying string ID:', postId);
+      post = await collection.findOne({ _id: postId });
+    }
+    
+    // If still not found, try with id field
+    if (!post) {
+      post = await collection.findOne({ id: postId });
+    }
+    
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    
+    // Toggle the isActive status
+    const newStatus = !post.isActive;
+    
+    // Update using the same ID format that was found
+    let updateFilter;
+    if (post._id instanceof ObjectId) {
+      updateFilter = { _id: post._id };
+    } else if (post.id) {
+      updateFilter = { id: post.id };
+    } else {
+      updateFilter = { _id: post._id };
+    }
+    
+    const result = await collection.updateOne(
+      updateFilter,
+      { 
+        $set: { 
+          isActive: newStatus,
+          updatedAt: new Date()
+        }
+      }
+    );
+    
+    // Find the updated post using the same ID format
+    const updatedPost = await collection.findOne(updateFilter);
+    res.json(updatedPost);
+  } catch (error) {
+    console.error('Error toggling post status:', error);
+    res.status(500).json({ error: 'Failed to toggle post status' });
+  }
+});
+
+// Navbar Management Routes
+app.get('/api/navbar-links', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('navbar_links');
+    const links = await collection.find({}).sort({ order: 1 }).toArray();
+    res.json(links);
+  } catch (error) {
+    console.error('Error fetching navbar links:', error);
+    res.status(500).json({ error: 'Failed to fetch navbar links' });
+  }
+});
+
+app.post('/api/navbar-links', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('navbar_links');
+    const newLink = {
+      ...req.body,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    const result = await collection.insertOne(newLink);
+    const insertedLink = await collection.findOne({ _id: result.insertedId });
+    res.status(201).json(insertedLink);
+  } catch (error) {
+    console.error('Error creating navbar link:', error);
+    res.status(500).json({ error: 'Failed to create navbar link' });
+  }
+});
+
+app.put('/api/navbar-links/:id', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('navbar_links');
+    const linkId = req.params.id;
+    
+    // First, try to find the link to understand what type of ID we're dealing with
+    let link;
+    let updateFilter;
+    
+    // Try to parse linkId as a number first (our custom ID field)
+    const numericLinkId = parseInt(linkId);
+    if (!isNaN(numericLinkId)) {
+      // Try to find by our custom id field first
+      link = await collection.findOne({ id: numericLinkId });
+      if (link) {
+        updateFilter = { id: numericLinkId };
+      }
+    }
+    
+    // If not found by custom id, try ObjectId
+    if (!link) {
+      try {
+        link = await collection.findOne({ _id: new ObjectId(linkId) });
+        if (link) {
+          updateFilter = { _id: new ObjectId(linkId) };
+        }
+      } catch (objectIdError) {
+        // If ObjectId conversion fails, try as string _id
+        link = await collection.findOne({ _id: linkId });
+        if (link) {
+          updateFilter = { _id: linkId };
+        }
+      }
+    }
+    
+    // If still not found, return 404
+    if (!link || !updateFilter) {
+      return res.status(404).json({ error: 'Link not found' });
+    }
+    
+    // Remove immutable fields from the update data
+    const { _id, ...updateData } = req.body;
+    
+    // Perform the update
+    const result = await collection.updateOne(
+      updateFilter,
+      { 
+        $set: { 
+          ...updateData,
+          updatedAt: new Date() 
+        }
+      }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Link not found' });
+    }
+    
+    // Find and return the updated link
+    const updatedLink = await collection.findOne(updateFilter);
+    res.json(updatedLink);
+  } catch (error) {
+    console.error('Error updating navbar link:', error);
+    res.status(500).json({ error: 'Failed to update navbar link' });
+  }
+});
+
+app.delete('/api/navbar-links/:id', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('navbar_links');
+    const linkId = req.params.id;
+    
+    // Try to find and delete by ObjectId first
+    let result;
+    try {
+      result = await collection.deleteOne({ _id: new ObjectId(linkId) });
+    } catch (objectIdError) {
+      // If ObjectId conversion fails, try to find by string ID
+      console.log('ObjectId conversion failed, trying string ID:', linkId);
+      result = await collection.deleteOne({ _id: linkId });
+    }
+    
+    // If still not found, try with id field
+    if (result.deletedCount === 0) {
+      result = await collection.deleteOne({ id: linkId });
+    }
+    
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: 'Link not found' });
+    }
+    
+    res.json({ message: 'Link deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting navbar link:', error);
+    res.status(500).json({ error: 'Failed to delete navbar link' });
+  }
+});
+
+app.patch('/api/navbar-links/:id/toggle', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('navbar_links');
+    const linkId = req.params.id;
+    
+    // First, get the current link to check its status
+    let link;
+    try {
+      link = await collection.findOne({ _id: new ObjectId(linkId) });
+    } catch (objectIdError) {
+      // If ObjectId conversion fails, try to find by string ID
+      console.log('ObjectId conversion failed, trying string ID:', linkId);
+      link = await collection.findOne({ _id: linkId });
+    }
+    
+    // If still not found, try with id field
+    if (!link) {
+      link = await collection.findOne({ id: linkId });
+    }
+    
+    if (!link) {
+      return res.status(404).json({ error: 'Link not found' });
+    }
+    
+    // Toggle the enabled status
+    const newStatus = !link.enabled;
+    
+    // Update using the same ID format that was found
+    let updateFilter;
+    if (link._id instanceof ObjectId) {
+      updateFilter = { _id: link._id };
+    } else if (link.id) {
+      updateFilter = { id: link.id };
+    } else {
+      updateFilter = { _id: link._id };
+    }
+    
+    const result = await collection.updateOne(
+      updateFilter,
+      { 
+        $set: { 
+          enabled: newStatus,
+          updatedAt: new Date()
+        }
+      }
+    );
+    
+    // Find the updated link using the same ID format
+    const updatedLink = await collection.findOne(updateFilter);
+    res.json(updatedLink);
+  } catch (error) {
+    console.error('Error toggling link status:', error);
+    res.status(500).json({ error: 'Failed to toggle link status' });
+  }
+});
+
+// Services Routes
+app.get('/api/services', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('services');
+    const services = await collection.find({ isActive: true }).sort({ order: 1 }).toArray();
+    res.json(services);
+  } catch (error) {
+    console.error('Error fetching services:', error);
+    res.status(500).json({ error: 'Failed to fetch services' });
+  }
+});
+
+app.get('/api/services/all', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('services');
+    const services = await collection.find({}).sort({ order: 1 }).toArray();
+    res.json(services);
+  } catch (error) {
+    console.error('Error fetching all services:', error);
+    res.status(500).json({ error: 'Failed to fetch services' });
+  }
+});
+
+app.post('/api/services', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('services');
+    const newService = {
+      ...req.body,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isActive: true
+    };
+    
+    const result = await collection.insertOne(newService);
+    const insertedService = await collection.findOne({ _id: result.insertedId });
+    res.status(201).json(insertedService);
+  } catch (error) {
+    console.error('Error creating service:', error);
+    res.status(500).json({ error: 'Failed to create service' });
+  }
+});
+
+app.put('/api/services/:id', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('services');
+    const serviceId = req.params.id;
+    
+    // First, try to find the service to understand what type of ID we're dealing with
+    let service;
+    let updateFilter;
+    
+    // Try to parse serviceId as a number first (our custom ID field)
+    const numericServiceId = parseInt(serviceId);
+    if (!isNaN(numericServiceId)) {
+      // Try to find by our custom id field first
+      service = await collection.findOne({ id: numericServiceId });
+      if (service) {
+        updateFilter = { id: numericServiceId };
+      }
+    }
+    
+    // If not found by custom id, try ObjectId
+    if (!service) {
+      try {
+        service = await collection.findOne({ _id: new ObjectId(serviceId) });
+        if (service) {
+          updateFilter = { _id: new ObjectId(serviceId) };
+        }
+      } catch (objectIdError) {
+        // If ObjectId conversion fails, try as string _id
+        service = await collection.findOne({ _id: serviceId });
+        if (service) {
+          updateFilter = { _id: serviceId };
+        }
+      }
+    }
+    
+    // If still not found, return 404
+    if (!service || !updateFilter) {
+      return res.status(404).json({ error: 'Service not found' });
+    }
+    
+    // Remove immutable fields from the update data
+    const { _id, ...updateData } = req.body;
+    
+    // Perform the update
+    const result = await collection.updateOne(
+      updateFilter,
+      { 
+        $set: { 
+          ...updateData,
+          updatedAt: new Date() 
+        }
+      }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Service not found' });
+    }
+    
+    // Find and return the updated service
+    const updatedService = await collection.findOne(updateFilter);
+    res.json(updatedService);
+  } catch (error) {
+    console.error('Error updating service:', error);
+    res.status(500).json({ error: 'Failed to update service' });
+  }
+});
+
+app.delete('/api/services/:id', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('services');
+    const serviceId = req.params.id;
+    
+    // Try to find and delete by ObjectId first
+    let result;
+    try {
+      result = await collection.deleteOne({ _id: new ObjectId(serviceId) });
+    } catch (objectIdError) {
+      // If ObjectId conversion fails, try to find by string ID
+      console.log('ObjectId conversion failed, trying string ID:', serviceId);
+      result = await collection.deleteOne({ _id: serviceId });
+    }
+    
+    // If still not found, try with id field
+    if (result.deletedCount === 0) {
+      result = await collection.deleteOne({ id: serviceId });
+    }
+    
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: 'Service not found' });
+    }
+    
+    res.json({ message: 'Service deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting service:', error);
+    res.status(500).json({ error: 'Failed to delete service' });
+  }
+});
+
+app.patch('/api/services/:id/toggle', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('services');
+    const serviceId = req.params.id;
+    
+    // First, get the current service to check its status
+    let service;
+    try {
+      service = await collection.findOne({ _id: new ObjectId(serviceId) });
+    } catch (objectIdError) {
+      // If ObjectId conversion fails, try to find by string ID
+      console.log('ObjectId conversion failed, trying string ID:', serviceId);
+      service = await collection.findOne({ _id: serviceId });
+    }
+    
+    // If still not found, try with id field
+    if (!service) {
+      service = await collection.findOne({ id: serviceId });
+    }
+    
+    if (!service) {
+      return res.status(404).json({ error: 'Service not found' });
+    }
+    
+    // Toggle the isActive status
+    const newStatus = !service.isActive;
+    
+    // Update using the same ID format that was found
+    let updateFilter;
+    if (service._id instanceof ObjectId) {
+      updateFilter = { _id: service._id };
+    } else if (service.id) {
+      updateFilter = { id: service.id };
+    } else {
+      updateFilter = { _id: service._id };
+    }
+    
+    const result = await collection.updateOne(
+      updateFilter,
+      { 
+        $set: { 
+          isActive: newStatus,
+          updatedAt: new Date()
+        }
+      }
+    );
+    
+    // Find the updated service using the same ID format
+    const updatedService = await collection.findOne(updateFilter);
+    res.json(updatedService);
+  } catch (error) {
+    console.error('Error toggling service status:', error);
+    res.status(500).json({ error: 'Failed to toggle service status' });
+  }
+});
+
+// Partners API Routes
+// GET all partners
+app.get('/api/partners', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('partners');
+    const partners = await collection.find({}).sort({ order: 1 }).toArray();
+    res.json(partners);
+  } catch (error) {
+    console.error('Error fetching partners:', error);
+    res.status(500).json({ error: 'Failed to fetch partners' });
+  }
+});
+
+// GET active partners
+app.get('/api/partners/active', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('partners');
+    const partners = await collection.find({ isActive: true }).sort({ order: 1 }).toArray();
+    res.json(partners);
+  } catch (error) {
+    console.error('Error fetching active partners:', error);
+    res.status(500).json({ error: 'Failed to fetch active partners' });
+  }
+});
+
+// POST create a new partner
+app.post('/api/partners', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('partners');
+    const newPartner = {
+      ...req.body,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    const result = await collection.insertOne(newPartner);
+    const insertedPartner = await collection.findOne({ _id: result.insertedId });
+    res.status(201).json(insertedPartner);
+  } catch (error) {
+    console.error('Error creating partner:', error);
+    res.status(500).json({ error: 'Failed to create partner' });
+  }
+});
+
+// PUT update a partner
+app.put('/api/partners/:id', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('partners');
+    const partnerId = req.params.id;
+    
+    // First, try to find the partner to understand what type of ID we're dealing with
+    let partner;
+    let updateFilter;
+    
+    // Try to parse partnerId as a number first (our custom ID field)
+    const numericPartnerId = parseInt(partnerId);
+    if (!isNaN(numericPartnerId)) {
+      // Try to find by our custom id field first
+      partner = await collection.findOne({ id: numericPartnerId });
+      if (partner) {
+        updateFilter = { id: numericPartnerId };
+      }
+    }
+    
+    // If not found by custom id, try ObjectId
+    if (!partner) {
+      try {
+        partner = await collection.findOne({ _id: new ObjectId(partnerId) });
+        if (partner) {
+          updateFilter = { _id: new ObjectId(partnerId) };
+        }
+      } catch (objectIdError) {
+        // If ObjectId conversion fails, try as string _id
+        partner = await collection.findOne({ _id: partnerId });
+        if (partner) {
+          updateFilter = { _id: partnerId };
+        }
+      }
+    }
+    
+    // If still not found, return 404
+    if (!partner || !updateFilter) {
+      return res.status(404).json({ error: 'Partner not found' });
+    }
+    
+    // Remove immutable fields from the update data
+    const { _id, ...updateData } = req.body;
+    
+    // Perform the update
+    const result = await collection.updateOne(
+      updateFilter,
+      { 
+        $set: { 
+          ...updateData,
+          updatedAt: new Date() 
+        }
+      }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Partner not found' });
+    }
+    
+    // Find and return the updated partner
+    const updatedPartner = await collection.findOne(updateFilter);
+    res.json(updatedPartner);
+  } catch (error) {
+    console.error('Error updating partner:', error);
+    res.status(500).json({ error: 'Failed to update partner' });
+  }
+});
+
+// DELETE a partner
+app.delete('/api/partners/:id', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('partners');
+    const partnerId = req.params.id;
+    
+    // Try to find and delete by ObjectId first
+    let result;
+    try {
+      result = await collection.deleteOne({ _id: new ObjectId(partnerId) });
+    } catch (objectIdError) {
+      // If ObjectId conversion fails, try to find by string ID
+      console.log('ObjectId conversion failed, trying string ID:', partnerId);
+      result = await collection.deleteOne({ _id: partnerId });
+    }
+    
+    // If still not found, try with id field
+    if (result.deletedCount === 0) {
+      result = await collection.deleteOne({ id: partnerId });
+    }
+    
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: 'Partner not found' });
+    }
+    
+    res.json({ message: 'Partner deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting partner:', error);
+    res.status(500).json({ error: 'Failed to delete partner' });
+  }
+});
+
+// PATCH toggle partner status
+app.patch('/api/partners/:id/toggle', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const collection = db.collection('partners');
+    const partnerId = req.params.id;
+    
+    // First, get the current partner to check its status
+    let partner;
+    try {
+      partner = await collection.findOne({ _id: new ObjectId(partnerId) });
+    } catch (objectIdError) {
+      // If ObjectId conversion fails, try to find by string ID
+      console.log('ObjectId conversion failed, trying string ID:', partnerId);
+      partner = await collection.findOne({ _id: partnerId });
+    }
+    
+    // If still not found, try with id field
+    if (!partner) {
+      partner = await collection.findOne({ id: partnerId });
+    }
+    
+    if (!partner) {
+      return res.status(404).json({ error: 'Partner not found' });
+    }
+    
+    // Toggle the isActive status
+    const newStatus = !partner.isActive;
+    
+    // Update using the same ID format that was found
+    let updateFilter;
+    if (partner._id instanceof ObjectId) {
+      updateFilter = { _id: partner._id };
+    } else if (partner.id) {
+      updateFilter = { id: partner.id };
+    } else {
+      updateFilter = { _id: partner._id };
+    }
+    
+    const result = await collection.updateOne(
+      updateFilter,
+      { 
+        $set: { 
+          isActive: newStatus,
+          updatedAt: new Date()
+        }
+      }
+    );
+    
+    // Find the updated partner using the same ID format
+    const updatedPartner = await collection.findOne(updateFilter);
+    res.json(updatedPartner);
+  } catch (error) {
+    console.error('Error toggling partner status:', error);
+    res.status(500).json({ error: 'Failed to toggle partner status' });
+  }
+});
 
 // Start Server
 app.listen(PORT, () => {

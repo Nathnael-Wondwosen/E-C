@@ -40,7 +40,18 @@ export default function ProductsManagement() {
     isPremium: false,
     discountPercentage: '',
     tags: [],
-    specifications: {}
+    specifications: {},
+    // B2B-specific fields
+    productType: 'B2C',
+    moq: '',
+    bulkPricing: [],
+    leadTime: '',
+    shippingOptions: [],
+    certifications: [],
+    supplierId: '',
+    companyId: '',
+    businessType: '',
+    country: ''
   });
   const [importError, setImportError] = useState('');
   const [suggestions, setSuggestions] = useState([]);
@@ -864,12 +875,53 @@ export default function ProductsManagement() {
                         onImagesChange={(images) => {
                           const imageUrls = images.map(img => img.url);
                           editingProduct 
-                            ? setEditingProduct({...editingProduct, images: imageUrls, thumbnail: imageUrls[0] || ''})
-                            : setNewProduct({...newProduct, images: imageUrls, thumbnail: imageUrls[0] || ''});
+                            ? setEditingProduct({
+                                ...editingProduct, 
+                                images: imageUrls,
+                                // Only set thumbnail to first image if no thumbnail is already set
+                                thumbnail: editingProduct.thumbnail || imageUrls[0] || ''
+                              })
+                            : setNewProduct({
+                                ...newProduct, 
+                                images: imageUrls,
+                                // For new products, set thumbnail to first image
+                                thumbnail: imageUrls[0] || ''
+                              });
                         }}
                         initialImages={editingProduct ? editingProduct.images?.map(url => ({url})) : newProduct.images?.map(url => ({url})) || []}
                         maxImages={10}
                       />
+                      
+                      {/* Thumbnail Selection */}
+                      {editingProduct && editingProduct.images && editingProduct.images.length > 1 && (
+                        <div className="mt-4">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Select Thumbnail
+                          </label>
+                          <div className="flex flex-wrap gap-2">
+                            {editingProduct.images.map((imageUrl, index) => (
+                              <div 
+                                key={index} 
+                                className={`relative cursor-pointer border-2 rounded ${editingProduct.thumbnail === imageUrl ? 'border-blue-500' : 'border-gray-300'}`}
+                                onClick={() => setEditingProduct({...editingProduct, thumbnail: imageUrl})}
+                              >
+                                <img 
+                                  src={imageUrl} 
+                                  alt={`Thumbnail ${index + 1}`} 
+                                  className="w-16 h-16 object-cover"
+                                />
+                                {editingProduct.thumbnail === imageUrl && (
+                                  <div className="absolute inset-0 bg-blue-500 bg-opacity-50 flex items-center justify-center">
+                                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                   
