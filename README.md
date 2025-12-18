@@ -13,7 +13,8 @@ This project uses a shared configuration approach with a root `.env` file and sh
 - **Database**: MongoDB
 - **Search**: Algolia
 - **CMS**: Strapi (or Contentful)
-- **Deployment**: Vercel (Frontend), Render/Railway (Backend Services)
+- **Deployment**: Vercel (Frontend), Render/Railway (Backend Services), AWS (Complete Stack)
+
 ## Project Structure
 
 ```
@@ -62,6 +63,19 @@ This project includes a `render.yaml` file for easy deployment to Render:
 
 All services will be deployed automatically with proper interconnections.
 
+## AWS Deployment (Enterprise Ready)
+
+This project includes comprehensive AWS deployment configurations for enterprise-grade hosting:
+
+1. Docker containerization for all services
+2. ECS task definitions for Fargate deployment
+3. IAM role configurations
+4. Environment variable templates
+5. Automated deployment scripts (Bash & PowerShell)
+6. Health check configurations
+
+See [AWS Deployment Guide](AWS_DEPLOYMENT.md) for detailed instructions.
+
 ## Development Setup
 
 1. Install dependencies:
@@ -90,7 +104,15 @@ All services will be deployed automatically with proper interconnections.
 4. Configure environment variables for each service
 5. Deploy all services with one click
 
-For detailed instructions, see [Render Deployment Guide](docs/render-deployment-guide.md).
+### Option 3: AWS (Enterprise Scale)
+1. Review [AWS Deployment Guide](AWS_DEPLOYMENT.md)
+2. Set up AWS account and CLI
+3. Configure IAM roles using `aws-iam-roles.json`
+4. Update environment variables in `.env.aws.template`
+5. Run deployment script `deploy-aws.sh` or `deploy-aws.ps1`
+
+For detailed instructions, see [Render Deployment Guide](docs/render-deployment-guide.md) or [AWS Deployment Guide](AWS_DEPLOYMENT.md).
+
 ## Microservices Architecture
 
 Each service is independently deployable and scalable.

@@ -1,0 +1,419 @@
+{
+  "taskDefinition": {
+    "family": "b2b-ecommerce-platform",
+    "networkMode": "awsvpc",
+    "requiresCompatibilities": ["FARGATE"],
+    "cpu": "1024",
+    "memory": "2048",
+    "executionRoleArn": "arn:aws:iam::<YOUR_AWS_ACCOUNT_ID>:role/ecsTaskExecutionRole",
+    "taskRoleArn": "arn:aws:iam::<YOUR_AWS_ACCOUNT_ID>:role/ecsTaskRole",
+    "containerDefinitions": [
+      {
+        "name": "mongodb",
+        "image": "mongo:5.0",
+        "portMappings": [
+          {
+            "containerPort": 27017,
+            "protocol": "tcp"
+          }
+        ],
+        "environment": [
+          {
+            "name": "MONGO_INITDB_ROOT_USERNAME",
+            "value": "admin"
+          },
+          {
+            "name": "MONGO_INITDB_ROOT_PASSWORD",
+            "value": "password"
+          }
+        ],
+        "mountPoints": [
+          {
+            "sourceVolume": "mongodb_data",
+            "containerPath": "/data/db"
+          }
+        ],
+        "logConfiguration": {
+          "logDriver": "awslogs",
+          "options": {
+            "awslogs-group": "/ecs/b2b-ecommerce/mongodb",
+            "awslogs-region": "us-east-1",
+            "awslogs-stream-prefix": "ecs"
+          }
+        },
+        "healthCheck": {
+          "command": ["CMD-SHELL", "echo 'db.runCommand(\"ping\").ok' | mongosh localhost:27017/test --quiet"],
+          "interval": 30,
+          "timeout": 10,
+          "retries": 3,
+          "startPeriod": 60
+        }
+      },
+      {
+        "name": "api-gateway",
+        "image": "<YOUR_AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/b2b-api-gateway:latest",
+        "portMappings": [
+          {
+            "containerPort": 3000,
+            "protocol": "tcp"
+          }
+        ],
+        "environment": [
+          {
+            "name": "NODE_ENV",
+            "value": "production"
+          },
+          {
+            "name": "PORT",
+            "value": "3000"
+          }
+        ],
+        "dependsOn": [
+          {
+            "containerName": "user-service",
+            "condition": "START"
+          },
+          {
+            "containerName": "product-service",
+            "condition": "START"
+          }
+        ],
+        "logConfiguration": {
+          "logDriver": "awslogs",
+          "options": {
+            "awslogs-group": "/ecs/b2b-ecommerce/api-gateway",
+            "awslogs-region": "us-east-1",
+            "awslogs-stream-prefix": "ecs"
+          }
+        },
+        "healthCheck": {
+          "command": ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"],
+          "interval": 30,
+          "timeout": 10,
+          "retries": 3,
+          "startPeriod": 60
+        }
+      },
+      {
+        "name": "user-service",
+        "image": "<YOUR_AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/b2b-user-service:latest",
+        "portMappings": [
+          {
+            "containerPort": 3001,
+            "protocol": "tcp"
+          }
+        ],
+        "environment": [
+          {
+            "name": "NODE_ENV",
+            "value": "production"
+          },
+          {
+            "name": "PORT",
+            "value": "3001"
+          },
+          {
+            "name": "MONGODB_URI",
+            "value": "mongodb://admin:password@mongodb:27017/user-service?authSource=admin"
+          }
+        ],
+        "dependsOn": [
+          {
+            "containerName": "mongodb",
+            "condition": "START"
+          }
+        ],
+        "logConfiguration": {
+          "logDriver": "awslogs",
+          "options": {
+            "awslogs-group": "/ecs/b2b-ecommerce/user-service",
+            "awslogs-region": "us-east-1",
+            "awslogs-stream-prefix": "ecs"
+          }
+        },
+        "healthCheck": {
+          "command": ["CMD-SHELL", "curl -f http://localhost:3001/health || exit 1"],
+          "interval": 30,
+          "timeout": 10,
+          "retries": 3,
+          "startPeriod": 60
+        }
+      },
+      {
+        "name": "product-service",
+        "image": "<YOUR_AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/b2b-product-service:latest",
+        "portMappings": [
+          {
+            "containerPort": 3002,
+            "protocol": "tcp"
+          }
+        ],
+        "environment": [
+          {
+            "name": "NODE_ENV",
+            "value": "production"
+          },
+          {
+            "name": "PORT",
+            "value": "3002"
+          },
+          {
+            "name": "MONGODB_URI",
+            "value": "mongodb://admin:password@mongodb:27017/product-service?authSource=admin"
+          }
+        ],
+        "dependsOn": [
+          {
+            "containerName": "mongodb",
+            "condition": "START"
+          }
+        ],
+        "logConfiguration": {
+          "logDriver": "awslogs",
+          "options": {
+            "awslogs-group": "/ecs/b2b-ecommerce/product-service",
+            "awslogs-region": "us-east-1",
+            "awslogs-stream-prefix": "ecs"
+          }
+        },
+        "healthCheck": {
+          "command": ["CMD-SHELL", "curl -f http://localhost:3002/health || exit 1"],
+          "interval": 30,
+          "timeout": 10,
+          "retries": 3,
+          "startPeriod": 60
+        }
+      },
+      {
+        "name": "order-service",
+        "image": "<YOUR_AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/b2b-order-service:latest",
+        "portMappings": [
+          {
+            "containerPort": 3003,
+            "protocol": "tcp"
+          }
+        ],
+        "environment": [
+          {
+            "name": "NODE_ENV",
+            "value": "production"
+          },
+          {
+            "name": "PORT",
+            "value": "3003"
+          },
+          {
+            "name": "MONGODB_URI",
+            "value": "mongodb://admin:password@mongodb:27017/order-service?authSource=admin"
+          }
+        ],
+        "dependsOn": [
+          {
+            "containerName": "mongodb",
+            "condition": "START"
+          }
+        ],
+        "logConfiguration": {
+          "logDriver": "awslogs",
+          "options": {
+            "awslogs-group": "/ecs/b2b-ecommerce/order-service",
+            "awslogs-region": "us-east-1",
+            "awslogs-stream-prefix": "ecs"
+          }
+        },
+        "healthCheck": {
+          "command": ["CMD-SHELL", "curl -f http://localhost:3003/health || exit 1"],
+          "interval": 30,
+          "timeout": 10,
+          "retries": 3,
+          "startPeriod": 60
+        }
+      },
+      {
+        "name": "payment-service",
+        "image": "<YOUR_AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/b2b-payment-service:latest",
+        "portMappings": [
+          {
+            "containerPort": 3004,
+            "protocol": "tcp"
+          }
+        ],
+        "environment": [
+          {
+            "name": "NODE_ENV",
+            "value": "production"
+          },
+          {
+            "name": "PORT",
+            "value": "3004"
+          }
+        ],
+        "logConfiguration": {
+          "logDriver": "awslogs",
+          "options": {
+            "awslogs-group": "/ecs/b2b-ecommerce/payment-service",
+            "awslogs-region": "us-east-1",
+            "awslogs-stream-prefix": "ecs"
+          }
+        },
+        "healthCheck": {
+          "command": ["CMD-SHELL", "curl -f http://localhost:3004/health || exit 1"],
+          "interval": 30,
+          "timeout": 10,
+          "retries": 3,
+          "startPeriod": 60
+        }
+      },
+      {
+        "name": "search-service",
+        "image": "<YOUR_AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/b2b-search-service:latest",
+        "portMappings": [
+          {
+            "containerPort": 3005,
+            "protocol": "tcp"
+          }
+        ],
+        "environment": [
+          {
+            "name": "NODE_ENV",
+            "value": "production"
+          },
+          {
+            "name": "PORT",
+            "value": "3005"
+          }
+        ],
+        "logConfiguration": {
+          "logDriver": "awslogs",
+          "options": {
+            "awslogs-group": "/ecs/b2b-ecommerce/search-service",
+            "awslogs-region": "us-east-1",
+            "awslogs-stream-prefix": "ecs"
+          }
+        },
+        "healthCheck": {
+          "command": ["CMD-SHELL", "curl -f http://localhost:3005/health || exit 1"],
+          "interval": 30,
+          "timeout": 10,
+          "retries": 3,
+          "startPeriod": 60
+        }
+      },
+      {
+        "name": "notification-service",
+        "image": "<YOUR_AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/b2b-notification-service:latest",
+        "portMappings": [
+          {
+            "containerPort": 3006,
+            "protocol": "tcp"
+          }
+        ],
+        "environment": [
+          {
+            "name": "NODE_ENV",
+            "value": "production"
+          },
+          {
+            "name": "PORT",
+            "value": "3006"
+          }
+        ],
+        "logConfiguration": {
+          "logDriver": "awslogs",
+          "options": {
+            "awslogs-group": "/ecs/b2b-ecommerce/notification-service",
+            "awslogs-region": "us-east-1",
+            "awslogs-stream-prefix": "ecs"
+          }
+        },
+        "healthCheck": {
+          "command": ["CMD-SHELL", "curl -f http://localhost:3006/health || exit 1"],
+          "interval": 30,
+          "timeout": 10,
+          "retries": 3,
+          "startPeriod": 60
+        }
+      },
+      {
+        "name": "admin-dashboard",
+        "image": "<YOUR_AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/b2b-admin-dashboard:latest",
+        "portMappings": [
+          {
+            "containerPort": 3000,
+            "protocol": "tcp"
+          }
+        ],
+        "environment": [
+          {
+            "name": "NODE_ENV",
+            "value": "production"
+          },
+          {
+            "name": "PORT",
+            "value": "3000"
+          }
+        ],
+        "logConfiguration": {
+          "logDriver": "awslogs",
+          "options": {
+            "awslogs-group": "/ecs/b2b-ecommerce/admin-dashboard",
+            "awslogs-region": "us-east-1",
+            "awslogs-stream-prefix": "ecs"
+          }
+        },
+        "healthCheck": {
+          "command": ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"],
+          "interval": 30,
+          "timeout": 10,
+          "retries": 3,
+          "startPeriod": 60
+        }
+      },
+      {
+        "name": "customer-portal",
+        "image": "<YOUR_AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/b2b-customer-portal:latest",
+        "portMappings": [
+          {
+            "containerPort": 3005,
+            "protocol": "tcp"
+          }
+        ],
+        "environment": [
+          {
+            "name": "NODE_ENV",
+            "value": "production"
+          },
+          {
+            "name": "PORT",
+            "value": "3005"
+          }
+        ],
+        "logConfiguration": {
+          "logDriver": "awslogs",
+          "options": {
+            "awslogs-group": "/ecs/b2b-ecommerce/customer-portal",
+            "awslogs-region": "us-east-1",
+            "awslogs-stream-prefix": "ecs"
+          }
+        },
+        "healthCheck": {
+          "command": ["CMD-SHELL", "curl -f http://localhost:3005/health || exit 1"],
+          "interval": 30,
+          "timeout": 10,
+          "retries": 3,
+          "startPeriod": 60
+        }
+      }
+    ],
+    "volumes": [
+      {
+        "name": "mongodb_data",
+        "dockerVolumeConfiguration": {
+          "scope": "shared",
+          "autoprovision": true,
+          "driver": "local"
+        }
+      }
+    ]
+  }
+}
