@@ -77,55 +77,8 @@ services:
     healthCheckPath: /health
     autoDeploy: true
 
-  # Order Service
-  - type: web
-    name: ecommerce-order-service
-    runtime: docker
-    plan: free
-    rootDir: services/order-service
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: MONGODB_URI
-        sync: false
-    healthCheckPath: /health
-    autoDeploy: true
 
-  # Payment Service
-  - type: web
-    name: ecommerce-payment-service
-    runtime: docker
-    plan: free
-    rootDir: services/payment-service
-    envVars:
-      - key: NODE_ENV
-        value: production
-    healthCheckPath: /health
-    autoDeploy: true
 
-  # Search Service
-  - type: web
-    name: ecommerce-search-service
-    runtime: docker
-    plan: free
-    rootDir: services/search-service
-    envVars:
-      - key: NODE_ENV
-        value: production
-    healthCheckPath: /health
-    autoDeploy: true
-
-  # Notification Service
-  - type: web
-    name: ecommerce-notification-service
-    runtime: docker
-    plan: free
-    rootDir: services/notification-service
-    envVars:
-      - key: NODE_ENV
-        value: production
-    healthCheckPath: /health
-    autoDeploy: true
 
   # Admin Dashboard
   - type: web

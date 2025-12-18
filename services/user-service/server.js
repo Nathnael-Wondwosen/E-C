@@ -3,13 +3,15 @@ const mongoose = require('mongoose');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.USER_SERVICE_PORT || process.env.PORT || 3007;
 
 // Middleware
 app.use(express.json());
 
 // MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/user-service', {
+// Use MongoDB Atlas connection string from environment variables
+const mongoUri = process.env.MONGODB_URI || 'mongodb+srv://admin:admin123@cluster0.rcuwrqi.mongodb.net/user-service?retryWrites=true&w=majority';
+mongoose.connect(mongoUri, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });

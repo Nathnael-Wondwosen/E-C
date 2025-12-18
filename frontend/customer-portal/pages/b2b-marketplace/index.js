@@ -29,10 +29,9 @@ export default function B2BMarketplace() {
     minRating: 0,
     hasDiscount: false,
     isNew: false,
+    transactionType: 'all',
     businessType: '',
-    country: '',
-    maxLeadTime: '',
-    certifications: ''
+    country: ''
   });
 
   // Items per page for infinite scrolling
@@ -132,22 +131,19 @@ export default function B2BMarketplace() {
       // New arrival filter
       const matchesNew = !filters.isNew || product.isNew;
       
+      // Transaction type filter (using productType field)
+      const matchesTransactionType = filters.transactionType === 'all' || 
+        !filters.transactionType || 
+        product.productType === filters.transactionType;
+      
       // B2B-specific filters
       const matchesBusinessType = !filters.businessType || product.businessType === filters.businessType;
       
       const matchesCountry = !filters.country || 
         (product.country && product.country.toLowerCase().includes(filters.country.toLowerCase()));
       
-      const matchesLeadTime = !filters.maxLeadTime || 
-        (product.leadTime !== undefined && product.leadTime <= parseInt(filters.maxLeadTime));
-      
-      const matchesCertifications = !filters.certifications || 
-        (product.certifications && product.certifications.some(cert => 
-          cert.toLowerCase().includes(filters.certifications.toLowerCase())));
-      
       return matchesSearch && matchesCategory && matchesPrice && matchesStock && matchesRating && 
-        matchesDiscount && matchesNew && matchesBusinessType && matchesCountry && 
-        matchesLeadTime && matchesCertifications;
+        matchesDiscount && matchesNew && matchesTransactionType && matchesBusinessType && matchesCountry;
     }).sort((a, b) => {
       if (filters.sortBy === 'name') {
         return a.name.localeCompare(b.name);
@@ -222,10 +218,9 @@ export default function B2BMarketplace() {
       minRating: 0,
       hasDiscount: false,
       isNew: false,
+      transactionType: 'all',
       businessType: '',
-      country: '',
-      maxLeadTime: '',
-      certifications: ''
+      country: ''
     });
   };
 

@@ -3,11 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3001",
+    "dev": "next dev -p 3005",
     "build": "next build",
-    "start": "next start -p 3001"
+    "start": "next start -p 3005"
   },
   "dependencies": {
+    "embla-carousel-react": "^8.6.0",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",

@@ -257,6 +257,139 @@ export default function FilterSidebar({ filters, categories, onFilterChange, onC
         </div>
       </div>
 
+      {/* Buyer/Seller Filter */}
+      <div className="p-4 border-b border-gray-100" style={{
+        padding: '1rem',
+        borderBottom: '1px solid #f3f4f6',
+        boxSizing: 'border-box'
+      }}>
+        <h3 className="font-semibold text-gray-900 mb-3 tracking-tight" style={{
+          fontWeight: '600',
+          color: '#111827',
+          marginBottom: '0.75rem',
+          letterSpacing: '-0.025em',
+          margin: 0
+        }}>Supplier Type</h3>
+        
+        <div className="space-y-3" style={{
+          boxSizing: 'border-box'
+        }}>
+          <div className="flex items-center" style={{
+            display: 'flex',
+            alignItems: 'center',
+            boxSizing: 'border-box'
+          }}>
+            <input
+              type="radio"
+              id="buyer-seller-all"
+              name="transactionType"
+              checked={!filters.transactionType || filters.transactionType === 'all'}
+              onChange={() => onFilterChange('transactionType', 'all')}
+              className="h-3.5 w-3.5 text-blue-600 border-gray-300 focus:ring-blue-500"
+              style={{
+                height: '0.875rem',
+                width: '0.875rem',
+                color: '#2563eb',
+                border: '1px solid #d1d5db',
+                borderRadius: '50%',
+                boxSizing: 'border-box',
+                accentColor: '#2563eb'
+              }}
+            />
+            <label 
+              htmlFor="buyer-seller-all" 
+              className="ml-2.5 text-gray-700 text-xs font-medium"
+              style={{
+                marginLeft: '0.625rem',
+                color: '#374151',
+                cursor: 'pointer',
+                boxSizing: 'border-box',
+                fontSize: '0.75rem',
+                fontWeight: '500'
+              }}
+            >
+              All Suppliers
+            </label>
+          </div>
+          
+          <div className="flex items-center" style={{
+            display: 'flex',
+            alignItems: 'center',
+            boxSizing: 'border-box'
+          }}>
+            <input
+              type="radio"
+              id="buyer-only"
+              name="transactionType"
+              checked={filters.transactionType === 'buyer'}
+              onChange={() => onFilterChange('transactionType', 'buyer')}
+              className="h-3.5 w-3.5 text-blue-600 border-gray-300 focus:ring-blue-500"
+              style={{
+                height: '0.875rem',
+                width: '0.875rem',
+                color: '#2563eb',
+                border: '1px solid #d1d5db',
+                borderRadius: '50%',
+                boxSizing: 'border-box',
+                accentColor: '#2563eb'
+              }}
+            />
+            <label 
+              htmlFor="buyer-only" 
+              className="ml-2.5 text-gray-700 text-xs font-medium"
+              style={{
+                marginLeft: '0.625rem',
+                color: '#374151',
+                cursor: 'pointer',
+                boxSizing: 'border-box',
+                fontSize: '0.75rem',
+                fontWeight: '500'
+              }}
+            >
+              My Company
+            </label>
+          </div>
+          
+          <div className="flex items-center" style={{
+            display: 'flex',
+            alignItems: 'center',
+            boxSizing: 'border-box'
+          }}>
+            <input
+              type="radio"
+              id="seller-only"
+              name="transactionType"
+              checked={filters.transactionType === 'seller'}
+              onChange={() => onFilterChange('transactionType', 'seller')}
+              className="h-3.5 w-3.5 text-blue-600 border-gray-300 focus:ring-blue-500"
+              style={{
+                height: '0.875rem',
+                width: '0.875rem',
+                color: '#2563eb',
+                border: '1px solid #d1d5db',
+                borderRadius: '50%',
+                boxSizing: 'border-box',
+                accentColor: '#2563eb'
+              }}
+            />
+            <label 
+              htmlFor="seller-only" 
+              className="ml-2.5 text-gray-700 text-xs font-medium"
+              style={{
+                marginLeft: '0.625rem',
+                color: '#374151',
+                cursor: 'pointer',
+                boxSizing: 'border-box',
+                fontSize: '0.75rem',
+                fontWeight: '500'
+              }}
+            >
+              Other Suppliers
+            </label>
+          </div>
+        </div>
+      </div>
+
       {/* Price Range Filter */}
       <div className="p-4 border-b border-gray-100" style={{
         padding: '1rem',
@@ -521,6 +654,139 @@ export default function FilterSidebar({ filters, categories, onFilterChange, onC
         </div>
       </div>
 
+      {/* Buyer/Seller Filter */}
+      <div className="p-4 border-b border-gray-100" style={{
+        padding: '1rem',
+        borderBottom: '1px solid #f3f4f6',
+        boxSizing: 'border-box'
+      }}>
+        <h3 className="font-semibold text-gray-900 mb-3 tracking-tight" style={{
+          fontWeight: '600',
+          color: '#111827',
+          marginBottom: '0.75rem',
+          letterSpacing: '-0.025em',
+          margin: 0
+        }}>Transaction Type</h3>
+        
+        <div className="space-y-3" style={{
+          boxSizing: 'border-box'
+        }}>
+          <div className="flex items-center" style={{
+            display: 'flex',
+            alignItems: 'center',
+            boxSizing: 'border-box'
+          }}>
+            <input
+              type="radio"
+              id="buyer-seller-all"
+              name="transactionType"
+              checked={!filters.transactionType || filters.transactionType === 'all'}
+              onChange={() => onFilterChange('transactionType', 'all')}
+              className="h-3.5 w-3.5 text-blue-600 border-gray-300 focus:ring-blue-500"
+              style={{
+                height: '0.875rem',
+                width: '0.875rem',
+                color: '#2563eb',
+                border: '1px solid #d1d5db',
+                borderRadius: '50%',
+                boxSizing: 'border-box',
+                accentColor: '#2563eb'
+              }}
+            />
+            <label 
+              htmlFor="buyer-seller-all" 
+              className="ml-2.5 text-gray-700 text-xs font-medium"
+              style={{
+                marginLeft: '0.625rem',
+                color: '#374151',
+                cursor: 'pointer',
+                boxSizing: 'border-box',
+                fontSize: '0.75rem',
+                fontWeight: '500'
+              }}
+            >
+              Show All
+            </label>
+          </div>
+          
+          <div className="flex items-center" style={{
+            display: 'flex',
+            alignItems: 'center',
+            boxSizing: 'border-box'
+          }}>
+            <input
+              type="radio"
+              id="buyer-only"
+              name="transactionType"
+              checked={filters.transactionType === 'buyer'}
+              onChange={() => onFilterChange('transactionType', 'buyer')}
+              className="h-3.5 w-3.5 text-blue-600 border-gray-300 focus:ring-blue-500"
+              style={{
+                height: '0.875rem',
+                width: '0.875rem',
+                color: '#2563eb',
+                border: '1px solid #d1d5db',
+                borderRadius: '50%',
+                boxSizing: 'border-box',
+                accentColor: '#2563eb'
+              }}
+            />
+            <label 
+              htmlFor="buyer-only" 
+              className="ml-2.5 text-gray-700 text-xs font-medium"
+              style={{
+                marginLeft: '0.625rem',
+                color: '#374151',
+                cursor: 'pointer',
+                boxSizing: 'border-box',
+                fontSize: '0.75rem',
+                fontWeight: '500'
+              }}
+            >
+              Buying
+            </label>
+          </div>
+          
+          <div className="flex items-center" style={{
+            display: 'flex',
+            alignItems: 'center',
+            boxSizing: 'border-box'
+          }}>
+            <input
+              type="radio"
+              id="seller-only"
+              name="transactionType"
+              checked={filters.transactionType === 'seller'}
+              onChange={() => onFilterChange('transactionType', 'seller')}
+              className="h-3.5 w-3.5 text-blue-600 border-gray-300 focus:ring-blue-500"
+              style={{
+                height: '0.875rem',
+                width: '0.875rem',
+                color: '#2563eb',
+                border: '1px solid #d1d5db',
+                borderRadius: '50%',
+                boxSizing: 'border-box',
+                accentColor: '#2563eb'
+              }}
+            />
+            <label 
+              htmlFor="seller-only" 
+              className="ml-2.5 text-gray-700 text-xs font-medium"
+              style={{
+                marginLeft: '0.625rem',
+                color: '#374151',
+                cursor: 'pointer',
+                boxSizing: 'border-box',
+                fontSize: '0.75rem',
+                fontWeight: '500'
+              }}
+            >
+              Selling
+            </label>
+          </div>
+        </div>
+      </div>
+
       {/* B2B-Specific Filters */}
       <div className="p-4 border-t border-gray-100" style={{
         padding: '1rem',
@@ -604,65 +870,7 @@ export default function FilterSidebar({ filters, categories, onFilterChange, onC
           />
         </div>
         
-        {/* Lead Time Filter */}
-        <div className="mb-4">
-          <h4 className="text-xs text-gray-500 mb-2 uppercase tracking-wide" style={{
-            fontSize: '0.75rem',
-            color: '#6b7280',
-            marginBottom: '0.5rem',
-            textTransform: 'uppercase',
-            letterSpacing: '0.025em'
-          }}>Maximum Lead Time (days)</h4>
-          <input
-            type="number"
-            min="0"
-            value={filters.maxLeadTime || ''}
-            onChange={(e) => onFilterChange('maxLeadTime', e.target.value)}
-            className="w-full px-2 py-1.5 border-0 bg-gray-50 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
-            style={{
-              width: '100%',
-              padding: '0.375rem 0.5rem',
-              border: '0',
-              backgroundColor: '#f9fafb',
-              color: '#111827',
-              borderRadius: '0',
-              boxSizing: 'border-box',
-              fontSize: '0.875rem',
-              transition: 'all 0.2s ease',
-              fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-            }}
-          />
-        </div>
-        
-        {/* Certifications Filter */}
-        <div>
-          <h4 className="text-xs text-gray-500 mb-2 uppercase tracking-wide" style={{
-            fontSize: '0.75rem',
-            color: '#6b7280',
-            marginBottom: '0.5rem',
-            textTransform: 'uppercase',
-            letterSpacing: '0.025em'
-          }}>Certifications</h4>
-          <input
-            type="text"
-            placeholder="e.g., ISO, CE, FDA"
-            value={filters.certifications || ''}
-            onChange={(e) => onFilterChange('certifications', e.target.value)}
-            className="w-full px-2 py-1.5 border-0 bg-gray-50 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
-            style={{
-              width: '100%',
-              padding: '0.375rem 0.5rem',
-              border: '0',
-              backgroundColor: '#f9fafb',
-              color: '#111827',
-              borderRadius: '0',
-              boxSizing: 'border-box',
-              fontSize: '0.875rem',
-              transition: 'all 0.2s ease',
-              fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-            }}
-          />
-        </div>
+
       </div>
     </div>
   );

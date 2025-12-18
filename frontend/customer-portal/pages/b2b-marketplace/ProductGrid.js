@@ -267,23 +267,13 @@ export default function ProductGrid({ products, loading, onFilterChange, current
                 </p>
                 
                 {/* B2B Information - Enhanced Display */}
-                <div className="mt-2 text-xs space-y-1">
-                  {/* Enhanced Buyer/Seller Status with Contact Button */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 mr-1 ${product.postAs === 'buyer' ? 'text-blue-500' : 'text-green-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                      <span className={`font-bold ${product.postAs === 'buyer' ? 'text-blue-600' : 'text-green-600'}`}>
-                        {product.postAs === 'buyer' ? 'BUYER' : 'SELLER'}
-                      </span>
-                    </div>
-                    <button 
-                      onClick={() => openQuickView(product)}
-                      className="text-xs bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-2 py-1 rounded-full hover:from-blue-600 hover:to-indigo-600 transition-all transform hover:scale-105"
-                    >
-                      Contact
-                    </button>
+                <div className="mb-4 text-xs space-y-2">
+                  {/* Quantity and Unit */}
+                  <div className="flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                    <span className="text-gray-700">Qty: {product.quantity || product.stock || 0} {product.unit || 'units'}</span>
                   </div>
                   
                   {/* Quantity and Unit */}
@@ -328,9 +318,9 @@ export default function ProductGrid({ products, loading, onFilterChange, current
 
                 </div>
                 
-                <div className="flex justify-between items-center mt-2">
+                <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-100">
                   <div>
-                    <span className="font-bold text-gray-800">
+                    <span className="font-bold text-gray-900 text-lg">
                       {formatCurrency(product.price)}
                     </span>
                     {product.originalPrice && product.originalPrice > product.price && (
@@ -340,12 +330,21 @@ export default function ProductGrid({ products, loading, onFilterChange, current
                     )}
                   </div>
                   
-                  <button
-                    onClick={() => openQuickView(product)}
-                    className="text-blue-600 hover:text-blue-800 text-sm font-medium py-1"
-                  >
-                    Quick View
-                  </button>
+                  {/* Contact and Quick View Buttons - Side by side */}
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => openQuickView(product)}
+                      className="text-xs bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-3 py-1.5 rounded-full hover:from-blue-600 hover:to-indigo-600 transition-all transform hover:scale-105 shadow-sm"
+                    >
+                      Contact
+                    </button>
+                    <button
+                      onClick={() => openQuickView(product)}
+                      className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-full transition-all shadow-sm"
+                    >
+                      Quick View
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

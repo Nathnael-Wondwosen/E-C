@@ -8,9 +8,10 @@
     "shared"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev --workspace=frontend/admin-dashboard\" \"npm run dev --workspace=frontend/customer-portal\"",
+    "dev": "concurrently \"npm run dev --workspace=frontend/admin-dashboard\" \"npm run dev --workspace=frontend/customer-portal\" \"npm run dev --workspace=services/api-gateway\" \"npm run dev --workspace=services/user-service\" \"npm run dev --workspace=services/product-service\" \"npm run dev --workspace=services/banners-service\" \"npm run dev --workspace=services/categories-service\" \"npm run dev --workspace=services/hero-slides-service\" \"npm run dev --workspace=services/special-offers-service\" \"npm run dev --workspace=services/navbar-links-service\" \"npm run dev --workspace=services/news-blog-posts-service\" \"npm run dev --workspace=services/partners-service\" \"npm run dev --workspace=services/services-service\"",
     "build": "npm run build --workspaces",
     "test": "npm run test --workspaces",
+    "dev:backend": "concurrently \"npm run dev --workspace=services/api-gateway\" \"npm run dev --workspace=services/user-service\" \"npm run dev --workspace=services/product-service\" \"npm run dev --workspace=services/banners-service\" \"npm run dev --workspace=services/categories-service\" \"npm run dev --workspace=services/hero-slides-service\" \"npm run dev --workspace=services/special-offers-service\" \"npm run dev --workspace=services/navbar-links-service\" \"npm run dev --workspace=services/news-blog-posts-service\" \"npm run dev --workspace=services/partners-service\" \"npm run dev --workspace=services/services-service\"",
     "start": "echo 'This is a multi-service application. Please use render.yaml for deployment.'"
   },
   "devDependencies": {
