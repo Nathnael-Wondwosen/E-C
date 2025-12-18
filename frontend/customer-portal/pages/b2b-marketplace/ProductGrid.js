@@ -177,6 +177,13 @@ export default function ProductGrid({ products, loading, onFilterChange, current
                   </svg>
                 </div>
               )}
+              
+              {/* Seller/Buyer Tag - Positioned at top right */}
+              <div className="absolute top-2 left-2 z-10">
+                <span className={`text-xs font-bold px-2 py-1 rounded-full shadow-md ${product.postAs === 'buyer' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
+                  {product.postAs === 'buyer' ? 'BUYER' : 'SELLER'}
+                </span>
+              </div>
 
               {/* Product Image */}
               <Link href={`/b2b-marketplace/${product.id}`}>
@@ -260,7 +267,7 @@ export default function ProductGrid({ products, loading, onFilterChange, current
               
               {/* Product Info */}
               <div className="p-3">
-                <h3 className="font-semibold text-gray-800 mb-1 truncate">{product.name}</h3>
+                <h3 className="font-bold text-gray-900 mb-2 truncate text-lg">{product.name}</h3>
                 
                 <p className="text-sm text-gray-500 mb-1 line-clamp-2">
                   {product.description || 'No description available'}
@@ -271,14 +278,6 @@ export default function ProductGrid({ products, loading, onFilterChange, current
                   {/* Quantity and Unit */}
                   <div className="flex items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                    </svg>
-                    <span className="text-gray-700">Qty: {product.quantity || product.stock || 0} {product.unit || 'units'}</span>
-                  </div>
-                  
-                  {/* Quantity and Unit */}
-                  <div className="flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                     </svg>
                     <span className="text-gray-700">Qty: {product.quantity || product.stock || 0} {product.unit || 'units'}</span>
@@ -397,40 +396,29 @@ export default function ProductGrid({ products, loading, onFilterChange, current
                       NEW
                     </div>
                   )}
+                  
+                  {/* Seller/Buyer Tag */}
+                  <div className="absolute top-2 left-2">
+                    <span className={`text-xs font-bold px-2 py-1 rounded-full shadow-md ${product.postAs === 'buyer' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
+                      {product.postAs === 'buyer' ? 'BUYER' : 'SELLER'}
+                    </span>
+                  </div>
                 </div>
                 
                 <div className="md:w-3/4 p-3">
                   <div className="flex flex-col md:flex-row md:justify-between">
                     <div>
-                      <h3 className="font-semibold text-gray-800 mb-1">{product.name}</h3>
+                      <h3 className="font-bold text-gray-900 mb-2 text-lg">{product.name}</h3>
                       
                       <p className="text-sm text-gray-500 mb-1">
                         {product.description || 'No description available'}
                       </p>
                       
                       {/* B2B Information - Enhanced Display */}
-                      <div className="mt-2 text-xs space-y-1">
-                        {/* Enhanced Buyer/Seller Status with Contact Button */}
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 mr-1 ${product.postAs === 'buyer' ? 'text-blue-500' : 'text-green-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
-                            <span className={`font-bold ${product.postAs === 'buyer' ? 'text-blue-600' : 'text-green-600'}`}>
-                              {product.postAs === 'buyer' ? 'BUYER' : 'SELLER'}
-                            </span>
-                          </div>
-                          <button 
-                            onClick={() => openQuickView(product)}
-                            className="text-xs bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-2 py-1 rounded-full hover:from-blue-600 hover:to-indigo-600 transition-all transform hover:scale-105"
-                          >
-                            Contact
-                          </button>
-                        </div>
-                        
+                      <div className="mb-4 text-xs space-y-2">
                         {/* Quantity and Unit */}
                         <div className="flex items-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                           </svg>
                           <span className="text-gray-700">Qty: {product.quantity || product.stock || 0} {product.unit || 'units'}</span>
@@ -476,7 +464,7 @@ export default function ProductGrid({ products, loading, onFilterChange, current
                     
                     <div className="mt-3 md:mt-0 flex flex-col items-start md:items-end">
                       <div className="mb-2">
-                        <span className="font-bold text-gray-800 text-lg">
+                        <span className="font-bold text-gray-900 text-lg">
                           {formatCurrency(product.price)}
                         </span>
                         {product.originalPrice && product.originalPrice > product.price && (
@@ -489,7 +477,13 @@ export default function ProductGrid({ products, loading, onFilterChange, current
                       <div className="flex space-x-2">
                         <button
                           onClick={() => openQuickView(product)}
-                          className="px-3 py-1.5 bg-blue-600 text-white rounded-none hover:bg-blue-700 text-sm"
+                          className="text-xs bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-3 py-1.5 rounded-full hover:from-blue-600 hover:to-indigo-600 transition-all transform hover:scale-105 shadow-sm"
+                        >
+                          Contact
+                        </button>
+                        <button
+                          onClick={() => openQuickView(product)}
+                          className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-full transition-all shadow-sm"
                         >
                           Quick View
                         </button>
