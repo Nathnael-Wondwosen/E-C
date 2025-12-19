@@ -21,31 +21,6 @@ services:
           name: ecommerce-user-service
           type: web
           envVarKey: RENDER_EXTERNAL_URL
-      - key: PRODUCT_SERVICE_URL
-        fromService:
-          name: ecommerce-product-service
-          type: web
-          envVarKey: RENDER_EXTERNAL_URL
-      - key: ORDER_SERVICE_URL
-        fromService:
-          name: ecommerce-order-service
-          type: web
-          envVarKey: RENDER_EXTERNAL_URL
-      - key: PAYMENT_SERVICE_URL
-        fromService:
-          name: ecommerce-payment-service
-          type: web
-          envVarKey: RENDER_EXTERNAL_URL
-      - key: SEARCH_SERVICE_URL
-        fromService:
-          name: ecommerce-search-service
-          type: web
-          envVarKey: RENDER_EXTERNAL_URL
-      - key: NOTIFICATION_SERVICE_URL
-        fromService:
-          name: ecommerce-notification-service
-          type: web
-          envVarKey: RENDER_EXTERNAL_URL
     healthCheckPath: /health
     autoDeploy: true
 
@@ -62,23 +37,6 @@ services:
         sync: false
     healthCheckPath: /health
     autoDeploy: true
-
-  # Product Service
-  - type: web
-    name: ecommerce-product-service
-    runtime: docker
-    plan: free
-    rootDir: services/product-service
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: MONGODB_URI
-        sync: false
-    healthCheckPath: /health
-    autoDeploy: true
-
-
-
 
   # Admin Dashboard
   - type: web
