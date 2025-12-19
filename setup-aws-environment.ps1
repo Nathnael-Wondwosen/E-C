@@ -4,7 +4,7 @@
 param(
     [string]$AwsRegion = "us-east-1",
     [string]$AccountId,
-    [string]$ClusterName = "b2b-ecommerce-cluster"
+    [string]$ClusterName = "Tradethiopia"
 )
 
 # Check if AWS CLI is installed
@@ -17,9 +17,9 @@ try {
 }
 
 # Validate account ID
-if (-not $AccountId -or $AccountId -eq "<your-account-id>") {
+if (-not $AccountId -or $AccountId -eq "967657494795") {
     Write-Host "Please provide your AWS Account ID as a parameter:" -ForegroundColor Yellow
-    Write-Host "Example: .\setup-aws-environment.ps1 -AccountId ""123456789012""" -ForegroundColor Yellow
+    Write-Host "Example: .\setup-aws-environment.ps1 -AccountId ""967657494795""" -ForegroundColor Yellow
     exit 1
 }
 
