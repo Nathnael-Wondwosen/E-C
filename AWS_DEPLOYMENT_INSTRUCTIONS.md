@@ -1,6 +1,6 @@
 # AWS Deployment Instructions for B2B E-Commerce Platform
 
-This document provides step-by-step instructions for deploying the B2B E-Commerce Platform on AWS.
+This document provides step-by-step instructions for deploying the B2B E-Commerce Platform on AWS. You can deploy directly from your local machine or pull the latest code from GitHub.
 
 ## Prerequisites
 
@@ -24,6 +24,10 @@ This document provides step-by-step instructions for deploying the B2B E-Commerc
 
 ## Step 2: Set Up AWS Environment
 
+You have two options:
+
+### Option A: Deploy from Local Machine
+
 Run the environment setup script:
 ```powershell
 .\setup-aws-environment.ps1 -AccountId "YOUR_AWS_ACCOUNT_ID" -AwsRegion "us-east-1"
@@ -34,7 +38,22 @@ This script will:
 - Create an ECS cluster
 - Set up CloudWatch log groups
 
+### Option B: Deploy Directly from GitHub
+
+Use the GitHub deployment script:
+```powershell
+.\deploy-from-github-to-aws.ps1 -AccountId "YOUR_AWS_ACCOUNT_ID" -AwsRegion "us-east-1"
+```
+
+This script will:
+- Clone the latest code from GitHub
+- Create ECR repositories
+- Build and push Docker images
+- Create ECS cluster
+
 ## Step 3: Build and Deploy Docker Images
+
+### If using Option A (Local Deployment):
 
 Run the complete deployment script:
 ```powershell
@@ -44,6 +63,10 @@ Run the complete deployment script:
 This script will:
 - Build Docker images for all services
 - Push images to ECR repositories
+
+### If using Option B (GitHub Deployment):
+
+Skip this step as it's handled by the GitHub deployment script.
 
 ## Step 4: Manual AWS Configuration
 
