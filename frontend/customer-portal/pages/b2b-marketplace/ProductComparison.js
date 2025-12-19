@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function ProductComparison({ products, onClose }) {
+export default function ProductComparison({ products = [], onClose }) {
   // Features to compare
   const features = [
     { key: 'price', label: 'Price', format: (value) => `$${value.toFixed(2)}` },
