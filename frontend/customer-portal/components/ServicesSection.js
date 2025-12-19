@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getServices } from '../../utils/heroDataService';
+import { getServices } from '../utils/heroDataService';
 
 export default function ServicesSection() {
   const [services, setServices] = useState([]);
