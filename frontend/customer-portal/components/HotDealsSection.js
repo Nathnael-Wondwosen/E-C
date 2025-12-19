@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-export default function HotDealsSection({ displayedHotDeals, currentDealIndex, setCurrentDealIndex }) {
+export default function HotDealsSection({ displayedHotDeals = [], currentDealIndex, setCurrentDealIndex }) {
   // Auto-advance deals
   useEffect(() => {
     const interval = setInterval(() => {

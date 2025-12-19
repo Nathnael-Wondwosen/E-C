@@ -3,7 +3,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useState, useEffect, useCallback } from 'react';
 import { getProducts, getCategories as getCategoriesData } from '../../utils/heroDataService';
-import FilterSidebar from './FilterSidebar';
+import FilterSidebar from '../../components/FilterSidebar';
 import ProductGrid from './ProductGrid';
 
 export default function Marketplace() {

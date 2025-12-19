@@ -5,16 +5,16 @@ import { useState, useEffect, useRef } from 'react';
 import { getCachedHeroSlides, getCloudinaryImageUrlFromFileId, getGlobalBackgroundImage, getCategories, getProducts, getSpecialOffers } from '../utils/heroDataService';
 
 // Import section components
-import HeroCarousel from './sections/HeroCarousel';
-import CategoriesSection from './sections/CategoriesSection';
-import ServicesSection from './sections/ServicesSection';
-import HotDealsSection from './sections/HotDealsSection';
-import FeaturedProductsSection from './sections/FeaturedProductsSection';
-import PromotionalSection from './sections/PromotionalSection';
-import TrendingProductsSection from './sections/TrendingProductsSection';
-import FullWidthBannerSection from './sections/FullWidthBannerSection';
-import RandomProductsSection from './sections/RandomProductsSection';
-import NewsBlogSection from './sections/NewsBlogSection';
+import HeroCarousel from '../components/HeroCarousel';
+import CategoriesSection from '../components/CategoriesSection';
+import ServicesSection from '../components/ServicesSection';
+import HotDealsSection from '../components/HotDealsSection';
+import FeaturedProductsSection from '../components/FeaturedProductsSection';
+import PromotionalSection from '../components/PromotionalSection';
+import TrendingProductsSection from '../components/TrendingProductsSection';
+import FullWidthBannerSection from '../components/FullWidthBannerSection';
+import RandomProductsSection from '../components/RandomProductsSection';
+import NewsBlogSection from '../components/NewsBlogSection';
 import Header from './header/Header';export default function Home() {
   // Add CSS animations to head
   if (typeof document !== 'undefined') {

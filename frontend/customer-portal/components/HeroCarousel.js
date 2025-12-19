@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-export default function HeroCarousel({ carouselSlides, globalBackgroundImage, currentSlide, setCurrentSlide }) {
+export default function HeroCarousel({ carouselSlides = [], globalBackgroundImage, currentSlide, setCurrentSlide }) {
   // Auto-advance carousel
   useEffect(() => {
     const interval = setInterval(() => {
