@@ -1,11 +1,11 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 
-export default function FullWidthBannerSection({ bannerSlides, currentBannerIndex, setCurrentBannerIndex }) {
+export default function FullWidthBannerSection({ bannerSlides = [], currentBannerIndex, setCurrentBannerIndex }) {
   // Auto-advance banners
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentBannerIndex(prev => (prev === bannerSlides.length - 1 ? 0 : prev + 1));
+      setCurrentBannerIndex(prev => (bannerSlides.length > 0 ? (prev === bannerSlides.length - 1 ? 0 : prev + 1) : 0));
     }, 5000);
     return () => clearInterval(interval);
   }, [bannerSlides.length]);
@@ -33,7 +33,7 @@ export default function FullWidthBannerSection({ bannerSlides, currentBannerInde
                 style={{ transform: `translateX(-${currentBannerIndex * 100}%)` }}
               >
                 {/* Render banner slides */}
-                {bannerSlides.map((slide, index) => (
+                {(bannerSlides || []).map((slide, index) => (
                   <div 
                     key={index} 
                     className="flex-shrink-0 w-full h-full relative"
@@ -74,33 +74,39 @@ export default function FullWidthBannerSection({ bannerSlides, currentBannerInde
             </div>
 
               {/* Navigation Arrows */}
-              <button 
-                onClick={() => scrollBanners('left')}
-                className="absolute left-4 top-1/2 transform -translate-y-1/2 p-2 rounded-full bg-black bg-opacity-30 hover:bg-opacity-50 transition z-20"
-              >
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path>
-                </svg>
-              </button>
-              <button 
-                onClick={() => scrollBanners('right')}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 p-2 rounded-full bg-black bg-opacity-30 hover:bg-opacity-50 transition z-20"
-              >
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
-                </svg>
-              </button>
+              {bannerSlides.length > 0 && (
+                <button 
+                  onClick={() => scrollBanners('left')}
+                  className="absolute left-4 top-1/2 transform -translate-y-1/2 p-2 rounded-full bg-black bg-opacity-30 hover:bg-opacity-50 transition z-20"
+                >
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path>
+                  </svg>
+                </button>
+              )}
+              {bannerSlides.length > 0 && (
+                <button 
+                  onClick={() => scrollBanners('right')}
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 p-2 rounded-full bg-black bg-opacity-30 hover:bg-opacity-50 transition z-20"
+                >
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
+                  </svg>
+                </button>
+              )}
               
               {/* Banner Indicators */}
-              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 z-20">
-                {bannerSlides.map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setCurrentBannerIndex(index)}
-                    className={`w-3 h-3 rounded-full transition-all duration-300 ${currentBannerIndex === index ? 'bg-white scale-125' : 'bg-white bg-opacity-50'}`}
-                  />
-                ))}
-              </div>
+              {bannerSlides.length > 0 && (
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 z-20">
+                  {bannerSlides.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentBannerIndex(index)}
+                      className={`w-3 h-3 rounded-full transition-all duration-300 ${currentBannerIndex === index ? 'bg-white scale-125' : 'bg-white bg-opacity-50'}`}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
