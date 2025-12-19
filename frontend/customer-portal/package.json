@@ -8,14 +8,12 @@
     "start": "next start -p 3005"
   },
   "dependencies": {
+    "autoprefixer": "^10.4.0",
     "embla-carousel-react": "^8.6.0",
     "next": "latest",
+    "postcss": "^8.4.0",
     "react": "latest",
     "react-dom": "latest",
     "tailwindcss": "^3.4.0"
-  },
-  "devDependencies": {
-    "autoprefixer": "^10.4.0",
-    "postcss": "^8.4.0"
   }
 }
