@@ -3,7 +3,7 @@ import Link from 'next/link';
 import ProductComparison from './ProductComparison';
 import QuickViewModal from './QuickViewModal';
 
-export default function ProductGrid({ products, loading, onFilterChange, currentSort }) {
+export default function ProductGrid({ products = [], loading, onFilterChange, currentSort }) {
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const [selectedProducts, setSelectedProducts] = useState([]); // For comparison
   const [showComparison, setShowComparison] = useState(false); // Show comparison modal
