@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 
-export default function FilterSidebar({ filters, categories, onFilterChange, onClearFilters }) {
-  const [priceRange, setPriceRange] = useState([filters.minPrice, filters.maxPrice]);
+export default function FilterSidebar({ filters = {}, categories = [], onFilterChange, onClearFilters }) {
+  const [priceRange, setPriceRange] = useState([filters.minPrice || 0, filters.maxPrice || 1000]);
   const [tempSearch, setTempSearch] = useState(filters.search);
 
   // Update local state when filters change
   useEffect(() => {
-    setPriceRange([filters.minPrice, filters.maxPrice]);
-    setTempSearch(filters.search);
+    setPriceRange([filters.minPrice || 0, filters.maxPrice || 1000]);
+    setTempSearch(filters.search || '');
   }, [filters]);
 
   const handlePriceChange = (index, value) => {
