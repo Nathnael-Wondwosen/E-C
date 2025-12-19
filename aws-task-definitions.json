@@ -5,8 +5,8 @@
     "requiresCompatibilities": ["FARGATE"],
     "cpu": "1024",
     "memory": "2048",
-    "executionRoleArn": "arn:aws:iam::<YOUR_AWS_ACCOUNT_ID>:role/ecsTaskExecutionRole",
-    "taskRoleArn": "arn:aws:iam::<YOUR_AWS_ACCOUNT_ID>:role/ecsTaskRole",
+    "executionRoleArn": "arn:aws:iam::YOUR_ACTUAL_ACCOUNT_ID:role/ecsTaskExecutionRole",
+    "taskRoleArn": "arn:aws:iam::YOUR_ACTUAL_ACCOUNT_ID:role/ecsTaskRole",
     "containerDefinitions": [
       {
         "name": "mongodb",
@@ -51,7 +51,7 @@
       },
       {
         "name": "api-gateway",
-        "image": "<YOUR_AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/b2b-api-gateway:latest",
+        "image": "YOUR_ACTUAL_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/b2b-api-gateway:latest",
         "portMappings": [
           {
             "containerPort": 3000,
@@ -96,7 +96,7 @@
       },
       {
         "name": "user-service",
-        "image": "<YOUR_AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/b2b-user-service:latest",
+        "image": "YOUR_ACTUAL_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/b2b-user-service:latest",
         "portMappings": [
           {
             "containerPort": 3001,
@@ -141,7 +141,7 @@
       },
       {
         "name": "product-service",
-        "image": "<YOUR_AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/b2b-product-service:latest",
+        "image": "YOUR_ACTUAL_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/b2b-product-service:latest",
         "portMappings": [
           {
             "containerPort": 3002,
@@ -186,7 +186,7 @@
       },
       {
         "name": "order-service",
-        "image": "<YOUR_AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/b2b-order-service:latest",
+        "image": "YOUR_ACTUAL_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/b2b-order-service:latest",
         "portMappings": [
           {
             "containerPort": 3003,
@@ -231,7 +231,7 @@
       },
       {
         "name": "payment-service",
-        "image": "<YOUR_AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/b2b-payment-service:latest",
+        "image": "YOUR_ACTUAL_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/b2b-payment-service:latest",
         "portMappings": [
           {
             "containerPort": 3004,
@@ -266,7 +266,7 @@
       },
       {
         "name": "search-service",
-        "image": "<YOUR_AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/b2b-search-service:latest",
+        "image": "YOUR_ACTUAL_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/b2b-search-service:latest",
         "portMappings": [
           {
             "containerPort": 3005,
@@ -301,7 +301,7 @@
       },
       {
         "name": "notification-service",
-        "image": "<YOUR_AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/b2b-notification-service:latest",
+        "image": "YOUR_ACTUAL_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/b2b-notification-service:latest",
         "portMappings": [
           {
             "containerPort": 3006,
@@ -336,7 +336,7 @@
       },
       {
         "name": "admin-dashboard",
-        "image": "<YOUR_AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/b2b-admin-dashboard:latest",
+        "image": "YOUR_ACTUAL_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/b2b-admin-dashboard:latest",
         "portMappings": [
           {
             "containerPort": 3000,
@@ -371,7 +371,7 @@
       },
       {
         "name": "customer-portal",
-        "image": "<YOUR_AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/b2b-customer-portal:latest",
+        "image": "YOUR_ACTUAL_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/b2b-customer-portal:latest",
         "portMappings": [
           {
             "containerPort": 3005,
