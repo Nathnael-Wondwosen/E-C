@@ -41,7 +41,7 @@ export default function B2BMarketplace() {
   useEffect(() => {
     const loadNavbarLinks = async () => {
       try {
-        const response = await fetch('http://localhost:3000/api/navbar-links');
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/navbar-links`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
