@@ -38,6 +38,7 @@ app.use(cors());
 app.use(helmet());
 app.use(morgan('combined'));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true })); // For parsing form data
 
 // Middleware to handle raw buffer uploads
 // Appwrite upload middleware removed
@@ -65,7 +66,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
         {
           folder: 'general_uploads',
           use_filename: true,
-          unique_filename: false
+          unique_filename: true
         },
         (error, result) => {
           if (error) {
@@ -96,6 +97,11 @@ app.post('/api/upload/product-image', upload.single('file'), async (req, res) =>
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
+    // Debug log to see what data is received
+    console.log('=== UPLOAD REQUEST ===');
+    console.log('Body:', req.body);
+    console.log('Filename param:', req.body.filename);
+
     // Get filename from form data if provided
     const filename = req.body.filename;
     
@@ -114,6 +120,9 @@ app.post('/api/upload/product-image', upload.single('file'), async (req, res) =>
       // If filename is provided, use it
       if (filename) {
         options.filename = filename.split('.')[0]; // Remove extension for Cloudinary
+        console.log('Using custom filename:', options.filename);
+      } else {
+        console.log('Using default filename generation');
       }
       
       const uploadStream = cloudinary.uploader.upload_stream(
@@ -123,6 +132,7 @@ app.post('/api/upload/product-image', upload.single('file'), async (req, res) =>
             console.error('Cloudinary upload error:', error);
             reject(error);
           } else {
+            console.log('Upload successful:', result.secure_url);
             resolve(result);
           }
         }
