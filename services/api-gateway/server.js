@@ -1065,6 +1065,40 @@ app.delete('/api/products/:id', async (req, res) => {
   }
 });
 
+// Bulk delete products endpoint
+app.delete('/api/products/bulk', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const { ids } = req.body;
+    
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'Product IDs array is required' });
+    }
+    
+    const collection = db.collection('products');
+    
+    // Build query to delete multiple products by their IDs
+    const objectIds = ids.map(id => new ObjectId(id));
+    const result = await collection.deleteMany({
+      $or: [
+        { _id: { $in: objectIds } },
+        { id: { $in: ids } }
+      ]
+    });
+    
+    res.json({ 
+      message: `${result.deletedCount} products deleted successfully`,
+      deletedCount: result.deletedCount 
+    });
+  } catch (error) {
+    console.error('Error deleting products:', error);
+    res.status(500).json({ error: 'Failed to delete products' });
+  }
+});
+
 // File upload endpoint for Appwrite (removed)
 // Appwrite upload endpoint removed
 

@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import AdminLayout from '../../components/AdminLayout';
 import ImageUploader from '../../components/ImageUploader';
-import { getProducts, getCategories, createProduct, updateProduct, deleteProduct } from '../../utils/mongoService';
+import { getProducts, getCategories, createProduct, updateProduct, deleteProduct, bulkDeleteProducts } from '../../utils/mongoService';
 // Import CSV utilities
 import { downloadCSV, readCSVFile } from '../../utils/csvUtils';
 // Import AI service
@@ -20,6 +20,9 @@ export default function B2BProductsManagement() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [socialLinkInput, setSocialLinkInput] = useState('');
+  const [selectedProducts, setSelectedProducts] = useState([]);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const [newProduct, setNewProduct] = useState({
     // Core product fields
     name: '',
@@ -155,6 +158,16 @@ export default function B2BProductsManagement() {
         const product = await createProduct(productData);
         
         setProducts([...products, product]);
+        
+        // Show success message
+        setSuccessMessage('Product created successfully!');
+        setShowSuccessMessage(true);
+        
+        // Hide success message after 3 seconds
+        setTimeout(() => {
+          setShowSuccessMessage(false);
+        }, 3000);
+        
         setNewProduct({
           name: '',
           description: '',
@@ -249,6 +262,9 @@ export default function B2BProductsManagement() {
         if (result.success) {
           const updatedProducts = products.filter(prod => prod.id !== productId);
           setProducts(updatedProducts);
+          
+          // If this product was selected, remove it from selection
+          setSelectedProducts(selectedProducts.filter(id => id !== productId));
         }
       } catch (error) {
         console.error('Error deleting product:', error);
@@ -256,6 +272,99 @@ export default function B2BProductsManagement() {
       }
     }
   };
+  
+  const handleBulkDeleteProducts = async () => {
+    if (selectedProducts.length === 0) {
+      alert('Please select at least one product to delete.');
+      return;
+    }
+    
+    if (window.confirm(`Are you sure you want to delete ${selectedProducts.length} selected B2B product(s)?`)) {
+      try {
+        // Call the actual API to bulk delete products
+        const result = await bulkDeleteProducts(selectedProducts);
+        
+        if (result.success) {
+          // Remove deleted products from the products list
+          const updatedProducts = products.filter(prod => !selectedProducts.includes(prod.id));
+          setProducts(updatedProducts);
+          
+          // Clear selection
+          setSelectedProducts([]);
+          
+          // Show success message
+          setSuccessMessage(`${result.deletedCount} product(s) deleted successfully.`);
+          setShowSuccessMessage(true);
+          
+          // Hide success message after 3 seconds
+          setTimeout(() => {
+            setShowSuccessMessage(false);
+          }, 3000);
+        }
+      } catch (error) {
+        console.error('Error deleting products:', error);
+        alert('Failed to delete products. Please try again.');
+      }
+    }
+  };
+  
+  const toggleProductSelection = (productId) => {
+    if (selectedProducts.includes(productId)) {
+      setSelectedProducts(selectedProducts.filter(id => id !== productId));
+    } else {
+      setSelectedProducts([...selectedProducts, productId]);
+    }
+  };
+  
+  const selectAllProducts = () => {
+    if (selectedProducts.length === sortedProducts.length) {
+      // If all products are selected, deselect all
+      setSelectedProducts([]);
+    } else {
+      // Select all products
+      setSelectedProducts(sortedProducts.map(product => product.id));
+    }
+  };
+  
+  const handleCreateProduct = async () => {
+    if (newProduct.name && newProduct.price && newProduct.category) {
+      try {
+        const productData = {
+          name: newProduct.name,
+          description: newProduct.description || '',
+          price: parseFloat(newProduct.price),
+          category: newProduct.category,
+          stock: parseInt(newProduct.stock) || 0,
+          sku: newProduct.sku || generateSKU(),
+          images: newProduct.images || [],
+          thumbnail: newProduct.thumbnail || (newProduct.images && newProduct.images.length > 0 ? newProduct.images[0] : ''),
+          isFeatured: newProduct.isFeatured || false,
+          isHotDeal: newProduct.isHotDeal || false,
+          isPremium: newProduct.isPremium || false,
+          discountPercentage: newProduct.discountPercentage ? parseFloat(newProduct.discountPercentage) : null,
+          tags: newProduct.tags || [],
+          specifications: newProduct.specifications || {},
+          // B2B-specific fields
+          productType: 'B2B',
+          postAs: newProduct.postAs || 'seller',
+          moq: newProduct.moq ? parseInt(newProduct.moq) : null,
+          destination: newProduct.destination || null,
+          countryOfOrigin: newProduct.countryOfOrigin || null,
+          paymentTerms: newProduct.paymentTerms || '',
+          phone: newProduct.phone || '',
+          email: newProduct.email || '',
+          website: newProduct.website || '',
+          socialLinks: newProduct.socialLinks || [],
+          bulkPricing: newProduct.bulkPricing || [],
+          leadTime: newProduct.leadTime ? parseInt(newProduct.leadTime) : null,
+          shippingOptions: newProduct.shippingOptions || [],
+          certifications: newProduct.certifications || [],
+          supplierId: newProduct.supplierId || null,
+          companyId: newProduct.companyId || null,
+          businessType: newProduct.businessType || null,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
 
   const generateSKU = () => {
     return 'B2B-' + Math.random().toString(36).substr(2, 9).toUpperCase();
@@ -683,8 +792,38 @@ export default function B2BProductsManagement() {
           </div>
         </div>
 
+        {/* Success Message */}
+        {showSuccessMessage && (
+          <div className="mt-4 rounded-md bg-green-50 p-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-green-800">{successMessage}</p>
+              </div>
+              <div className="ml-auto pl-3">
+                <div className="-mx-1.5 -my-1.5">
+                  <button
+                    type="button"
+                    className="inline-flex bg-green-50 rounded-md p-1.5 text-green-500 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-green-50 focus:ring-green-600"
+                    onClick={() => setShowSuccessMessage(false)}
+                  >
+                    <span className="sr-only">Dismiss</span>
+                    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
         {/* Action Buttons */}
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap gap-2 items-center">
           <button
             type="button"
             className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white dark:hover:bg-gray-700"
@@ -710,6 +849,19 @@ export default function B2BProductsManagement() {
             />
           </label>
           
+          {selectedProducts.length > 0 && (
+            <button
+              type="button"
+              className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              onClick={handleBulkDeleteProducts}
+            >
+              <svg className="-ml-0.5 mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+              </svg>
+              Delete Selected ({selectedProducts.length})
+            </button>
+          )}
+          
           {importError && (
             <div className="text-red-600 text-sm mt-2">{importError}</div>
           )}
@@ -724,6 +876,14 @@ export default function B2BProductsManagement() {
                   <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
                       <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white sm:pl-6">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          checked={selectedProducts.length > 0 && selectedProducts.length === sortedProducts.length}
+                          onChange={selectAllProducts}
+                        />
+                      </th>
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">
                         Product
                       </th>
                       <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">
@@ -749,7 +909,7 @@ export default function B2BProductsManagement() {
                   <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
                     {sortedProducts.length === 0 ? (
                       <tr>
-                        <td colSpan="7" className="py-4 text-center text-gray-500 dark:text-gray-400">
+                        <td colSpan="8" className="py-4 text-center text-gray-500 dark:text-gray-400">
                           No B2B products found.{' '}
                           <button
                             type="button"
@@ -763,6 +923,14 @@ export default function B2BProductsManagement() {
                     ) : (
                       sortedProducts.map((product) => (
                         <tr key={product.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                          <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white sm:pl-6">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              checked={selectedProducts.includes(product.id)}
+                              onChange={() => toggleProductSelection(product.id)}
+                            />
+                          </td>
                           <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white sm:pl-6">
                             <div className="flex items-center">
                               {product.thumbnail ? (
