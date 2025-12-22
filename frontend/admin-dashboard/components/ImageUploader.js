@@ -41,6 +41,8 @@ const ImageUploader = ({ onImagesChange, initialImages = [], maxImages = 10 }) =
         try {
           const formData = new FormData();
           formData.append('file', file);
+          // Preserve original filename for Cloudinary
+          formData.append('filename', file.name);
           
           const response = await fetch(`${API_BASE_URL}/api/upload/product-image`, {
             method: 'POST',

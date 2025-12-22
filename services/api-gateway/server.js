@@ -96,18 +96,28 @@ app.post('/api/upload/product-image', upload.single('file'), async (req, res) =>
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
+    // Get filename from form data if provided
+    const filename = req.body.filename;
+    
     // Upload to Cloudinary with product-specific settings
     const result = await new Promise((resolve, reject) => {
+      const options = {
+        folder: 'products',
+        use_filename: true,
+        unique_filename: true,
+        transformation: [
+          { width: 800, height: 800, crop: 'fill', quality: 'auto', fetch_format: 'auto' },
+          { width: 400, height: 400, crop: 'fill', quality: 'auto', fetch_format: 'auto' }
+        ]
+      };
+      
+      // If filename is provided, use it
+      if (filename) {
+        options.filename = filename.split('.')[0]; // Remove extension for Cloudinary
+      }
+      
       const uploadStream = cloudinary.uploader.upload_stream(
-        {
-          folder: 'products',
-          use_filename: true,
-          unique_filename: false,
-          transformation: [
-            { width: 800, height: 800, crop: 'fill', quality: 'auto', fetch_format: 'auto' },
-            { width: 400, height: 400, crop: 'fill', quality: 'auto', fetch_format: 'auto' }
-          ]
-        },
+        options,
         (error, result) => {
           if (error) {
             console.error('Cloudinary upload error:', error);
