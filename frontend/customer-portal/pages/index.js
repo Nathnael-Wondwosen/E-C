@@ -297,21 +297,21 @@ import Header from './header/Header';export default function Home() {
       id: 1,
       title: "Global Trade Solutions",
       subtitle: "Connect with suppliers worldwide",
-      image: "/placeholder-carousel.jpg",
+      image: null,
       cta: "Explore Marketplace"
     },
     {
       id: 2,
       title: "Wholesale Excellence",
       subtitle: "Bulk orders with competitive pricing",
-      image: "/placeholder-carousel.jpg",
+      image: null,
       cta: "View Products"
     },
     {
       id: 3,
       title: "Verified Suppliers",
       subtitle: "Trusted partners for your business",
-      image: "/placeholder-carousel.jpg",
+      image: null,
       cta: "Find Suppliers"
     }
   ];

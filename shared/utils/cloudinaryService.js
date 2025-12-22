@@ -84,7 +84,7 @@ export async function uploadImageToCloudinary(file) {
 
 // Get image URL for display - handles both direct URLs and Cloudinary URLs
 export function getCloudinaryImageUrl(imageUrl, width = 1920, height = 1080) {
-  if (!imageUrl) return '/placeholder-carousel.jpg';
+  if (!imageUrl) return null;
   
   // If it's a direct URL (http/https), return as-is
   if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
@@ -113,8 +113,8 @@ export function getCloudinaryImageUrl(imageUrl, width = 1920, height = 1080) {
     }
   }
   
-  // Default fallback
-  return '/placeholder-carousel.jpg';
+  // Return null for invalid URLs
+  return null;
 }
 
 export default {
