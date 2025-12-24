@@ -234,7 +234,7 @@ export default function ProductGrid({ products = [], loading, onFilterChange, cu
                 </div>
                 
                 {/* Quick Actions */}
-                <div className="absolute top-2 right-10 flex flex-col space-y-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute top-2 right-2 flex flex-col space-y-1 opacity-0 group-hover:opacity-100 transition-opacity md:opacity-100 md:group-hover:opacity-100 md:right-10">
                   <button
                     onClick={() => toggleWishlist(product.id)}
                     className="bg-white p-1.5 rounded-full shadow-md hover:bg-gray-100"
@@ -325,7 +325,7 @@ export default function ProductGrid({ products = [], loading, onFilterChange, cu
                   </div>
                   
                   {/* Contact and Quick View Buttons - Side by side */}
-                  <div className="flex space-x-2">
+                  <div className="flex flex-col space-y-2 md:flex-row md:space-y-0 md:space-x-2">
                     <button
                       onClick={() => openQuickView(product)}
                       className="text-xs bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-3 py-1.5 rounded-full hover:from-blue-600 hover:to-indigo-600 transition-all transform hover:scale-105 shadow-sm"
@@ -469,16 +469,16 @@ export default function ProductGrid({ products = [], loading, onFilterChange, cu
                         )}
                       </div>
                       
-                      <div className="flex space-x-2">
+                      <div className="flex flex-col space-y-2 md:flex-row md:space-y-0 md:space-x-2">
                         <button
                           onClick={() => openQuickView(product)}
-                          className="text-xs bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-3 py-1.5 rounded-full hover:from-blue-600 hover:to-indigo-600 transition-all transform hover:scale-105 shadow-sm"
+                          className="text-xs bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-3 py-1.5 rounded-full hover:from-blue-600 hover:to-indigo-600 transition-all transform hover:scale-105 shadow-sm mb-2 md:mb-0"
                         >
                           Contact
                         </button>
                         <button
                           onClick={() => openQuickView(product)}
-                          className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-full transition-all shadow-sm"
+                          className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-full transition-all shadow-sm mb-2 md:mb-0"
                         >
                           Quick View
                         </button>

@@ -15,8 +15,10 @@ export default function Products() {
       try {
         setLoading(true);
         const fetchedProducts = await getProducts();
+        // Filter out B2B products - only show regular products in this page
+        const regularProducts = fetchedProducts.filter(product => product.productType !== 'B2B');
         // Convert MongoDB _id to id for frontend compatibility
-        const convertedProducts = fetchedProducts.map(product => ({
+        const convertedProducts = regularProducts.map(product => ({
           ...product,
           id: product._id || product.id
         }));

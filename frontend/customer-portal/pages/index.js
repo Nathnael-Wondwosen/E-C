@@ -15,7 +15,7 @@ import TrendingProductsSection from '../components/TrendingProductsSection';
 import FullWidthBannerSection from '../components/FullWidthBannerSection';
 import RandomProductsSection from '../components/RandomProductsSection';
 import NewsBlogSection from '../components/NewsBlogSection';
-import Header from './header/Header';export default function Home() {
+import Header from '../components/header/Header';export default function Home() {
   // Add CSS animations to head
   if (typeof document !== 'undefined') {
     const style = document.createElement('style');
@@ -161,8 +161,10 @@ import Header from './header/Header';export default function Home() {
       try {
         setLoadingProducts(true);
         const fetchedProducts = await getProducts();
+        // Filter out B2B products - only show regular products on the homepage
+        const regularProducts = fetchedProducts.filter(product => product.productType !== 'B2B');
         // Convert MongoDB _id to id for frontend compatibility
-        const convertedProducts = fetchedProducts.map(product => ({
+        const convertedProducts = regularProducts.map(product => ({
           ...product,
           id: product._id || product.id
         }));
@@ -333,7 +335,7 @@ import Header from './header/Header';export default function Home() {
   const viralProducts = [
     { id: 1, name: 'Wireless Noise Cancelling Headphones Pro X', price: '$129.99', originalPrice: '$199.99', trendType: 'Viral', image: '/placeholder-product.jpg' },
     { id: 2, name: 'Smart Fitness Tracker Watch Series 5', price: '$79.99', originalPrice: '$129.99', trendType: 'Hot', image: '/placeholder-product.jpg' },
-    { id: 3, name: 'Portable Bluetooth Speaker with 360Â° Sound', price: '$49.99', originalPrice: '$79.99', trendType: 'Trending', image: '/placeholder-product.jpg' },
+    { id: 3, name: 'Portable Bluetooth Speaker with 360° Sound', price: '$49.99', originalPrice: '$79.99', trendType: 'Trending', image: '/placeholder-product.jpg' },
     { id: 4, name: 'Ergonomic Mechanical Gaming Keyboard RGB', price: '$89.99', originalPrice: '$129.99', trendType: 'Popular', image: '/placeholder-product.jpg' },
     { id: 5, name: '4K Ultra HD Action Camera with Waterproof Case', price: '$149.99', originalPrice: '$249.99', trendType: 'Viral', image: '/placeholder-product.jpg' },
     { id: 6, name: 'Smart Home Security Camera System 4 Pack', price: '$199.99', originalPrice: '$299.99', trendType: 'Hot', image: '/placeholder-product.jpg' },
@@ -662,6 +664,16 @@ import Header from './header/Header';export default function Home() {
                 <li><Link href="/contact-us" className="hover:text-white transition">Contact Us</Link></li>
                 <li><Link href="/report-abuse" className="hover:text-white transition">Report Abuse</Link></li>
                 <li><Link href="/submit-complaint" className="hover:text-white transition">Submit a Complaint</Link></li>
+              </ul>
+            </div>
+            
+            <div>
+              <h4 className="font-semibold text-lg mb-4">B2B Marketplace</h4>
+              <ul className="space-y-2 text-gray-400">
+                <li><Link href="/b2b-marketplace" className="hover:text-white transition">B2B Products</Link></li>
+                <li><Link href="/b2b-marketplace" className="hover:text-white transition">Wholesale Orders</Link></li>
+                <li><Link href="/b2b-marketplace" className="hover:text-white transition">Supplier Verification</Link></li>
+                <li><Link href="/b2b-marketplace" className="hover:text-white transition">Trade Shows</Link></li>
               </ul>
             </div>
           </div>

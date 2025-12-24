@@ -136,30 +136,6 @@ export const deleteProduct = async (id) => {
   return { success: true };
 };
 
-export const bulkDeleteProducts = async (ids) => {
-  try {
-    // Try to delete via API
-    const response = await fetch(`${API_BASE_URL}/api/products/bulk`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ ids }),
-    });
-    
-    if (response.ok) {
-      const result = await response.json();
-      return { success: true, deletedCount: result.deletedCount };
-    }
-  } catch (error) {
-    console.warn('Failed to bulk delete products via API, using mock data:', error);
-  }
-  
-  // Fallback to mock implementation
-  await delay(500);
-  return { success: true, deletedCount: ids.length };
-};
-
 // Category management functions
 export const getCategories = async () => {
   try {
@@ -697,7 +673,6 @@ export default {
   createProduct,
   updateProduct,
   deleteProduct,
-  bulkDeleteProducts,
   getCategories,
   getCategoryById,
   createCategory,

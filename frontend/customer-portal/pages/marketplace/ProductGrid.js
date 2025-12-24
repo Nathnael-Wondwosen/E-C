@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ProductComparison from './ProductComparison';
 import QuickViewModal from './QuickViewModal';
+import { addToWishlist, removeFromWishlist, getUserWishlist } from '../../utils/userService';
 
 export default function ProductGrid({ products = [], loading, onFilterChange, currentSort }) {
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
@@ -8,6 +9,50 @@ export default function ProductGrid({ products = [], loading, onFilterChange, cu
   const [showComparison, setShowComparison] = useState(false); // Show comparison modal
   const [quickViewProduct, setQuickViewProduct] = useState(null); // Quick view product
   const [wishlist, setWishlist] = useState(new Set()); // Wishlist items
+  const [loadingWishlist, setLoadingWishlist] = useState({}); // Track loading state for each product
+
+  // Initialize wishlist with user's actual wishlist items
+  useEffect(() => {
+    const initializeWishlist = async () => {
+      const isLoggedIn = localStorage.getItem('userLoggedIn');
+      if (!isLoggedIn) {
+        // If not logged in, reset wishlist
+        setWishlist(new Set());
+        return;
+      }
+      
+      const userId = localStorage.getItem('userId');
+      if (!userId) {
+        console.error('User ID not found in localStorage');
+        return;
+      }
+      
+      try {
+        const wishlistData = await getUserWishlist(userId);
+        if (wishlistData.items && Array.isArray(wishlistData.items)) {
+          setWishlist(new Set(wishlistData.items));
+        } else {
+          setWishlist(new Set());
+        }
+      } catch (error) {
+        console.error('Error loading wishlist:', error);
+        setWishlist(new Set());
+      }
+    };
+    
+    initializeWishlist();
+    
+    // Listen for login/logout events to update wishlist
+    const handleLoginStatusChange = () => {
+      initializeWishlist();
+    };
+    
+    window.addEventListener('loginStatusChanged', handleLoginStatusChange);
+    
+    return () => {
+      window.removeEventListener('loginStatusChanged', handleLoginStatusChange);
+    };
+  }, []);
 
   // Toggle product selection for comparison
   const toggleProductSelection = (product) => {
@@ -32,14 +77,51 @@ export default function ProductGrid({ products = [], loading, onFilterChange, cu
   };
 
   // Toggle wishlist status
-  const toggleWishlist = (productId) => {
-    const newWishlist = new Set(wishlist);
-    if (newWishlist.has(productId)) {
-      newWishlist.delete(productId);
-    } else {
-      newWishlist.add(productId);
+  const toggleWishlist = async (productId) => {
+    // Check if user is logged in
+    const isLoggedIn = localStorage.getItem('userLoggedIn');
+    if (!isLoggedIn) {
+      // Store the current page as the redirect destination
+      localStorage.setItem('redirectAfterLogin', window.location.pathname);
+      // Redirect to login
+      window.location.href = '/login';
+      return;
     }
-    setWishlist(newWishlist);
+    
+    // Get user ID
+    const userId = localStorage.getItem('userId');
+    if (!userId) {
+      console.error('User ID not found in localStorage');
+      return;
+    }
+    
+    // Show loading state for this product
+    setLoadingWishlist(prev => ({ ...prev, [productId]: true }));
+    
+    try {
+      const newWishlist = new Set(wishlist);
+      if (newWishlist.has(productId)) {
+        // Remove from wishlist
+        await removeFromWishlist(userId, productId);
+        newWishlist.delete(productId);
+        setWishlist(newWishlist);
+      } else {
+        // Add to wishlist
+        await addToWishlist(userId, productId);
+        newWishlist.add(productId);
+        setWishlist(newWishlist);
+      }
+    } catch (error) {
+      console.error('Error updating wishlist:', error);
+      alert('Failed to update wishlist. Please try again.');
+    } finally {
+      // Remove loading state for this product
+      setLoadingWishlist(prev => {
+        const updated = { ...prev };
+        delete updated[productId];
+        return updated;
+      });
+    }
   };
 
   // Open quick view modal
@@ -73,7 +155,7 @@ export default function ProductGrid({ products = [], loading, onFilterChange, cu
             fill="currentColor"
             viewBox="0 0 20 20"
           >
-            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
           </svg>
         ))}
         <span className="ml-1 text-sm text-gray-600">{rating.toFixed(1)}</span>
@@ -100,7 +182,7 @@ export default function ProductGrid({ products = [], loading, onFilterChange, cu
             title="Grid View"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 012-2v-2z" />
+              <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2a2 2 0 012-2zm0 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
             </svg>
           </button>
           <button
@@ -216,20 +298,27 @@ export default function ProductGrid({ products = [], loading, onFilterChange, cu
                 )}
                 
                 {/* Quick Actions */}
-                <div className="absolute top-2 right-10 flex flex-col space-y-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute top-2 right-2 flex flex-col space-y-1 opacity-0 group-hover:opacity-100 transition-opacity md:opacity-100 md:group-hover:opacity-100 md:right-10">
                   <button
                     onClick={() => toggleWishlist(product.id)}
-                    className="bg-white p-1.5 rounded-full shadow-md hover:bg-gray-100"
+                    className="bg-white p-1.5 rounded-full shadow-md hover:bg-gray-100 relative"
+                    disabled={loadingWishlist[product.id]}
                   >
-                    <svg 
-                      xmlns="http://www.w3.org/2000/svg" 
-                      className={`h-5 w-5 ${wishlist.has(product.id) ? 'text-red-500 fill-current' : 'text-gray-600'}`} 
-                      viewBox="0 0 20 20" 
-                      fill={wishlist.has(product.id) ? "currentColor" : "none"}
-                      stroke="currentColor"
-                    >
-                      <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-                    </svg>
+                    {loadingWishlist[product.id] ? (
+                      <div className="flex items-center justify-center w-5 h-5">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500"></div>
+                      </div>
+                    ) : (
+                      <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        className={`h-5 w-5 ${wishlist.has(product.id) ? 'text-red-500 fill-current' : 'text-gray-600'}`} 
+                        viewBox="0 0 20 20" 
+                        fill={wishlist.has(product.id) ? "currentColor" : "none"}
+                        stroke="currentColor"
+                      >
+                        <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+                      </svg>
+                    )}
                   </button>
                   
                   <button
@@ -341,7 +430,7 @@ export default function ProductGrid({ products = [], loading, onFilterChange, cu
                         )}
                       </div>
                       
-                      <div className="flex space-x-2">
+                      <div className="flex flex-col space-y-2 md:flex-row md:space-y-0 md:space-x-2">
                         <button
                           onClick={() => openQuickView(product)}
                           className="px-3 py-1.5 bg-blue-600 text-white rounded-none hover:bg-blue-700 text-sm"
@@ -351,21 +440,29 @@ export default function ProductGrid({ products = [], loading, onFilterChange, cu
                         
                         <button
                           onClick={() => toggleWishlist(product.id)}
-                          className={`p-1.5 rounded-none ${
+                          className={`p-1.5 rounded-none relative ${
+                            loadingWishlist[product.id] ? 'bg-gray-100 text-gray-400' :
                             wishlist.has(product.id) 
                               ? 'bg-red-100 text-red-600' 
                               : 'bg-gray-100 text-gray-600'
                           }`}
+                          disabled={loadingWishlist[product.id]}
                         >
-                          <svg 
-                            xmlns="http://www.w3.org/2000/svg" 
-                            className="h-5 w-5" 
-                            viewBox="0 0 20 20" 
-                            fill={wishlist.has(product.id) ? "currentColor" : "none"}
-                            stroke="currentColor"
-                          >
-                            <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-                          </svg>
+                          {loadingWishlist[product.id] ? (
+                            <div className="flex items-center justify-center w-5 h-5">
+                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current"></div>
+                            </div>
+                          ) : (
+                            <svg 
+                              xmlns="http://www.w3.org/2000/svg" 
+                              className="h-5 w-5" 
+                              viewBox="0 0 20 20" 
+                              fill={wishlist.has(product.id) ? "currentColor" : "none"}
+                              stroke="currentColor"
+                            >
+                              <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+                            </svg>
+                          )}
                         </button>
                         
                         <button

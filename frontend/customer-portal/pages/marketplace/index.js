@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { getProducts, getCategories as getCategoriesData } from '../../utils/heroDataService';
 import FilterSidebar from '../../components/FilterSidebar';
 import ProductGrid from './ProductGrid';
+import Header from '../../components/header/Header'; // Import the shared Header component
 
 export default function Marketplace() {
   const [products, setProducts] = useState([]);
@@ -70,8 +71,11 @@ export default function Marketplace() {
           getCategoriesData()
         ]);
         
+        // Filter out B2B products - only show regular products in marketplace
+        const regularProducts = fetchedProducts.filter(product => product.productType !== 'B2B');
+        
         // Convert MongoDB _id to id for frontend compatibility
-        const convertedProducts = fetchedProducts.map(product => ({
+        const convertedProducts = regularProducts.map(product => ({
           ...product,
           id: product._id || product.id
         }));
@@ -224,231 +228,11 @@ export default function Marketplace() {
         <meta name="description" content="Browse products in our marketplace" />
       </Head>
 
-      {/* Custom Header without TopBar */}
-      <header className="bg-gradient-to-r from-gray-800 to-gray-900 shadow-lg sticky top-0 z-50">
-        <div className="container mx-auto px-4">
-          {/* Desktop Header */}
-          <div className="hidden md:flex items-center justify-between py-4">
-            <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-white flex items-center">
-                <img 
-                  src="/TE-logo.png" 
-                  alt="TradeEthiopia Logo" 
-                  className="h-10 w-auto mr-3"
-                />
-                <span className="text-white">TradeEthiopia</span>
-              </h1>
-            </div>            
-            {/* Search Bar */}
-            <div className="flex-1 mx-10">
-              <div className="relative">
-                <input 
-                  type="text" 
-                  placeholder="Search for products, suppliers & more..." 
-                  className="w-full py-3 px-4 bg-gray-700 text-white border border-gray-600 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400"
-                />
-                <button className="absolute right-0 top-0 h-full px-6 bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-r-full hover:from-blue-700 hover:to-blue-900 transition-all duration-300 shadow-md">
-                  Search
-                </button>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-6">
-              <Link href="/favorites" className="flex flex-col items-center text-gray-300 hover:text-white transition-colors duration-300">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
-                </svg>
-                <span className="text-xs mt-1">Favorites</span>
-              </Link>
-              
-              <Link href="/cart" className="flex flex-col items-center text-gray-300 hover:text-white transition-colors duration-300">
-                <div className="relative">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                  </svg>
-                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">3</span>
-                </div>
-                <span className="text-xs mt-1">Cart</span>
-              </Link>
-              
-              <Link href="/login" className="flex flex-col items-center text-gray-300 hover:text-white transition-colors duration-300">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                </svg>
-                <span className="text-xs mt-1">Account</span>
-              </Link>
-            </div>
-          </div>          
-          {/* Mobile Header */}
-          <div className="md:hidden py-3 flex items-center justify-between">
-            <button 
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-2 rounded-md text-gray-300 focus:outline-none"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
-              </svg>
-            </button>
-            
-            <div className="flex items-center">
-              <img 
-                src="/TE-logo.png" 
-                alt="TradeEthiopia Logo" 
-                className="h-8 w-auto mr-2"
-              />
-              <div className="text-xl font-bold text-white">TradeEthiopia</div>
-            </div>
-            
-            <div className="flex space-x-4">
-              <Link href="/cart" className="relative p-2">
-                <svg className="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                </svg>
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">3</span>
-              </Link>
-            </div>
-          </div>
-          
-          {/* Mobile Search */}
-          <div className="md:hidden pb-3">
-            <div className="relative">
-              <input 
-                type="text" 
-                placeholder="Search products..." 
-                className="w-full py-2 px-4 bg-gray-700 text-white border border-gray-600 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400"
-              />
-              <button className="absolute right-0 top-0 h-full px-4 bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-r-full">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        {/* Navigation Menu - Desktop */}
-        <nav className="hidden md:block bg-gradient-to-r from-gray-900 via-blue-900 to-gray-900 text-white">
-          <div className="container mx-auto px-4">
-            <div className="flex">
-              <div className="relative group">
-                <button className="flex items-center py-3 px-4 hover:bg-blue-800 hover:bg-opacity-50 transition-all duration-300">
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                  </svg>
-                  Categories
-                </button>
-                {/* Dropdown for categories */}
-                <div className="absolute left-0 top-full w-64 bg-white text-gray-800 shadow-lg rounded-b-lg hidden group-hover:block z-50">
-                  <div className="py-2">
-                    {categories && Array.isArray(categories) && categories.slice(0, 6).map((category) => (
-                      <Link 
-                        key={category.id} 
-                        href={`/categories/${category.id}`}
-                        className="flex items-center px-4 py-2 hover:bg-gray-100 transition-colors duration-200"
-                      >
-                        <span className="mr-3 text-lg">{category.icon}</span>
-                        <span>{category.name}</span>
-                      </Link>
-                    ))}
-                    <Link href="/categories" className="block px-4 py-2 text-center text-blue-600 hover:bg-gray-100 border-t transition-colors duration-200">
-                      View All Categories
-                    </Link>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex flex-1">
-                {navbarLinks
-                  .filter(link => link.enabled)
-                  .sort((a, b) => a.order - b.order)
-                  .map(link => (
-                    link.type === 'external' ? (
-                      <a 
-                        key={link.id} 
-                        href={link.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="py-3 px-4 hover:bg-blue-800 hover:bg-opacity-50 transition-all duration-300"
-                      >
-                        {link.title}
-                      </a>
-                    ) : (
-                      <Link 
-                        key={link.id} 
-                        href={link.url}
-                        className="py-3 px-4 hover:bg-blue-800 hover:bg-opacity-50 transition-all duration-300"
-                      >
-                        {link.title}
-                      </Link>
-                    )
-                  ))}
-              </div>
-            </div>
-          </div>
-        </nav>
-        
-        {/* Mobile Menu */}
-        {isMenuOpen && (
-          <div className="md:hidden bg-white shadow-lg absolute w-full z-40">
-            <div className="py-2 border-b">
-              <Link 
-                href="/categories" 
-                className="block px-4 py-3 hover:bg-gray-100 flex items-center"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                </svg>
-                All Categories
-              </Link>
-              
-              {navbarLinks
-                .filter(link => link.enabled)
-                .sort((a, b) => a.order - b.order)
-                .map(link => (
-                  link.type === 'external' ? (
-                    <a 
-                      key={link.id} 
-                      href={link.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="block px-4 py-3 hover:bg-gray-100"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      {link.title}
-                    </a>
-                  ) : (
-                    <Link 
-                      key={link.id} 
-                      href={link.url}
-                      className="block px-4 py-3 hover:bg-gray-100"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      {link.title}
-                    </Link>
-                  )
-                ))}
-            </div>
-            
-            <div className="py-2">
-              <Link 
-                href="/login" 
-                className="block px-4 py-3 hover:bg-gray-100"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Sign In
-              </Link>
-              <Link 
-                href="/register" 
-                className="block px-4 py-3 hover:bg-gray-100"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Register
-              </Link>
-            </div>
-          </div>
-        )}
-      </header>
+      <Header 
+        isMenuOpen={isMenuOpen}
+        setIsMenuOpen={setIsMenuOpen}
+        categories={categories}
+      />
 
       {/* Modern Breadcrumb with Hero Section-like Imagery */}
       <div className="relative h-32 md:h-40 lg:h-48 overflow-hidden">

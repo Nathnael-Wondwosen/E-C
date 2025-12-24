@@ -1386,48 +1386,6 @@ app.post('/api/users/:id/cart', async (req, res) => {
   }
 });
 
-// Remove from User Cart
-app.delete('/api/users/:id/cart/:productId', async (req, res) => {
-  try {
-    if (!db) {
-      return res.status(500).json({ error: 'Database connection not available' });
-    }
-    
-    const userId = req.params.id;
-    const productId = req.params.productId;
-    
-    if (!productId) {
-      return res.status(400).json({ error: 'Product ID is required' });
-    }
-    
-    const collection = db.collection('carts');
-    
-    // Find existing cart
-    let cart = await collection.findOne({ userId: userId });
-    
-    if (!cart) {
-      return res.status(404).json({ error: 'Cart not found' });
-    }
-    
-    // Filter out the item to remove
-    cart.items = cart.items.filter(item => item.productId !== productId);
-    
-    // Recalculate count
-    cart.count = cart.items.reduce((sum, item) => sum + item.quantity, 0);
-    
-    // Update the cart in database
-    await collection.updateOne(
-      { userId: userId },
-      { $set: cart }
-    );
-    
-    res.json({ success: true, message: 'Item removed from cart' });
-  } catch (error) {
-    console.error('Error removing from cart:', error);
-    res.status(500).json({ error: 'Failed to remove item from cart' });
-  }
-});
-
 // Get User Wishlist
 app.get('/api/users/:id/wishlist', async (req, res) => {
   try {
@@ -1498,45 +1456,6 @@ app.post('/api/users/:id/wishlist', async (req, res) => {
   } catch (error) {
     console.error('Error adding to wishlist:', error);
     res.status(500).json({ error: 'Failed to add item to wishlist' });
-  }
-});
-
-// Remove from User Wishlist
-app.delete('/api/users/:id/wishlist/:productId', async (req, res) => {
-  try {
-    if (!db) {
-      return res.status(500).json({ error: 'Database connection not available' });
-    }
-    
-    const userId = req.params.id;
-    const productId = req.params.productId;
-    
-    if (!productId) {
-      return res.status(400).json({ error: 'Product ID is required' });
-    }
-    
-    const collection = db.collection('wishlists');
-    
-    // Find existing wishlist
-    let wishlist = await collection.findOne({ userId: userId });
-    
-    if (!wishlist) {
-      return res.status(404).json({ error: 'Wishlist not found' });
-    }
-    
-    // Filter out the item to remove
-    wishlist.items = wishlist.items.filter(item => item !== productId);
-    
-    // Update the wishlist in database
-    await collection.updateOne(
-      { userId: userId },
-      { $set: { items: wishlist.items } }
-    );
-    
-    res.json({ success: true, message: 'Item removed from wishlist' });
-  } catch (error) {
-    console.error('Error removing from wishlist:', error);
-    res.status(500).json({ error: 'Failed to remove item from wishlist' });
   }
 });
 

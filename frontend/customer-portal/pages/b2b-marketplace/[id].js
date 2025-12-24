@@ -24,7 +24,12 @@ export default function B2BProductDetail() {
     try {
       setLoading(true);
       const allProducts = await getProducts();
-      const foundProduct = allProducts.find(p => p._id === id || p.id === id);
+      // Filter for B2B products only
+      const b2bProducts = allProducts.filter(p => p.productType === 'B2B' || 
+        (p.productType && p.productType.toLowerCase().includes('b2b'))
+      );
+      
+      const foundProduct = b2bProducts.find(p => p._id === id || p.id === id);
       
       if (foundProduct) {
         // Convert MongoDB _id to id for frontend compatibility
@@ -34,8 +39,8 @@ export default function B2BProductDetail() {
         };
         setProduct(convertedProduct);
         
-        // Get related products (same category)
-        const related = allProducts
+        // Get related B2B products (same category)
+        const related = b2bProducts
           .filter(p => (p._id !== id && p.id !== id) && p.category === foundProduct.category)
           .slice(0, 4)
           .map(p => ({
