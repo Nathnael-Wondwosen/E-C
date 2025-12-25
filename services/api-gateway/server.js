@@ -33,8 +33,22 @@ MongoClient.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true
     console.error('Failed to connect to MongoDB:', error);
   });
 
-// Middleware
-app.use(cors());
+// CORS configuration for Vercel deployment
+const corsOptions = {
+  origin: [
+    'http://localhost:3005',
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'https://main.d2d4u2028bdnmp.amplifyapp.com', // Current Amplify deployment
+    'https://*.vercel.app', // Vercel deployments
+    'https://*.vercel.com', // Vercel deployments
+    process.env.CORS_ORIGIN // Allow custom origin from environment
+  ].filter(Boolean), // Remove any undefined values
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 app.use(helmet());
 app.use(morgan('combined'));
 app.use(express.json());

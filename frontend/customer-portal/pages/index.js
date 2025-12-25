@@ -14,7 +14,7 @@ import PromotionalSection from '../components/PromotionalSection';
 import TrendingProductsSection from '../components/TrendingProductsSection';
 import FullWidthBannerSection from '../components/FullWidthBannerSection';
 import RandomProductsSection from '../components/RandomProductsSection';
-import ClientOnlyNewsBlogSection from '../components/ClientOnlyNewsBlogSection';
+import NewsBlogSection from '../components/NewsBlogSection';
 import Header from '../components/header/Header';export default function Home() {
   // CSS animations are defined in the component using jsx style tag
   
@@ -575,14 +575,10 @@ import Header from '../components/header/Header';export default function Home() 
           randomProducts={randomProducts}
         />
 
-        <ClientOnlyNewsBlogSection 
+        <NewsBlogSection 
           industryNews={industryNews}
           businessInsights={businessInsights}
           partners={partners}
-          currentNewsIndex={currentNewsIndex}
-          setCurrentNewsIndex={setCurrentNewsIndex}
-          currentBlogIndex={currentBlogIndex}
-          setCurrentBlogIndex={setCurrentBlogIndex}
         />
       </main>
 

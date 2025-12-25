@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next",
+      "config": {
+        "serverless": true
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ],
+  "env": {
+    "NEXT_PUBLIC_API_BASE_URL": "$NEXT_PUBLIC_API_BASE_URL",
+    "ALGOLIA_APP_ID": "$ALGOLIA_APP_ID",
+    "ALGOLIA_SEARCH_KEY": "$ALGOLIA_SEARCH_KEY",
+    "CLOUDINARY_CLOUD_NAME": "$CLOUDINARY_CLOUD_NAME",
+    "CLOUDINARY_API_KEY": "$CLOUDINARY_API_KEY",
+    "CLOUDINARY_API_SECRET": "$CLOUDINARY_API_SECRET",
+    "CLOUDINARY_URL": "$CLOUDINARY_URL"
+  }
+}

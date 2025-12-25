@@ -6,8 +6,10 @@ const nextConfig = {
     locales: ['en', 'es', 'fr', 'de'],
     defaultLocale: 'en',
   },
-  // Enable static exports for Vercel
-  output: 'standalone',
+  // Vercel deployment optimizations
+  images: {
+    domains: ['images.unsplash.com', 'via.placeholder.com', 'localhost', '127.0.0.1'], // Add domains for image optimization
+  },
   // Environment variables
   env: {
     API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || process.env.API_BASE_URL,
@@ -18,6 +20,7 @@ const nextConfig = {
     CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
     CLOUDINARY_URL: process.env.CLOUDINARY_URL,
   },
+  // Vercel supports server-side rendering
 }
 
 module.exports = nextConfig
