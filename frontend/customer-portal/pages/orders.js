@@ -35,47 +35,8 @@ export default function Orders() {
       // Fetch user's orders from the API
       const ordersData = await getUserOrders(userId);
       
-      // If API returns empty or no orders, use mock data as fallback
-      if (!ordersData || !ordersData.orders || ordersData.orders.length === 0) {
-        // For now, using mock data since we don't have a full orders API
-        // In a real implementation, we would fetch from the API
-        const mockOrders = [
-          {
-            id: 1,
-            orderNumber: 'ORD-001',
-            date: '2023-12-15',
-            status: 'completed',
-            total: 299.97,
-            items: [
-              { name: 'Wireless Headphones', quantity: 2, price: 99.99 },
-              { name: 'Phone Case', quantity: 1, price: 99.99 }
-            ]
-          },
-          {
-            id: 2,
-            orderNumber: 'ORD-002',
-            date: '2023-12-10',
-            status: 'shipped',
-            total: 199.99,
-            items: [
-              { name: 'Smart Watch', quantity: 1, price: 199.99 }
-            ]
-          },
-          {
-            id: 3,
-            orderNumber: 'ORD-003',
-            date: '2023-12-05',
-            status: 'processing',
-            total: 79.99,
-            items: [
-              { name: 'Bluetooth Speaker', quantity: 1, price: 79.99 }
-            ]
-          }
-        ];
-        setOrders(mockOrders);
-      } else {
-        setOrders(ordersData.orders);
-      }
+      // Set the orders from the API response
+      setOrders(ordersData.orders || []);
     } catch (err) {
       console.error('Error loading orders:', err);
       setError(err.message);
@@ -141,8 +102,10 @@ export default function Orders() {
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Order History</h1>
-          <p className="mt-2 text-gray-600">View and manage your past orders</p>
+          <div className="px-6 py-4 bg-gradient-to-r from-gray-900 to-blue-900 rounded-none">
+            <h1 className="text-3xl font-bold text-white">Order History</h1>
+            <p className="mt-2 text-gray-300">View and manage your past orders</p>
+          </div>
         </div>
 
         {orders.length === 0 ? (
@@ -162,10 +125,10 @@ export default function Orders() {
           <div className="space-y-6">
             {orders.map((order) => (
               <div key={order.id} className="bg-white bg-opacity-80 backdrop-blur-sm rounded-none shadow-lg overflow-hidden border border-gray-200 hover:shadow-xl transition-all duration-300">
-                <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
+                <div className="px-6 py-4 bg-gradient-to-r from-gray-900 to-blue-900 border-b border-gray-200">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                     <div className="flex items-center">
-                      <p className="text-lg font-semibold text-gray-800">
+                      <p className="text-lg font-semibold text-white">
                         Order #{order.orderNumber}
                       </p>
                       <div className="ml-4">
@@ -174,7 +137,7 @@ export default function Orders() {
                         </span>
                       </div>
                     </div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-gray-300">
                       {new Date(order.date).toLocaleDateString()}
                     </div>
                   </div>
@@ -186,22 +149,29 @@ export default function Orders() {
                       <h4 className="text-sm font-medium text-gray-700 mb-2">Order Summary</h4>
                       <div className="space-y-1">
                         <p className="text-sm text-gray-600">
-                          Items: {order.items.reduce((sum, item) => sum + item.quantity, 0)}
+                          Items: {order.items ? order.items.reduce((sum, item) => sum + (item.quantity || 1), 0) : 0}
                         </p>
                         <p className="text-sm text-gray-600">
-                          Total: <span className="font-semibold">${order.total.toFixed(2)}</span>
+                          Total: <span className="font-semibold">${order.total ? order.total.toFixed(2) : '0.00'}</span>
                         </p>
                       </div>
                     </div>
                     
                     <div>
                       <h4 className="text-sm font-medium text-gray-700 mb-2">Items in Order</h4>
-                      <ul className="space-y-1">
-                        {order.items.map((item, index) => (
-                          <li key={index} className="text-sm text-gray-600">
-                            {item.quantity}x {item.name} - ${(item.price * item.quantity).toFixed(2)}
-                          </li>
-                        ))}
+                      <ul className="space-y-1 max-h-32 overflow-y-auto">
+                        {order.items && order.items.length > 0 ? (
+                          order.items.slice(0, 3).map((item, index) => (
+                            <li key={index} className="text-sm text-gray-600 truncate">
+                              {(item.quantity || 1)}x {item.name} - ${(item.price * (item.quantity || 1)).toFixed(2)}
+                            </li>
+                          ))
+                        ) : (
+                          <li className="text-sm text-gray-600">No items in order</li>
+                        )}
+                        {order.items && order.items.length > 3 && (
+                          <li className="text-sm text-gray-500">+{order.items.length - 3} more items</li>
+                        )}
                       </ul>
                     </div>
                     
