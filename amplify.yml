@@ -5,10 +5,11 @@ frontend:
       commands:
         - nvm install 18
         - nvm use 18
-        - npm install --workspace=customer-portal
+        - cd frontend/customer-portal
+        - npm install
     build:
       commands:
-        - npm run build --workspace=customer-portal
+        - npm run build
   artifacts:
     baseDirectory: frontend/customer-portal/.next
     files:
