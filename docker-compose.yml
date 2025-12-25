@@ -28,5 +28,16 @@ services:
       - NODE_ENV=development
       - MONGODB_URI=mongodb://mongodb:27017/user-service
 
+  # Customer Portal
+  customer-portal:
+    build: ./frontend/customer-portal
+    ports:
+      - "3005:3005"
+    depends_on:
+      - api-gateway
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_BASE_URL=http://api-gateway:3000
+
 volumes:
   mongodb_data:

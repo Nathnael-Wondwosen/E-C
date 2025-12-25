@@ -29,6 +29,9 @@ COPY package*.json ./
 # Install production dependencies only
 RUN npm install --only=production && npm cache clean --force
 
+# Install curl for healthcheck
+RUN apk add --no-cache curl
+
 # Copy built files from builder stage
 COPY --from=builder /usr/src/app/.next ./.next
 COPY --from=builder /usr/src/app/public ./public
@@ -46,7 +49,7 @@ EXPOSE 3005
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node healthcheck.js || exit 1
+  CMD curl -f http://localhost:3005/api/health || exit 1
 
 # Start the application
 CMD ["npm", "start"]
