@@ -10,9 +10,9 @@ frontend:
       commands:
         - npm run build --workspace=customer-portal
   artifacts:
-    baseDirectory: frontend/.next
+    baseDirectory: frontend/customer-portal/.next
     files:
       - '**/*'
   cache:
     paths:
-      - frontend/node_modules/**/*
+      - frontend/customer-portal/node_modules/**/*
