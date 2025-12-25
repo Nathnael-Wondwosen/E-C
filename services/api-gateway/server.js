@@ -40,6 +40,7 @@ const corsOptions = {
     'http://localhost:3000',
     'http://localhost:3001',
     'https://e-c-customer-portal.vercel.app',
+    'https://e-c-customer-portal-hmyxyz7xm-natis-projects-aacb4659.vercel.app'
     'https://main.d2d4u2028bdnmp.amplifyapp.com', // Current Amplify deployment
     'https://*.vercel.app', // Vercel deployments
     'https://*.vercel.com', // Vercel deployments
