@@ -1550,12 +1550,123 @@ app.get('/api/users/:id/orders', async (req, res) => {
     const userId = req.params.id;
     const collection = db.collection('orders');
     
-    const orders = await collection.find({ userId: userId }).toArray();
+    const orders = await collection.find({ userId: userId }).sort({ createdAt: -1 }).toArray();
     
     res.json({ orders });
   } catch (error) {
     console.error('Error fetching user orders:', error);
     res.status(500).json({ error: 'Failed to fetch user orders' });
+  }
+});
+
+// Get User Order by ID
+app.get('/api/users/:id/orders/:orderId', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const userId = req.params.id;
+    const orderId = req.params.orderId;
+    
+    const collection = db.collection('orders');
+    
+    // Try to find the order by userId and orderId
+    let order;
+    try {
+      order = await collection.findOne({ 
+        userId: userId, 
+        _id: new ObjectId(orderId) 
+      });
+    } catch (objectIdError) {
+      // If ObjectId conversion fails, try to find by string ID
+      order = await collection.findOne({ 
+        userId: userId, 
+        _id: orderId 
+      });
+    }
+    
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    
+    res.json({
+      id: order._id.toString(),
+      userId: order.userId,
+      orderNumber: order.orderNumber,
+      items: order.items,
+      shippingInfo: order.shippingInfo,
+      paymentMethod: order.paymentMethod,
+      total: order.total,
+      status: order.status,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt
+    });
+  } catch (error) {
+    console.error('Error fetching order:', error);
+    res.status(500).json({ error: 'Failed to fetch order' });
+  }
+});
+
+// Create User Order
+app.post('/api/users/:id/orders', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' });
+    }
+    
+    const userId = req.params.id;
+    const orderData = req.body;
+    
+    // Validate required fields
+    if (!orderData.items || !Array.isArray(orderData.items) || orderData.items.length === 0) {
+      return res.status(400).json({ error: 'Order items are required' });
+    }
+    
+    if (!orderData.shippingInfo) {
+      return res.status(400).json({ error: 'Shipping information is required' });
+    }
+    
+    if (orderData.total === undefined) {
+      return res.status(400).json({ error: 'Order total is required' });
+    }
+    
+    const collection = db.collection('orders');
+    
+    // Create order object
+    const newOrder = {
+      userId: userId,
+      orderNumber: `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`, // Generate unique order number
+      items: orderData.items,
+      shippingInfo: orderData.shippingInfo,
+      paymentMethod: orderData.paymentMethod || 'Credit Card',
+      total: orderData.total,
+      status: 'processing',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    // Insert the new order
+    const result = await collection.insertOne(newOrder);
+    
+    // Clear user's cart after order is placed
+    const cartCollection = db.collection('carts');
+    await cartCollection.updateOne(
+      { userId: userId },
+      { $set: { items: [], count: 0 } },
+      { upsert: true }
+    );
+    
+    res.status(201).json({
+      success: true,
+      order: {
+        id: result.insertedId.toString(),
+        ...newOrder
+      }
+    });
+  } catch (error) {
+    console.error('Error creating order:', error);
+    res.status(500).json({ error: 'Failed to create order' });
   }
 });
 

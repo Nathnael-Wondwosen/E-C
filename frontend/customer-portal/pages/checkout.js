@@ -116,25 +116,44 @@ export default function Checkout() {
     e.preventDefault();
     
     try {
-      // In a real implementation, this would process the order
-      // and create it in the database
-      console.log('Processing order with:', {
+      const userId = localStorage.getItem('userId');
+      if (!userId) {
+        throw new Error('User not authenticated');
+      }
+      
+      // Prepare order data
+      const orderData = {
+        items: cartItems,
         shippingInfo,
         paymentMethod,
-        items: cartItems,
-        total: calculateTotal()
+        total: calculateTotal() * 1.15, // Include tax
+        subtotal: calculateTotal(),
+        tax: calculateTotal() * 0.15
+      };
+      
+      // Call API to create order
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users/${userId}/orders`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(orderData)
       });
       
-      // Simulate API call to place order
-      // In a real app, you would call an API endpoint to create the order
-      // and then clear the cart
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to place order');
+      }
       
-      alert('Order placed successfully!');
-      // Clear cart and redirect to order confirmation
+      const result = await response.json();
+      
+      console.log('Order placed successfully:', result.order);
+      
+      // Redirect to order confirmation
       router.push('/orders');
     } catch (error) {
       console.error('Error placing order:', error);
-      alert('Failed to place order. Please try again.');
+      alert(`Failed to place order: ${error.message}`);
     }
   };
 

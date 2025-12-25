@@ -14,32 +14,9 @@ import PromotionalSection from '../components/PromotionalSection';
 import TrendingProductsSection from '../components/TrendingProductsSection';
 import FullWidthBannerSection from '../components/FullWidthBannerSection';
 import RandomProductsSection from '../components/RandomProductsSection';
-import NewsBlogSection from '../components/NewsBlogSection';
+import ClientOnlyNewsBlogSection from '../components/ClientOnlyNewsBlogSection';
 import Header from '../components/header/Header';export default function Home() {
-  // Add CSS animations to head
-  if (typeof document !== 'undefined') {
-    const style = document.createElement('style');
-    style.innerHTML = `
-      @keyframes slideLeft {
-        0% { transform: translateX(0); }
-        100% { transform: translateX(-100%); }
-      }
-      
-      @keyframes slideRight {
-        0% { transform: translateX(-100%); }
-        100% { transform: translateX(0); }
-      }
-      
-      .animate-slide-left {
-        animation: slideLeft 30s linear infinite;
-      }
-      
-      .animate-slide-right {
-        animation: slideRight 30s linear infinite;
-      }
-    `;
-    document.head.appendChild(style);
-  }
+  // CSS animations are defined in the component using jsx style tag
   
   // Define API base URL for client-side requests
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
@@ -598,7 +575,7 @@ import Header from '../components/header/Header';export default function Home() 
           randomProducts={randomProducts}
         />
 
-        <NewsBlogSection 
+        <ClientOnlyNewsBlogSection 
           industryNews={industryNews}
           businessInsights={businessInsights}
           partners={partners}

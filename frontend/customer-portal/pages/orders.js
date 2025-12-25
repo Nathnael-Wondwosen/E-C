@@ -101,12 +101,7 @@ export default function Orders() {
       <Header />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <div className="px-6 py-4 bg-gradient-to-r from-gray-900 to-blue-900 rounded-none">
-            <h1 className="text-3xl font-bold text-white">Order History</h1>
-            <p className="mt-2 text-gray-300">View and manage your past orders</p>
-          </div>
-        </div>
+
 
         {orders.length === 0 ? (
           <div className="text-center py-16">
@@ -122,61 +117,61 @@ export default function Orders() {
             </Link>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {orders.map((order) => (
-              <div key={order.id} className="bg-white bg-opacity-80 backdrop-blur-sm rounded-none shadow-lg overflow-hidden border border-gray-200 hover:shadow-xl transition-all duration-300">
-                <div className="px-6 py-4 bg-gradient-to-r from-gray-900 to-blue-900 border-b border-gray-200">
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+              <div key={order.id} className="bg-white bg-opacity-80 backdrop-blur-sm rounded-none shadow-md overflow-hidden border border-gray-200 hover:shadow-lg transition-all duration-300">
+                <div className="px-4 py-3 bg-gradient-to-r from-gray-900 to-blue-900 border-b border-gray-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div className="flex items-center">
-                      <p className="text-lg font-semibold text-white">
+                      <p className="text-base font-semibold text-white">
                         Order #{order.orderNumber}
                       </p>
-                      <div className="ml-4">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-none text-sm font-medium ${getStatusColor(order.status)}`}>
+                      <div className="ml-3">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-none text-xs font-medium ${getStatusColor(order.status)}`}>
                           {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                         </span>
                       </div>
                     </div>
-                    <div className="text-sm text-gray-300">
+                    <div className="text-xs text-gray-300">
                       {new Date(order.date).toLocaleDateString()}
                     </div>
                   </div>
                 </div>
                 
-                <div className="p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="p-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Order Summary</h4>
-                      <div className="space-y-1">
-                        <p className="text-sm text-gray-600">
+                      <h4 className="text-xs font-medium text-gray-700 mb-1">Order Summary</h4>
+                      <div className="space-y-0.5">
+                        <p className="text-xs text-gray-600">
                           Items: {order.items ? order.items.reduce((sum, item) => sum + (item.quantity || 1), 0) : 0}
                         </p>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-xs text-gray-600">
                           Total: <span className="font-semibold">${order.total ? order.total.toFixed(2) : '0.00'}</span>
                         </p>
                       </div>
                     </div>
                     
                     <div>
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Items in Order</h4>
-                      <ul className="space-y-1 max-h-32 overflow-y-auto">
+                      <h4 className="text-xs font-medium text-gray-700 mb-1">Items in Order</h4>
+                      <ul className="space-y-0.5 max-h-20 overflow-y-auto">
                         {order.items && order.items.length > 0 ? (
                           order.items.slice(0, 3).map((item, index) => (
-                            <li key={index} className="text-sm text-gray-600 truncate">
+                            <li key={index} className="text-xs text-gray-600 truncate">
                               {(item.quantity || 1)}x {item.name} - ${(item.price * (item.quantity || 1)).toFixed(2)}
                             </li>
                           ))
                         ) : (
-                          <li className="text-sm text-gray-600">No items in order</li>
+                          <li className="text-xs text-gray-600">No items in order</li>
                         )}
                         {order.items && order.items.length > 3 && (
-                          <li className="text-sm text-gray-500">+{order.items.length - 3} more items</li>
+                          <li className="text-xs text-gray-500">+{order.items.length - 3} more items</li>
                         )}
                       </ul>
                     </div>
                     
                     <div className="flex flex-col items-end justify-center">
-                      <Link href={`/orders/${order.id}`} className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-none text-sm font-medium hover:from-blue-700 hover:to-indigo-800 transition-all duration-300">
+                      <Link href={`/orders/${order.id}`} className="px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-none text-xs font-medium hover:from-blue-700 hover:to-indigo-800 transition-all duration-300">
                         View Details
                       </Link>
                     </div>
