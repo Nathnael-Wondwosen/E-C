@@ -43,6 +43,8 @@ export default function FullWidthBannerSection({ bannerSlides = [], currentBanne
                       src={slide.imageUrl || slide.image}
                       alt={slide.title}
                       className="absolute inset-0 w-full h-full object-cover transition-all duration-1000 ease-in-out"
+                      loading={index === currentBannerIndex ? 'eager' : 'lazy'}
+                      decoding="async"
                     />
                     
                     {/* Overlay for better readability */}

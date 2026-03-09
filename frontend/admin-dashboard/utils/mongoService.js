@@ -1,6 +1,7 @@
 // MongoDB service utility for admin dashboard
 // This connects to the actual MongoDB database using the provided URI
 
+import { withAdminScopeUrl } from './scopeApi';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000'; // API Gateway
 
 // Simulate API delay
@@ -10,7 +11,7 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 export const getProducts = async () => {
   try {
     // Try to fetch from API first
-    const response = await fetch(`${API_BASE_URL}/api/products`);
+    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/products`));
     if (response.ok) {
       const products = await response.json();
       return products.map(product => ({
@@ -39,7 +40,7 @@ export const getProducts = async () => {
 export const getProductById = async (id) => {
   try {
     // Try to fetch from API first
-    const response = await fetch(`${API_BASE_URL}/api/products/${id}`);
+    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/products/${id}`));
     if (response.ok) {
       const product = await response.json();
       return {
@@ -60,7 +61,7 @@ export const getProductById = async (id) => {
 export const createProduct = async (productData) => {
   try {
     // Try to create via API
-    const response = await fetch(`${API_BASE_URL}/api/products`, {
+    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/products`), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -90,7 +91,7 @@ export const createProduct = async (productData) => {
 export const updateProduct = async (id, productData) => {
   try {
     // Try to update via API
-    const response = await fetch(`${API_BASE_URL}/api/products/${id}`, {
+    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/products/${id}`), {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -120,7 +121,7 @@ export const updateProduct = async (id, productData) => {
 export const deleteProduct = async (id) => {
   try {
     // Try to delete via API
-    const response = await fetch(`${API_BASE_URL}/api/products/${id}`, {
+    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/products/${id}`), {
       method: 'DELETE',
     });
     
@@ -140,7 +141,7 @@ export const deleteProduct = async (id) => {
 export const getCategories = async () => {
   try {
     // Try to fetch from API first
-    const response = await fetch(`${API_BASE_URL}/api/categories`);
+    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/categories`));
     if (response.ok) {
       const categories = await response.json();
       return categories.map(category => ({
@@ -169,7 +170,7 @@ export const getCategories = async () => {
 export const getCategoryById = async (id) => {
   try {
     // Try to fetch from API first
-    const response = await fetch(`${API_BASE_URL}/api/categories/${id}`);
+    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/categories/${id}`));
     if (response.ok) {
       const category = await response.json();
       return {
@@ -190,7 +191,7 @@ export const getCategoryById = async (id) => {
 export const createCategory = async (categoryData) => {
   try {
     // Try to create via API
-    const response = await fetch(`${API_BASE_URL}/api/categories`, {
+    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/categories`), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -220,7 +221,7 @@ export const createCategory = async (categoryData) => {
 export const updateCategory = async (id, categoryData) => {
   try {
     // Try to update via API
-    const response = await fetch(`${API_BASE_URL}/api/categories/${id}`, {
+    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/categories/${id}`), {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -250,7 +251,7 @@ export const updateCategory = async (id, categoryData) => {
 export const deleteCategory = async (id) => {
   try {
     // Try to delete via API
-    const response = await fetch(`${API_BASE_URL}/api/categories/${id}`, {
+    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/categories/${id}`), {
       method: 'DELETE',
     });
     
@@ -296,7 +297,7 @@ export const updateOrderStatus = async (id, status) => {
 // Hero Slides management functions
 export const getHeroSlides = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/hero-slides`);
+    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/hero-slides`));
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -343,7 +344,7 @@ export const getHeroSlides = async () => {
 
 export const getAllHeroSlides = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/hero-slides/all`);
+    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/hero-slides/all`));
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -390,7 +391,7 @@ export const getAllHeroSlides = async () => {
 
 export const createHeroSlide = async (slideData) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/hero-slides`, {
+    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/hero-slides`), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -423,7 +424,7 @@ export const updateHeroSlide = async (id, slideData) => {
     // Remove immutable fields from slideData to avoid conflicts
     const { id: _, _id, createdAt, updatedAt, ...dataToUpdate } = slideData;
     
-    const response = await fetch(`${API_BASE_URL}/api/hero-slides/${slideId}`, {
+    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/hero-slides/${slideId}`), {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -453,7 +454,7 @@ export const deleteHeroSlide = async (id) => {
     // Ensure we're using the correct ID format (string)
     const slideId = typeof id === 'object' ? id.toString() : id;
     
-    const response = await fetch(`${API_BASE_URL}/api/hero-slides/${slideId}`, {
+    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/hero-slides/${slideId}`), {
       method: 'DELETE',
     });
     
@@ -474,7 +475,7 @@ export const toggleHeroSlideStatus = async (id) => {
     // Ensure we're using the correct ID format (string)
     const slideId = typeof id === 'object' ? id.toString() : id;
     
-    const response = await fetch(`${API_BASE_URL}/api/hero-slides/${slideId}/toggle`, {
+    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/hero-slides/${slideId}/toggle`), {
       method: 'PATCH',
     });
     
@@ -512,7 +513,7 @@ export const authenticateAdmin = async (username, password) => {
 // Special Offers management functions
 export const getSpecialOffers = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/special-offers`);
+    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/special-offers`));
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -562,7 +563,7 @@ export const getSpecialOffers = async () => {
 
 export const createSpecialOffer = async (offerData) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/special-offers`, {
+    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/special-offers`), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -595,7 +596,7 @@ export const updateSpecialOffer = async (id, offerData) => {
     // Remove immutable fields from offerData to avoid conflicts
     const { id: _, _id, createdAt, updatedAt, ...dataToUpdate } = offerData;
     
-    const response = await fetch(`${API_BASE_URL}/api/special-offers/${offerId}`, {
+    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/special-offers/${offerId}`), {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -625,7 +626,7 @@ export const deleteSpecialOffer = async (id) => {
     // Ensure we're using the correct ID format (string)
     const offerId = typeof id === 'object' ? id.toString() : id;
     
-    const response = await fetch(`${API_BASE_URL}/api/special-offers/${offerId}`, {
+    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/special-offers/${offerId}`), {
       method: 'DELETE',
     });
     
@@ -646,7 +647,7 @@ export const toggleSpecialOfferStatus = async (id) => {
     // Ensure we're using the correct ID format (string)
     const offerId = typeof id === 'object' ? id.toString() : id;
     
-    const response = await fetch(`${API_BASE_URL}/api/special-offers/${offerId}/toggle`, {
+    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/special-offers/${offerId}/toggle`), {
       method: 'PATCH',
     });
     

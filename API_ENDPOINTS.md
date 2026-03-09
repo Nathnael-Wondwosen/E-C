@@ -1,4 +1,4 @@
-# API Endpoints Documentation
+﻿# API Endpoints Documentation
 
 This document lists all the API endpoints available in the B2B E-Commerce Platform, organized by service.
 
@@ -10,20 +10,19 @@ Base URL: `http://localhost:3000` (local) or Render service URL (deployment)
 
 All requests to these endpoints are forwarded to the respective microservices:
 
-- `/api/users/*` → User Service
-- `/api/products/*` → Product Service
-- `/api/orders/*` → Order Service
-- `/api/payments/*` → Payment Service
-- `/api/search/*` → Search Service
-- `/api/notifications/*` → Notification Service
-- `/api/hero-slides/*` → Hero Slides Service
-- `/api/categories/*` → Categories Service
-- `/api/special-offers/*` → Special Offers Service
-- `/api/banners/*` → Banners Service
-- `/api/news-blog-posts/*` → News/Blog Posts Service
-- `/api/navbar-links/*` → Navbar Links Service
-- `/api/services/*` → Services Service
-- `/api/partners/*` → Partners Service
+- `/api/users/*` â†’ User Service
+- `/api/products/*` â†’ Product Service
+- `/api/orders/*` â†’ Order Service
+- `/api/payments/*` â†’ Payment Service
+- `/api/search/*` â†’ Search Service
+- `/api/notifications/*` â†’ Notification Service
+- `/api/hero-slides/*` â†’ Hero Slides Service
+- `/api/categories/*` â†’ Categories Service
+- `/api/special-offers/*` â†’ Special Offers Service
+- `/api/banners/*` â†’ Banners Service
+- `/api/news-blog-posts/*` â†’ News/Blog Posts Service
+- `/api/services/*` â†’ Services Service
+- `/api/partners/*` â†’ Partners Service
 
 ### Direct Endpoints
 
@@ -138,20 +137,7 @@ Base URL: `http://localhost:3011` (local) or Render service URL (deployment)
 - `PUT /api/news-blog-posts/:id` - Update a post
 - `DELETE /api/news-blog-posts/:id` - Delete a post
 - `PATCH /api/news-blog-posts/:id/toggle` - Toggle post active status
-
-## Navbar Links Service
-
-Base URL: `http://localhost:3012` (local) or Render service URL (deployment)
-
-- `GET /` - Service information
-- `GET /health` - Health check endpoint
-- `GET /api/navbar-links` - Get all enabled navbar links
-- `GET /api/navbar-links/all` - Get all navbar links (admin)
-- `POST /api/navbar-links` - Create a new navbar link
-- `PUT /api/navbar-links/:id` - Update a navbar link
-- `DELETE /api/navbar-links/:id` - Delete a navbar link
-- `PATCH /api/navbar-links/:id/toggle` - Toggle navbar link enabled status
-
+`r`n## Services Service
 ## Services Service
 
 Base URL: `http://localhost:3013` (local) or Render service URL (deployment)

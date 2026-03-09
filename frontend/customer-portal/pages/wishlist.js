@@ -45,8 +45,8 @@ export default function Wishlist() {
         
         // Map products for wishlist
         const wishlistItemsWithDetails = products.map(product => ({
-          id: product.id,
-          productId: product.id,
+          id: String(product.id),
+          productId: String(product.id),
           name: product.name || `Product ${product.id}`,
           price: product.price || 0,
           image: (product.images && product.images.length > 0) ? product.images[0] : 'https://via.placeholder.com/100x100',

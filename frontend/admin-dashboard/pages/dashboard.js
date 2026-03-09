@@ -3,6 +3,10 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import AdminLayout from '../components/AdminLayout';
 import { getProducts, getCategories, getOrders } from '../utils/mongoService';
+import AdminScopeSwitcher from '../components/AdminScopeSwitcher';
+import { DEFAULT_ADMIN_SCOPE, getAdminScopeById } from '../config/adminScopes';
+import { getStoredAdminScope, setStoredAdminScope } from '../utils/adminScopeService';
+import { getScopeApiConfig } from '../services/adminScopeApiMap';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
@@ -13,6 +17,7 @@ export default function AdminDashboard() {
   });
   const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeScope, setActiveScope] = useState(DEFAULT_ADMIN_SCOPE);
   const router = useRouter();
 
   useEffect(() => {
@@ -21,9 +26,18 @@ export default function AdminDashboard() {
     if (!loggedIn) {
       router.push('/login');
     } else {
+      const initialScope = router.query.scope || getStoredAdminScope() || DEFAULT_ADMIN_SCOPE;
+      setActiveScope(initialScope);
+      setStoredAdminScope(initialScope);
       loadData();
     }
-  }, [router]);
+  }, [router, router.query.scope]);
+
+  const handleScopeChange = (scopeId) => {
+    setActiveScope(scopeId);
+    setStoredAdminScope(scopeId);
+    router.push(`/admin/${scopeId}`);
+  };
 
   const loadData = async () => {
     try {
@@ -75,11 +89,24 @@ export default function AdminDashboard() {
     );
   }
 
+  const scopeConfig = getAdminScopeById(activeScope);
+  const scopeApiConfig = getScopeApiConfig(activeScope);
+
   return (
-    <AdminLayout title="Dashboard">
+    <AdminLayout title={`${scopeConfig.name} Dashboard`}>
       <div className="py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Dashboard Overview</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Active context: <span className="font-semibold">{scopeConfig.name}</span> ({scopeConfig.source})
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{scopeConfig.description}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Data Source: <span className="font-semibold">{scopeApiConfig.source}</span>
+          </p>
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 mt-4">
+          <AdminScopeSwitcher activeScope={activeScope} onChange={handleScopeChange} />
         </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
           {/* Stats */}

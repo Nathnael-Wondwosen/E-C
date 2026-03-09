@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import AdminLayout from '../components/AdminLayout';
 import ImageUploader from '../components/ImageUploader';
+import { withAdminScopeUrl } from '../utils/scopeApi';
 
 export default function PartnersManagement() {
   const [partners, setPartners] = useState([]);
@@ -39,7 +40,7 @@ export default function PartnersManagement() {
       setLoading(true);
       
       // Fetch partners from API
-      const response = await fetch(`${API_BASE_URL}/api/partners`);
+      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/partners`));
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -87,7 +88,7 @@ export default function PartnersManagement() {
     try {
       if (editingPartner) {
         // Update existing partner
-        const response = await fetch(`${API_BASE_URL}/api/partners/${editingPartner.id}`, {
+        const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/partners/${editingPartner.id}`), {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -112,7 +113,7 @@ export default function PartnersManagement() {
         setPartners(updatedPartners);
       } else {
         // Add new partner
-        const response = await fetch(`${API_BASE_URL}/api/partners`, {
+        const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/partners`), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -171,7 +172,7 @@ export default function PartnersManagement() {
     }
     
     try {
-      const response = await fetch(`${API_BASE_URL}/api/partners/${id}`, {
+      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/partners/${id}`), {
         method: 'DELETE',
       });
       
@@ -190,7 +191,7 @@ export default function PartnersManagement() {
 
   const handleToggleStatus = async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/partners/${id}/toggle`, {
+      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/partners/${id}/toggle`), {
         method: 'PATCH',
       });
       

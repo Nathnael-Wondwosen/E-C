@@ -23,6 +23,8 @@ export default function RandomProductsSection({ loadingProducts, fallbackRandomP
                     src={product.images[0]} 
                     alt={product.name}
                     className="w-full h-full object-cover"
+                    loading="lazy"
+                    decoding="async"
                     onError={(e) => {
                       e.target.onerror = null;
                       e.target.parentElement.innerHTML = '<div class="bg-gray-200 border-2 border-dashed w-full h-full flex items-center justify-center"><span class="text-gray-500">Product Image</span></div>';

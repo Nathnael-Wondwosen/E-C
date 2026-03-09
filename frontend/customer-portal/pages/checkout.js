@@ -21,6 +21,7 @@ export default function Checkout() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const router = useRouter();
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
 
   useEffect(() => {
     // Check if user is logged in
@@ -132,10 +133,12 @@ export default function Checkout() {
       };
       
       // Call API to create order
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users/${userId}/orders`, {
+      const token = localStorage.getItem('userToken');
+      const response = await fetch(`${API_BASE_URL}/api/users/${userId}/orders`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify(orderData)
       });

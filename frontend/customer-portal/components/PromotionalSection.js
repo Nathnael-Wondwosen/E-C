@@ -63,6 +63,8 @@ export default function PromotionalSection({ promoBanners, currentPromoIndex, se
                         src={banner.image} 
                         alt={banner.title}
                         className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+                        loading={index === currentPromoIndex ? 'eager' : 'lazy'}
+                        decoding="async"
                         style={{ boxShadow: '0 15px 35px rgba(0, 0, 0, 0.2)' }}
                       />
                     ) : (

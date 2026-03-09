@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import ProductComparison from './ProductComparison';
 import QuickViewModal from './QuickViewModal';
-import { addToWishlist, removeFromWishlist, getUserWishlist } from '../../utils/userService';
+import { addToCart, addToWishlist, removeFromWishlist, getUserWishlist } from '../../utils/userService';
 
 export default function ProductGrid({ products = [], loading, onFilterChange, currentSort }) {
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
@@ -10,6 +10,8 @@ export default function ProductGrid({ products = [], loading, onFilterChange, cu
   const [quickViewProduct, setQuickViewProduct] = useState(null); // Quick view product
   const [wishlist, setWishlist] = useState(new Set()); // Wishlist items
   const [loadingWishlist, setLoadingWishlist] = useState({}); // Track loading state for each product
+  const [loadingCart, setLoadingCart] = useState({});
+  const [actionMessage, setActionMessage] = useState('');
 
   // Initialize wishlist with user's actual wishlist items
   useEffect(() => {
@@ -30,7 +32,7 @@ export default function ProductGrid({ products = [], loading, onFilterChange, cu
       try {
         const wishlistData = await getUserWishlist(userId);
         if (wishlistData.items && Array.isArray(wishlistData.items)) {
-          setWishlist(new Set(wishlistData.items));
+          setWishlist(new Set(wishlistData.items.map((item) => String(item))));
         } else {
           setWishlist(new Set());
         }
@@ -78,6 +80,7 @@ export default function ProductGrid({ products = [], loading, onFilterChange, cu
 
   // Toggle wishlist status
   const toggleWishlist = async (productId) => {
+    const normalizedProductId = String(productId);
     // Check if user is logged in
     const isLoggedIn = localStorage.getItem('userLoggedIn');
     if (!isLoggedIn) {
@@ -96,19 +99,19 @@ export default function ProductGrid({ products = [], loading, onFilterChange, cu
     }
     
     // Show loading state for this product
-    setLoadingWishlist(prev => ({ ...prev, [productId]: true }));
+    setLoadingWishlist(prev => ({ ...prev, [normalizedProductId]: true }));
     
     try {
       const newWishlist = new Set(wishlist);
-      if (newWishlist.has(productId)) {
+      if (newWishlist.has(normalizedProductId)) {
         // Remove from wishlist
-        await removeFromWishlist(userId, productId);
-        newWishlist.delete(productId);
+        await removeFromWishlist(userId, normalizedProductId);
+        newWishlist.delete(normalizedProductId);
         setWishlist(newWishlist);
       } else {
         // Add to wishlist
-        await addToWishlist(userId, productId);
-        newWishlist.add(productId);
+        await addToWishlist(userId, normalizedProductId);
+        newWishlist.add(normalizedProductId);
         setWishlist(newWishlist);
       }
     } catch (error) {
@@ -118,7 +121,43 @@ export default function ProductGrid({ products = [], loading, onFilterChange, cu
       // Remove loading state for this product
       setLoadingWishlist(prev => {
         const updated = { ...prev };
-        delete updated[productId];
+        delete updated[normalizedProductId];
+        return updated;
+      });
+    }
+  };
+
+  const handleAddToCart = async (productId, quantity = 1) => {
+    const normalizedProductId = String(productId);
+    const isLoggedIn = localStorage.getItem('userLoggedIn');
+    if (!isLoggedIn) {
+      localStorage.setItem('redirectAfterLogin', window.location.pathname);
+      window.location.href = '/login';
+      return;
+    }
+
+    const userId = localStorage.getItem('userId');
+    if (!userId) {
+      console.error('User ID not found in localStorage');
+      return;
+    }
+
+    setLoadingCart((prev) => ({ ...prev, [normalizedProductId]: true }));
+    setActionMessage('');
+    try {
+      const result = await addToCart(userId, normalizedProductId, quantity);
+      if (!result?.success) {
+        setActionMessage(result?.message || 'Failed to add item to cart.');
+        return;
+      }
+      setActionMessage('Item added to cart successfully.');
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      setActionMessage('Failed to add item to cart.');
+    } finally {
+      setLoadingCart((prev) => {
+        const updated = { ...prev };
+        delete updated[normalizedProductId];
         return updated;
       });
     }
@@ -236,6 +275,11 @@ export default function ProductGrid({ products = [], loading, onFilterChange, cu
       </div>
 
       {/* Product Grid/List */}
+      {actionMessage && (
+        <div className="mb-3 rounded border border-cyan-200 bg-cyan-50 px-3 py-2 text-sm text-cyan-700">
+          {actionMessage}
+        </div>
+      )}
       {viewMode === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {products.map(product => (
@@ -300,20 +344,20 @@ export default function ProductGrid({ products = [], loading, onFilterChange, cu
                 {/* Quick Actions */}
                 <div className="absolute top-2 right-2 flex flex-col space-y-1 opacity-0 group-hover:opacity-100 transition-opacity md:opacity-100 md:group-hover:opacity-100 md:right-10">
                   <button
-                    onClick={() => toggleWishlist(product.id)}
+                    onClick={() => toggleWishlist(String(product.id))}
                     className="bg-white p-1.5 rounded-full shadow-md hover:bg-gray-100 relative"
-                    disabled={loadingWishlist[product.id]}
+                    disabled={loadingWishlist[String(product.id)]}
                   >
-                    {loadingWishlist[product.id] ? (
+                    {loadingWishlist[String(product.id)] ? (
                       <div className="flex items-center justify-center w-5 h-5">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500"></div>
                       </div>
                     ) : (
                       <svg 
                         xmlns="http://www.w3.org/2000/svg" 
-                        className={`h-5 w-5 ${wishlist.has(product.id) ? 'text-red-500 fill-current' : 'text-gray-600'}`} 
+                        className={`h-5 w-5 ${wishlist.has(String(product.id)) ? 'text-red-500 fill-current' : 'text-gray-600'}`} 
                         viewBox="0 0 20 20" 
-                        fill={wishlist.has(product.id) ? "currentColor" : "none"}
+                        fill={wishlist.has(String(product.id)) ? "currentColor" : "none"}
                         stroke="currentColor"
                       >
                         <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
@@ -354,12 +398,25 @@ export default function ProductGrid({ products = [], loading, onFilterChange, cu
                     )}
                   </div>
                   
-                  <button
-                    onClick={() => openQuickView(product)}
-                    className="text-blue-600 hover:text-blue-800 text-sm font-medium py-1"
-                  >
-                    Quick View
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleAddToCart(product.id, 1)}
+                      disabled={loadingCart[String(product.id)]}
+                      className={`rounded px-2 py-1 text-xs font-medium ${
+                        loadingCart[String(product.id)]
+                          ? 'cursor-not-allowed bg-gray-300 text-gray-600'
+                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      {loadingCart[String(product.id)] ? 'Adding...' : 'Add Cart'}
+                    </button>
+                    <button
+                      onClick={() => openQuickView(product)}
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium py-1"
+                    >
+                      Quick View
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -439,16 +496,28 @@ export default function ProductGrid({ products = [], loading, onFilterChange, cu
                         </button>
                         
                         <button
-                          onClick={() => toggleWishlist(product.id)}
+                          onClick={() => handleAddToCart(product.id, 1)}
+                          disabled={loadingCart[String(product.id)]}
+                          className={`px-3 py-1.5 text-sm ${
+                            loadingCart[String(product.id)]
+                              ? 'cursor-not-allowed bg-gray-300 text-gray-600'
+                              : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                          }`}
+                        >
+                          {loadingCart[String(product.id)] ? 'Adding...' : 'Add Cart'}
+                        </button>
+                        
+                        <button
+                          onClick={() => toggleWishlist(String(product.id))}
                           className={`p-1.5 rounded-none relative ${
-                            loadingWishlist[product.id] ? 'bg-gray-100 text-gray-400' :
-                            wishlist.has(product.id) 
+                            loadingWishlist[String(product.id)] ? 'bg-gray-100 text-gray-400' :
+                            wishlist.has(String(product.id)) 
                               ? 'bg-red-100 text-red-600' 
                               : 'bg-gray-100 text-gray-600'
                           }`}
-                          disabled={loadingWishlist[product.id]}
+                          disabled={loadingWishlist[String(product.id)]}
                         >
-                          {loadingWishlist[product.id] ? (
+                          {loadingWishlist[String(product.id)] ? (
                             <div className="flex items-center justify-center w-5 h-5">
                               <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current"></div>
                             </div>
@@ -457,7 +526,7 @@ export default function ProductGrid({ products = [], loading, onFilterChange, cu
                               xmlns="http://www.w3.org/2000/svg" 
                               className="h-5 w-5" 
                               viewBox="0 0 20 20" 
-                              fill={wishlist.has(product.id) ? "currentColor" : "none"}
+                              fill={wishlist.has(String(product.id)) ? "currentColor" : "none"}
                               stroke="currentColor"
                             >
                               <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
@@ -510,6 +579,10 @@ export default function ProductGrid({ products = [], loading, onFilterChange, cu
         <QuickViewModal 
           product={quickViewProduct} 
           onClose={closeQuickView} 
+          onAddToCart={handleAddToCart}
+          onToggleWishlist={toggleWishlist}
+          isWishlisted={wishlist.has(String(quickViewProduct.id))}
+          wishlistLoading={Boolean(loadingWishlist[String(quickViewProduct.id)])}
         />
       )}
     </div>

@@ -14,6 +14,8 @@ export default function FeaturedProductsSection({ loadingProducts, fallbackFeatu
             src={product.images[0]} 
             alt={product.name}
             className="w-full h-40 object-cover"
+            loading="lazy"
+            decoding="async"
             onError={() => setImageError(true)}
           />
         ) : (

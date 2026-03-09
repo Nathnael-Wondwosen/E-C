@@ -1,14 +1,34 @@
 import { useState } from 'react';
 
-export default function QuickViewModal({ product, onClose }) {
+export default function QuickViewModal({
+  product,
+  onClose,
+  onAddToCart,
+  onToggleWishlist,
+  isWishlisted = false,
+  wishlistLoading = false
+}) {
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [cartLoading, setCartLoading] = useState(false);
 
   if (!product) return null;
 
   const handleQuantityChange = (value) => {
     const newQuantity = Math.max(1, Math.min(10, quantity + value));
     setQuantity(newQuantity);
+  };
+
+  const handleAddToCartClick = async () => {
+    if (!onAddToCart || !product?.id) return;
+    setCartLoading(true);
+    await onAddToCart(product.id, quantity);
+    setCartLoading(false);
+  };
+
+  const handleToggleWishlistClick = async () => {
+    if (!onToggleWishlist || !product?.id) return;
+    await onToggleWishlist(product.id);
   };
 
   return (
@@ -123,11 +143,27 @@ export default function QuickViewModal({ product, onClose }) {
             </div>
             
             <div className="flex space-x-4 mt-6">
-              <button className="flex-1 bg-blue-600 text-white py-3 rounded-md hover:bg-blue-700 transition font-medium">
-                Add to Cart
+              <button
+                onClick={handleAddToCartClick}
+                disabled={cartLoading}
+                className={`flex-1 py-3 rounded-md transition font-medium ${
+                  cartLoading ? 'cursor-not-allowed bg-gray-400 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+              >
+                {cartLoading ? 'Adding...' : 'Add to Cart'}
               </button>
-              <button className="flex-1 bg-gray-200 text-gray-800 py-3 rounded-md hover:bg-gray-300 transition font-medium">
-                Wishlist
+              <button
+                onClick={handleToggleWishlistClick}
+                disabled={wishlistLoading}
+                className={`flex-1 py-3 rounded-md transition font-medium ${
+                  wishlistLoading
+                    ? 'cursor-not-allowed bg-gray-300 text-gray-600'
+                    : isWishlisted
+                      ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                      : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                }`}
+              >
+                {wishlistLoading ? 'Updating...' : isWishlisted ? 'Remove Wishlist' : 'Wishlist'}
               </button>
             </div>
           </div>

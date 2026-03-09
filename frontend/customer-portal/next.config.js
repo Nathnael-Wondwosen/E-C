@@ -21,6 +21,23 @@ const nextConfig = {
     CLOUDINARY_URL: process.env.CLOUDINARY_URL,
   },
   // Vercel supports server-side rendering
+  async redirects() {
+    return [
+      {
+        source: '/b2b-marketplace',
+        destination: '/localmarket',
+        permanent: false,
+      },
+    ];
+  },
+  async rewrites() {
+    return [
+      {
+        source: '/localmarket',
+        destination: '/marketplace?view=local',
+      },
+    ];
+  },
 }
 
 module.exports = nextConfig

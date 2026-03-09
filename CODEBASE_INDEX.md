@@ -1,0 +1,293 @@
+﻿# Codebase Index
+
+Generated: 2026-03-03 10:20:44 +03:00
+Repository: C:\Users\Developer\Documents\GitHub\Portal\E-C
+Total files indexed: 214
+
+## Files by top-level path
+- frontend: 141
+- services: 16
+- shared: 9
+- docs: 3
+- activate-banners.js: 1
+- add-sample-banner.js: 1
+- amplify-working but commented.yml: 1
+- API_ENDPOINTS.md: 1
+- AWS_DEPLOYMENT.md: 1
+- AWS_DEPLOYMENT_INSTRUCTIONS.md: 1
+- AWS_DEPLOYMENT_SUMMARY.md: 1
+- aws-iam-roles.json: 1
+- aws-task-definitions.json: 1
+- buildspec-api-gateway.yml: 1
+- buildspec-frontend.yml: 1
+- buildspec-user-service.yml: 1
+- categories.json: 1
+- CI_CD_PIPELINE.md: 1
+- CODEBASE_INDEX.md: 1
+- complete-aws-deployment.ps1: 1
+- DATABASE_DEPLOYMENT_STRATEGY.md: 1
+- deploy-aws.ps1: 1
+- deploy-aws.sh: 1
+- deploy-from-github-to-aws.ps1: 1
+- DEPLOYMENT_SUMMARY.md: 1
+- docker-compose.aws.yml: 1
+- docker-compose.yml: 1
+- Dockerfile: 1
+- enhance-categories.js: 1
+- enhance-category-section.js: 1
+- enhance-ui.js: 1
+- final-update-category-section.js: 1
+- fix-index-file.js: 1
+- LOAD_BALANCING_AUTO_SCALING.md: 1
+- main-output.html: 1
+- MICROSERVICES_ARCHITECTURE.md: 1
+- MONITORING_LOGGING.md: 1
+- package.json: 1
+- package-lock.json: 1
+- README.md: 1
+- render.yaml: 1
+- render-current.yaml: 1
+- SECURITY_COMPLIANCE.md: 1
+- setup-aws-environment.ps1: 1
+- test-image.png: 1
+- update-category-section.js: 1
+- update-category-section-final.js: 1
+- update-hero-height.js: 1
+- vercel.json: 1
+
+## Files by extension
+- .js: 140
+- .md: 18
+- .json: 12
+- .jpg: 11
+- .yml: 7
+- [no_ext]: 5
+- .ps1: 4
+- .png: 3
+- .css: 2
+- .svg: 2
+- .yaml: 2
+- .backup: 1
+- .bak: 1
+- .dockerfile: 1
+- .fixed: 1
+- .html: 1
+- .py: 1
+- .sh: 1
+- .txt: 1
+
+## Full file list
+- activate-banners.js
+- add-sample-banner.js
+- amplify-working but commented.yml
+- API_ENDPOINTS.md
+- AWS_DEPLOYMENT.md
+- AWS_DEPLOYMENT_INSTRUCTIONS.md
+- AWS_DEPLOYMENT_SUMMARY.md
+- aws-iam-roles.json
+- aws-task-definitions.json
+- buildspec-api-gateway.yml
+- buildspec-frontend.yml
+- buildspec-user-service.yml
+- categories.json
+- CI_CD_PIPELINE.md
+- CODEBASE_INDEX.md
+- complete-aws-deployment.ps1
+- DATABASE_DEPLOYMENT_STRATEGY.md
+- deploy-aws.ps1
+- deploy-aws.sh
+- deploy-from-github-to-aws.ps1
+- DEPLOYMENT_SUMMARY.md
+- docker-compose.aws.yml
+- docker-compose.yml
+- Dockerfile
+- docs\getting-started.md
+- docs\render-deployment-guide.md
+- docs\vercel-deployment-guide.md
+- enhance-categories.js
+- enhance-category-section.js
+- enhance-ui.js
+- final-update-category-section.js
+- fix-index-file.js
+- frontend\admin-dashboard\components\AdminLayout.js
+- frontend\admin-dashboard\components\ARPreview.js
+- frontend\admin-dashboard\components\CategoryMap.js
+- frontend\admin-dashboard\components\CrossPlatformSync.js
+- frontend\admin-dashboard\components\IconPicker.js
+- frontend\admin-dashboard\components\ImageUploader.js
+- frontend\admin-dashboard\components\PricingOptimizer.js
+- frontend\admin-dashboard\components\ProductInsights.js
+- frontend\admin-dashboard\components\SupplierRecommendations.js
+- frontend\admin-dashboard\Dockerfile
+- frontend\admin-dashboard\next.config.js
+- frontend\admin-dashboard\package.json
+- frontend\admin-dashboard\pages\_app.js
+- frontend\admin-dashboard\pages\analytics.js
+- frontend\admin-dashboard\pages\auto-categorize.js
+- frontend\admin-dashboard\pages\b2b\index.js
+- frontend\admin-dashboard\pages\b2b\products.js
+- frontend\admin-dashboard\pages\banners.js
+- frontend\admin-dashboard\pages\categories.js
+- frontend\admin-dashboard\pages\css-test.js
+- frontend\admin-dashboard\pages\dashboard.js
+- frontend\admin-dashboard\pages\index.js
+- frontend\admin-dashboard\pages\login.js
+- frontend\admin-dashboard\pages\minimal-tailwind-test.js
+- frontend\admin-dashboard\pages\minimal-test.js
+- frontend\admin-dashboard\pages\partners.js
+- frontend\admin-dashboard\pages\products.js
+- frontend\admin-dashboard\pages\product-variants.js
+- frontend\admin-dashboard\pages\sections.js
+- frontend\admin-dashboard\pages\sections\category-slider.js
+- frontend\admin-dashboard\pages\sections\hero-carousel.js
+- frontend\admin-dashboard\pages\sections\news-blog.js
+- frontend\admin-dashboard\pages\sections\special-offers.js
+- frontend\admin-dashboard\pages\services.js
+- frontend\admin-dashboard\pages\simple-login.js
+- frontend\admin-dashboard\pages\simple-login-test.js
+- frontend\admin-dashboard\pages\tailwind-test.js
+- frontend\admin-dashboard\pages\test.js
+- frontend\admin-dashboard\pages\test-login.js
+- frontend\admin-dashboard\pages\test-style.js
+- frontend\admin-dashboard\postcss.config.js
+- frontend\admin-dashboard\public\placeholder-carousel.jpg
+- frontend\admin-dashboard\README.md
+- frontend\admin-dashboard\styles\globals.css
+- frontend\admin-dashboard\tailwind.config.js
+- frontend\admin-dashboard\utils\aiService.js
+- frontend\admin-dashboard\utils\cloudinaryService.js
+- frontend\admin-dashboard\utils\collaborationService.js
+- frontend\admin-dashboard\utils\csvUtils.js
+- frontend\admin-dashboard\utils\heroSectionService.js
+- frontend\admin-dashboard\utils\mongoService.js
+- frontend\admin-dashboard\utils\predictiveAnalytics.js
+- frontend\customer-portal\amplify.yml
+- frontend\customer-portal\components\CategoriesSection.js
+- frontend\customer-portal\components\DirectoryMenuSection.js
+- frontend\customer-portal\components\EcosystemRoutingTiles.js
+- frontend\customer-portal\components\FeaturedProductsSection.js
+- frontend\customer-portal\components\FilterSidebar.js
+- frontend\customer-portal\components\FilterSidebar_fixed.js
+- frontend\customer-portal\components\FullWidthBannerSection.js
+- frontend\customer-portal\components\header\Header.js
+- frontend\customer-portal\components\HeroCarousel.js
+- frontend\customer-portal\components\HotDealsSection.js
+- frontend\customer-portal\components\LatestB2CItemsSection.js
+- frontend\customer-portal\components\MadeInEthiopiaSection.js
+- frontend\customer-portal\components\MarketScopeSwitcher.js
+- frontend\customer-portal\components\MultilingualSwitcher.js
+- frontend\customer-portal\components\NewsBlogSection.js
+- frontend\customer-portal\components\PromotionalSection.js
+- frontend\customer-portal\components\RandomProductsSection.js
+- frontend\customer-portal\components\ServicesSection.js
+- frontend\customer-portal\components\TradexTVSection.js
+- frontend\customer-portal\components\TrendingProductsSection.js
+- frontend\customer-portal\constants\navbarLinks.js
+- frontend\customer-portal\Dockerfile
+- frontend\customer-portal\fix_categories.py
+- frontend\customer-portal\healthcheck.js
+- frontend\customer-portal\next.config.js
+- frontend\customer-portal\package.json
+- frontend\customer-portal\pages\_app.js
+- frontend\customer-portal\pages\api\health.js
+- frontend\customer-portal\pages\b2b-marketplace\[id].js
+- frontend\customer-portal\pages\b2b-marketplace\FilterSidebar.js
+- frontend\customer-portal\pages\b2b-marketplace\FilterSidebar_fixed.js
+- frontend\customer-portal\pages\b2b-marketplace\index.js
+- frontend\customer-portal\pages\b2b-marketplace\ProductComparison.js
+- frontend\customer-portal\pages\b2b-marketplace\ProductGrid.js
+- frontend\customer-portal\pages\b2b-marketplace\QuickViewModal.js
+- frontend\customer-portal\pages\b2b-marketplace\test.js
+- frontend\customer-portal\pages\blog\[id].js
+- frontend\customer-portal\pages\blog\index.js
+- frontend\customer-portal\pages\cart.js
+- frontend\customer-portal\pages\checkout.js
+- frontend\customer-portal\pages\dashboard\buyer-settlements.js
+- frontend\customer-portal\pages\dashboard\customer.js
+- frontend\customer-portal\pages\dashboard\seller.js
+- frontend\customer-portal\pages\e-commerce.js
+- frontend\customer-portal\pages\expo.js
+- frontend\customer-portal\pages\index.js
+- frontend\customer-portal\pages\localmarket.js
+- frontend\customer-portal\pages\login.js
+- frontend\customer-portal\pages\marketplace\index.js
+- frontend\customer-portal\pages\marketplace\ProductComparison.js
+- frontend\customer-portal\pages\marketplace\ProductGrid.js
+- frontend\customer-portal\pages\marketplace\QuickViewModal.js
+- frontend\customer-portal\pages\marketplace\test.js
+- frontend\customer-portal\pages\orders.js
+- frontend\customer-portal\pages\orders\[id].js
+- frontend\customer-portal\pages\products.js
+- frontend\customer-portal\pages\profile.js
+- frontend\customer-portal\pages\settlements.js
+- frontend\customer-portal\pages\signup.js
+- frontend\customer-portal\pages\signup.js.backup
+- frontend\customer-portal\pages\signup.js.fixed
+- frontend\customer-portal\pages\tesbinn.js
+- frontend\customer-portal\pages\test.js
+- frontend\customer-portal\pages\test-hero.js
+- frontend\customer-portal\pages\tradex.js
+- frontend\customer-portal\pages\wishlist.js
+- frontend\customer-portal\postcss.config.js
+- frontend\customer-portal\public\hero-background.jpg
+- frontend\customer-portal\public\hero-background-mobile.svg
+- frontend\customer-portal\public\hero-product-showcase.svg
+- frontend\customer-portal\public\login-card1.png
+- frontend\customer-portal\public\placeholder-carousel.jpg
+- frontend\customer-portal\public\placeholder-news-blog.jpg
+- frontend\customer-portal\public\placeholder-news-blog-1.jpg
+- frontend\customer-portal\public\placeholder-news-blog-2.jpg
+- frontend\customer-portal\public\placeholder-news-blog-3.jpg
+- frontend\customer-portal\public\placeholder-news-blog-4.jpg
+- frontend\customer-portal\public\placeholder-news-blog-5.jpg
+- frontend\customer-portal\public\placeholder-news-blog-6.jpg
+- frontend\customer-portal\public\placeholder-product.jpg
+- frontend\customer-portal\public\TE-logo.png
+- frontend\customer-portal\README.md
+- frontend\customer-portal\styles\globals.css
+- frontend\customer-portal\tailwind.config.js
+- frontend\customer-portal\utils\cloudinaryService.js
+- frontend\customer-portal\utils\heroDataService.js
+- frontend\customer-portal\utils\userService.js
+- frontend\customer-portal\vercel.json
+- LOAD_BALANCING_AUTO_SCALING.md
+- main-output.html
+- MICROSERVICES_ARCHITECTURE.md
+- MONITORING_LOGGING.md
+- package.json
+- package-lock.json
+- README.md
+- render.yaml
+- render-current.yaml
+- SECURITY_COMPLIANCE.md
+- services\api-gateway\check-products.js
+- services\api-gateway\debug-upload.js
+- services\api-gateway\Dockerfile
+- services\api-gateway\healthcheck.js
+- services\api-gateway\init-services.js
+- services\api-gateway\package.json
+- services\api-gateway\server.js
+- services\api-gateway\server.js.bak
+- services\api-gateway\simple-test.js
+- services\api-gateway\test-cloudinary-upload.js
+- services\api-gateway\test-file.txt
+- services\api-gateway\test-upload.js
+- services\template.Dockerfile
+- services\user-service\Dockerfile
+- services\user-service\package.json
+- services\user-service\server.js
+- setup-aws-environment.ps1
+- shared\index.js
+- shared\package.json
+- shared\schemas\order.js
+- shared\schemas\product.js
+- shared\schemas\user.js
+- shared\utils\calculateTotal.js
+- shared\utils\cloudinaryConfig.js
+- shared\utils\cloudinaryService.js
+- shared\utils\formatDate.js
+- test-image.png
+- update-category-section.js
+- update-category-section-final.js
+- update-hero-height.js
+- vercel.json

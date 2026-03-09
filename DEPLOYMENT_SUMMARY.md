@@ -1,4 +1,4 @@
-# B2B E-Commerce Platform - Deployment Fixes Summary
+﻿# B2B E-Commerce Platform - Deployment Fixes Summary
 
 This document summarizes all the changes made to fix deployment issues with the microservices architecture on Render.
 
@@ -43,16 +43,11 @@ Created dedicated microservices for each functionality:
 5. **News/Blog Posts Service** (`services/news-blog-posts-service/`)
    - Handles news and blog content
    - Port: 3011
-
-6. **Navbar Links Service** (`services/navbar-links-service/`)
-   - Handles navigation menu management
-   - Port: 3012
-
-7. **Services Service** (`services/services-service/`)
+`r`n6. **Services Service** (`services/services-service/`)
    - Handles business services display
    - Port: 3013
 
-8. **Partners Service** (`services/partners-service/`)
+7. **Partners Service** (`services/partners-service/`)
    - Handles business partners display
    - Port: 3014
 

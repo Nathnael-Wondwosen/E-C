@@ -9,6 +9,7 @@ export default function OrderDetails() {
   const { id } = router.query;
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
 
   useEffect(() => {
     // Check if user is logged in
@@ -31,7 +32,12 @@ export default function OrderDetails() {
       }
       
       // Fetch specific order directly from API
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users/${userId}/orders/${id}`);
+      const token = localStorage.getItem('userToken');
+      const response = await fetch(`${API_BASE_URL}/api/users/${userId}/orders/${id}`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
       
       if (response.ok) {
         const order = await response.json();

@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { withAdminScopeUrl } from '../utils/scopeApi';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
 
@@ -44,7 +45,7 @@ const ImageUploader = ({ onImagesChange, initialImages = [], maxImages = 10 }) =
           // Preserve original filename for Cloudinary
           formData.append('filename', file.name);
           
-          const response = await fetch(`${API_BASE_URL}/api/upload/product-image`, {
+          const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/upload/product-image`), {
             method: 'POST',
             body: formData
           });

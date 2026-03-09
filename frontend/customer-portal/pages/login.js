@@ -1,15 +1,107 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
-import { authenticateUser } from '../utils/userService';
+import Script from 'next/script';
+import { authenticateUser, authenticateWithGoogle, getGoogleAuthConfig } from '../utils/userService';
 
 export default function CustomerLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleReady, setGoogleReady] = useState(false);
+  const [resolvedGoogleClientId, setResolvedGoogleClientId] = useState(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '');
   const router = useRouter();
+  const googleClientId = resolvedGoogleClientId;
+
+  useEffect(() => {
+    if (googleClientId) return;
+
+    let mounted = true;
+    getGoogleAuthConfig().then((config) => {
+      if (!mounted) return;
+      if (config.configured && config.clientId) {
+        setResolvedGoogleClientId(config.clientId);
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [googleClientId]);
+
+  const handleAuthSuccess = useCallback((result, fallbackEmail = '') => {
+    localStorage.setItem('userLoggedIn', 'true');
+    localStorage.setItem('userEmail', result.user.email || fallbackEmail);
+    localStorage.setItem('userType', result.user.userType);
+    localStorage.setItem('userId', result.user.id);
+    if (result.token) {
+      localStorage.setItem('userToken', result.token);
+    }
+
+    window.dispatchEvent(new CustomEvent('loginStatusChanged'));
+
+    const redirectDestination = localStorage.getItem('redirectAfterLogin');
+    if (redirectDestination) {
+      localStorage.removeItem('redirectAfterLogin');
+      router.push(redirectDestination);
+      return;
+    }
+
+    const resolvedUserType = result?.user?.userType || result?.user?.role || 'buyer';
+    if (resolvedUserType === 'seller') {
+      router.push('/dashboard/seller');
+    } else {
+      router.push('/localmarket');
+    }
+  }, [router]);
+
+  const handleGoogleCredential = useCallback(async (response) => {
+    if (!response?.credential) {
+      setError('Google sign-in failed. Please try again.');
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+    try {
+      const result = await authenticateWithGoogle(response.credential);
+      if (result.success) {
+        handleAuthSuccess(result);
+      } else {
+        setError(result.message || 'Google sign-in failed');
+      }
+    } catch (err) {
+      console.error('Google login error:', err);
+      setError('Google sign-in failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [handleAuthSuccess]);
+
+  useEffect(() => {
+    if (!googleClientId || !googleReady || typeof window === 'undefined' || !window.google?.accounts?.id) {
+      return;
+    }
+
+    window.google.accounts.id.initialize({
+      client_id: googleClientId,
+      callback: handleGoogleCredential,
+    });
+
+    const googleButton = document.getElementById('google-signin-button');
+    if (googleButton) {
+      googleButton.innerHTML = '';
+      window.google.accounts.id.renderButton(googleButton, {
+        theme: 'outline',
+        size: 'large',
+        width: 320,
+        text: 'continue_with',
+        shape: 'rectangular',
+      });
+    }
+  }, [googleClientId, googleReady, handleGoogleCredential]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -21,31 +113,7 @@ export default function CustomerLogin() {
       const result = await authenticateUser(email, password);
       
       if (result.success) {
-        // Store user info in localStorage
-        localStorage.setItem('userLoggedIn', 'true');
-        localStorage.setItem('userEmail', email);
-        localStorage.setItem('userType', result.user.userType);
-        localStorage.setItem('userId', result.user.id);
-        
-        // Dispatch login status change event to update header immediately
-        window.dispatchEvent(new CustomEvent('loginStatusChanged'));
-        
-        // Check if there's a redirect destination stored
-        const redirectDestination = localStorage.getItem('redirectAfterLogin');
-        if (redirectDestination) {
-          // Clear the stored destination
-          localStorage.removeItem('redirectAfterLogin');
-          // Redirect to the stored destination
-          router.push(redirectDestination);
-        } else {
-          // Redirect based on user type if no specific destination
-          if (result.user.userType === 'seller') {
-            router.push('/dashboard/seller');
-          } else {
-            // For buyers, redirect to marketplace instead of dashboard
-            router.push('/marketplace');
-          }
-        }
+        handleAuthSuccess(result, email);
       } else {
         setError(result.message || 'Invalid email or password');
       }
@@ -58,155 +126,143 @@ export default function CustomerLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex items-center justify-center p-4">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-100 p-4 sm:p-6">
       <Head>
         <title>Login | Customer Portal</title>
         <meta name="description" content="Login to your customer portal account" />
       </Head>
+      {googleClientId && (
+        <Script
+          src="https://accounts.google.com/gsi/client"
+          strategy="afterInteractive"
+          onLoad={() => setGoogleReady(true)}
+        />
+      )}
 
-      <div className="w-full max-w-6xl">
-        <div className="flex flex-col lg:flex-row bg-white rounded-none shadow-none overflow-hidden">
-          {/* Left side - Image */}
-          <div className="lg:w-1/2 bg-gradient-to-br from-blue-700 via-blue-800 to-indigo-900 flex items-center justify-center p-12">
-            <div className="text-center max-w-lg">
-              <div className="mb-6">
-                <img 
-                  src="/login-card1.png" 
-                  alt="Secure Login" 
-                  className="mx-auto h-64 w-auto object-contain rounded-lg shadow-2xl"
+      <div className="pointer-events-none absolute -left-24 top-0 h-72 w-72 rounded-full bg-cyan-200/60 blur-3xl" />
+      <div className="pointer-events-none absolute -right-20 bottom-0 h-80 w-80 rounded-full bg-indigo-200/60 blur-3xl" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(14,165,233,0.12),transparent_30%),radial-gradient(circle_at_80%_80%,rgba(99,102,241,0.12),transparent_30%)]" />
+      <div className="pointer-events-none absolute inset-0 opacity-40 [background-size:28px_28px] [background-image:linear-gradient(to_right,rgba(148,163,184,0.15)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.15)_1px,transparent_1px)]" />
+
+      <div className="relative z-10 w-full max-w-md">
+        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_20px_50px_rgba(15,23,42,0.12)] sm:p-7">
+          <div className="mb-5 text-center">
+            <p className="mx-auto mb-2 w-max rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-700">
+              Secure Access
+            </p>
+            <h1 className="text-2xl font-bold text-slate-900">Sign In</h1>
+            <p className="mt-1 text-sm text-slate-600">Access your account in one step</p>
+          </div>
+
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <div>
+              <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-slate-700">
+                Email Address
+              </label>
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                  <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" stroke="currentColor" strokeWidth="2">
+                    <path d="M4 6h16v12H4z" />
+                    <path d="m4 7 8 6 8-6" />
+                  </svg>
+                </div>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  className="block w-full rounded-xl border border-slate-300 bg-slate-50 py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-cyan-500 focus:bg-white"
+                  placeholder="Enter your email address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
-              <h2 className="text-3xl font-bold text-white mb-4">Welcome Back!</h2>
-              <p className="text-blue-200 text-lg">Sign in to access your account and continue your shopping experience</p>
             </div>
-          </div>
-          
-          {/* Right side - Login Form */}
-          <div className="lg:w-1/2 p-12">
-            <div className="max-w-md mx-auto">
-              <div className="text-center mb-10">
-                <h1 className="text-3xl font-bold text-gray-800">Sign In</h1>
-                <p className="mt-2 text-gray-600">Enter your credentials to access your account</p>
-              </div>
-              
-              <form className="space-y-6" onSubmit={handleSubmit}>
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                    Email Address
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
-                      </svg>
-                    </div>
-                    <input
-                      id="email"
-                      name="email"
-                      type="email"
-                      autoComplete="email"
-                      required
-                      className="block w-full pl-10 pr-3 py-4 border border-gray-300 rounded-none bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Enter your email address"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                    </div>
-                    <input
-                      id="password"
-                      name="password"
-                      type="password"
-                      autoComplete="current-password"
-                      required
-                      className="block w-full pl-10 pr-3 py-4 border border-gray-300 rounded-none bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Enter your password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                    />
-                  </div>
-                </div>
 
-                {error && (
-                  <div className="rounded-none bg-red-50 p-4 border-l-4 border-red-500">
-                    <div className="flex">
-                      <div className="flex-shrink-0">
-                        <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <div className="ml-3">
-                        <h3 className="text-sm font-medium text-red-800">{error}</h3>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <input
-                      id="remember-me"
-                      name="remember-me"
-                      type="checkbox"
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded-none"
-                    />
-                    <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
-                      Remember me
-                    </label>
-                  </div>
-
-                  <div className="text-sm">
-                    <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
-                      Forgot password?
-                    </a>
-                  </div>
+            <div>
+              <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-slate-700">
+                Password
+              </label>
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                  <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" stroke="currentColor" strokeWidth="2">
+                    <rect x="4" y="10" width="16" height="10" rx="2" />
+                    <path d="M8 10V7a4 4 0 1 1 8 0v3" />
+                  </svg>
                 </div>
-
-                <div>
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className={`w-full flex justify-center py-4 px-4 border border-transparent rounded-none shadow-none text-base font-medium text-white ${
-                      loading 
-                        ? 'bg-gray-400 cursor-not-allowed' 
-                        : 'bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
-                    } transition-all duration-300`}
-                  >
-                    {loading ? (
-                      <span className="flex items-center">
-                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Signing in...
-                      </span>
-                    ) : (
-                      'Sign In'
-                    )}
-                  </button>
-                </div>
-              </form>
-              
-              <div className="mt-8 text-center">
-                <p className="text-gray-600">
-                  Don't have an account?{' '}
-                  <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-500">
-                    Sign up
-                  </Link>
-                </p>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  className="block w-full rounded-xl border border-slate-300 bg-slate-50 py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-cyan-500 focus:bg-white"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
               </div>
             </div>
+
+            {error && (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-2.5 text-sm text-red-700">
+                {error}
+              </div>
+            )}
+
+            <div className="flex items-center justify-between text-sm">
+              <label htmlFor="remember-me" className="flex items-center gap-2 text-slate-600">
+                <input
+                  id="remember-me"
+                  name="remember-me"
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-slate-300 bg-white text-cyan-600 focus:ring-cyan-500"
+                />
+                Remember me
+              </label>
+
+              <Link href="/forgot-password" className="font-medium text-cyan-700 hover:text-cyan-800">
+                Forgot password?
+              </Link>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className={`w-full rounded-xl py-2.5 text-sm font-semibold text-white ${
+                loading
+                  ? 'cursor-not-allowed bg-slate-400'
+                  : 'bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-700 shadow-[0_10px_24px_rgba(37,99,235,0.28)] hover:brightness-105'
+              } transition`}
+            >
+              {loading ? 'Signing in...' : 'Sign In'}
+            </button>
+
+            {googleClientId ? (
+              <div className="pt-1">
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div className="w-full border-t border-slate-300" />
+                  </div>
+                  <div className="relative flex justify-center text-xs">
+                    <span className="bg-white px-2 text-slate-500">or continue with</span>
+                  </div>
+                </div>
+                <div className="mt-3 flex justify-center">
+                  <div id="google-signin-button" />
+                </div>
+              </div>
+            ) : (
+              <p className="text-center text-xs text-amber-700">Google sign-in is not configured yet. Set `GOOGLE_CLIENT_ID` on the API gateway or `NEXT_PUBLIC_GOOGLE_CLIENT_ID` in customer portal env.</p>
+            )}
+          </form>
+
+          <div className="mt-5 text-center text-sm text-slate-600">
+            Don't have an account?{' '}
+            <Link href="/signup" className="font-semibold text-cyan-700 hover:text-cyan-800">
+              Sign up
+            </Link>
           </div>
         </div>
       </div>

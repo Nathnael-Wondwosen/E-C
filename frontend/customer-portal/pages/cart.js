@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
 import Header from '../components/header/Header';
-import { getUserCart, addToCart, removeFromCart, getProductsByIds } from '../utils/userService';
+import { getUserCart, updateCartItemQuantity, removeFromCart, getProductsByIds } from '../utils/userService';
 
 export default function Cart() {
   const [cartItems, setCartItems] = useState([]);
@@ -45,10 +45,10 @@ export default function Cart() {
         
         // Map products with cart quantities
         const cartItemsWithDetails = cartData.items.map((cartItem, index) => {
-          const product = products.find(p => p.id === cartItem.productId);
+          const product = products.find(p => String(p.id) === String(cartItem.productId));
           return {
-            id: cartItem.productId,
-            productId: cartItem.productId,
+            id: String(cartItem.productId),
+            productId: String(cartItem.productId),
             name: product?.name || `Product ${cartItem.productId}`,
             price: product?.price || 0,
             quantity: cartItem.quantity || 1,
@@ -83,8 +83,8 @@ export default function Cart() {
     }
     
     try {
-      // Update quantity in the backend
-      await addToCart(userId, itemId, newQuantity);
+      // Set exact quantity in backend
+      await updateCartItemQuantity(userId, itemId, newQuantity);
       
       // Update local state
       setCartItems(prevItems =>

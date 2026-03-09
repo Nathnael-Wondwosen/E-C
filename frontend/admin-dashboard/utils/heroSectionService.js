@@ -9,8 +9,9 @@ import {
   deleteHeroSlide, 
   toggleHeroSlideStatus 
 } from './mongoService';
+import { withAdminScopeUrl } from './scopeApi';
 
-const API_BASE_URL = 'http://localhost:3000'; // API Gateway
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
 
 // Export all the functions from mongoService
 export {
@@ -37,7 +38,7 @@ export async function uploadHeroImage(file) {
     formData.append('file', file);
     
     // Upload file through API Gateway
-    const response = await fetch(`${API_BASE_URL}/api/upload`, {
+    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/upload`), {
       method: 'POST',
       body: formData
     });
@@ -65,7 +66,7 @@ export async function uploadHeroImage(file) {
 // Get global background image
 export async function getGlobalBackgroundImage() {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/global-background-image`);
+    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/global-background-image`));
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -80,7 +81,7 @@ export async function getGlobalBackgroundImage() {
 // Save global background image
 export async function saveGlobalBackgroundImage(imageUrl) {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/global-background-image`, {
+    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/global-background-image`), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '../../components/AdminLayout';
+import { withAdminScopeUrl } from '../../utils/scopeApi';
 
 export default function NewsBlogManagement() {
   const [activeTab, setActiveTab] = useState('blog');
@@ -49,9 +50,9 @@ export default function NewsBlogManagement() {
       setError(null);
       
       // Log the API URL for debugging
-      console.log('Fetching posts from:', `${API_BASE_URL}/api/news-blog-posts`);
+      console.log('Fetching posts from:', withAdminScopeUrl(`${API_BASE_URL}/api/news-blog-posts`));
       
-      const response = await fetch(`${API_BASE_URL}/api/news-blog-posts`);
+      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/news-blog-posts`));
       
       // Log response status for debugging
       console.log('Response status:', response.status);
@@ -130,7 +131,7 @@ export default function NewsBlogManagement() {
       const formData = new FormData();
       formData.append('file', file);
       
-      const response = await fetch(`${API_BASE_URL}/api/upload`, {
+      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/upload`), {
         method: 'POST',
         body: formData
       });
@@ -203,7 +204,7 @@ export default function NewsBlogManagement() {
         author: "Admin"
       };
       
-      const response = await fetch(`${API_BASE_URL}/api/news-blog-posts`, {
+      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/news-blog-posts`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -264,7 +265,7 @@ export default function NewsBlogManagement() {
       delete postData.id;
       delete postData.createdAt;
       
-      const response = await fetch(`${API_BASE_URL}/api/news-blog-posts/${editingBlogPost._id || editingBlogPost.id}`, {
+      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/news-blog-posts/${editingBlogPost._id || editingBlogPost.id}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -315,7 +316,7 @@ export default function NewsBlogManagement() {
         author: "Admin"
       };
       
-      const response = await fetch(`${API_BASE_URL}/api/news-blog-posts`, {
+      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/news-blog-posts`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -374,7 +375,7 @@ export default function NewsBlogManagement() {
       delete postData.id;
       delete postData.createdAt;
       
-      const response = await fetch(`${API_BASE_URL}/api/news-blog-posts/${editingNewsletter._id || editingNewsletter.id}`, {
+      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/news-blog-posts/${editingNewsletter._id || editingNewsletter.id}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -407,7 +408,7 @@ export default function NewsBlogManagement() {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/news-blog-posts/${id}`, {
+      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/news-blog-posts/${id}`), {
         method: 'DELETE'
       });
       
@@ -427,7 +428,7 @@ export default function NewsBlogManagement() {
 
   const togglePostStatus = async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/news-blog-posts/${id}/toggle`, {
+      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/news-blog-posts/${id}/toggle`), {
         method: 'PATCH'
       });
       
@@ -449,7 +450,7 @@ export default function NewsBlogManagement() {
     try {
       // In a real implementation, this would trigger an email sending process
       // For now, we'll just update the sent status
-      const response = await fetch(`${API_BASE_URL}/api/news-blog-posts/${id}`, {
+      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/news-blog-posts/${id}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'

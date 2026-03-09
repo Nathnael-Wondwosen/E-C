@@ -4,6 +4,18 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3
 // Simulate API delay
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+const getAuthHeaders = (extraHeaders = {}) => {
+  if (typeof window === 'undefined') {
+    return extraHeaders;
+  }
+
+  const token = localStorage.getItem('userToken');
+  return {
+    ...extraHeaders,
+    ...(token ? { Authorization: `Bearer ${token}` } : {})
+  };
+};
+
 // User authentication function
 export const authenticateUser = async (email, password, userType = 'buyer') => {
   try {
@@ -27,7 +39,7 @@ export const authenticateUser = async (email, password, userType = 'buyer') => {
       const error = await response.json();
       return {
         success: false,
-        message: error.message || 'Authentication failed'
+        message: error.error || error.message || 'Authentication failed'
       };
     }
   } catch (error) {
@@ -81,7 +93,7 @@ export const createUser = async (userData) => {
       const error = await response.json();
       return {
         success: false,
-        message: error.message || 'Registration failed'
+        message: error.error || error.message || 'Registration failed'
       };
     }
   } catch (error) {
@@ -106,11 +118,179 @@ export const createUser = async (userData) => {
   };
 };
 
+// Google authentication (sign in / sign up)
+export const authenticateWithGoogle = async (credential, userType = 'buyer') => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/google`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ credential, userType }),
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      return {
+        success: true,
+        user: result.user,
+        token: result.token
+      };
+    }
+
+    const error = await response.json();
+    return {
+      success: false,
+      message: error.error || error.message || 'Google authentication failed'
+    };
+  } catch (error) {
+    console.warn('Failed Google authentication via API:', error);
+    return {
+      success: false,
+      message: 'Google authentication failed'
+    };
+  }
+};
+
+export const getGoogleAuthConfig = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/google/config`);
+    if (!response.ok) {
+      return { configured: false, clientId: '' };
+    }
+
+    const result = await response.json();
+    return {
+      configured: Boolean(result?.configured && result?.clientId),
+      clientId: result?.clientId || ''
+    };
+  } catch (error) {
+    console.warn('Failed to load Google auth config via API:', error);
+    return { configured: false, clientId: '' };
+  }
+};
+
+export const requestPasswordReset = async (email) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    const payload = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: payload.error || payload.message || 'Failed to start password reset',
+      };
+    }
+
+    return {
+      success: true,
+      message: payload.message || 'Password reset request submitted',
+      resetToken: payload.resetToken || '',
+      expiresAt: payload.expiresAt || '',
+    };
+  } catch (error) {
+    console.warn('Failed to request password reset:', error);
+    return {
+      success: false,
+      message: 'Failed to start password reset',
+    };
+  }
+};
+
+export const validatePasswordResetToken = async (token) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/reset-password/validate?token=${encodeURIComponent(token)}`);
+    const payload = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: payload.error || payload.message || 'Invalid or expired reset token',
+      };
+    }
+    return {
+      success: true,
+      message: payload.message || 'Token is valid',
+    };
+  } catch (error) {
+    console.warn('Failed to validate password reset token:', error);
+    return {
+      success: false,
+      message: 'Failed to validate reset token',
+    };
+  }
+};
+
+export const resetPasswordWithToken = async (token, password) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token, password }),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: payload.error || payload.message || 'Failed to reset password',
+      };
+    }
+    return {
+      success: true,
+      message: payload.message || 'Password reset successfully',
+    };
+  } catch (error) {
+    console.warn('Failed to reset password:', error);
+    return {
+      success: false,
+      message: 'Failed to reset password',
+    };
+  }
+};
+
+export const changeUserPassword = async (currentPassword, newPassword) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders({ 'Content-Type': 'application/json' }),
+      },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      return {
+        success: false,
+        message: payload.error || payload.message || 'Failed to change password',
+      };
+    }
+    return {
+      success: true,
+      message: payload.message || 'Password changed successfully',
+    };
+  } catch (error) {
+    console.warn('Failed to change password:', error);
+    return {
+      success: false,
+      message: 'Failed to change password',
+    };
+  }
+};
+
 // Get user profile function
 export const getUserProfile = async (userId) => {
   try {
     // Try to fetch via API
-    const response = await fetch(`${API_BASE_URL}/api/users/${userId}`);
+    const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
+      headers: getAuthHeaders()
+    });
     if (response.ok) {
       const user = await response.json();
       return {
@@ -146,7 +326,7 @@ export const updateUserProfile = async (userId, profileData) => {
     const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
       method: 'PUT',
       headers: {
-        'Content-Type': 'application/json',
+        ...getAuthHeaders({ 'Content-Type': 'application/json' }),
       },
       body: JSON.stringify(profileData),
     });
@@ -187,7 +367,9 @@ export const updateUserProfile = async (userId, profileData) => {
 export const getUserCart = async (userId) => {
   try {
     // Try to fetch via API
-    const response = await fetch(`${API_BASE_URL}/api/users/${userId}/cart`);
+    const response = await fetch(`${API_BASE_URL}/api/users/${userId}/cart`, {
+      headers: getAuthHeaders()
+    });
     if (response.ok) {
       const cart = await response.json();
       return cart;
@@ -212,7 +394,7 @@ export const addToCart = async (userId, productId, quantity = 1) => {
     const response = await fetch(`${API_BASE_URL}/api/users/${userId}/cart`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        ...getAuthHeaders({ 'Content-Type': 'application/json' }),
       },
       body: JSON.stringify({ productId, quantity }),
     });
@@ -233,6 +415,32 @@ export const addToCart = async (userId, productId, quantity = 1) => {
   };
 };
 
+// Set cart item quantity (exact value)
+export const updateCartItemQuantity = async (userId, productId, quantity) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/users/${userId}/cart/${productId}`, {
+      method: 'PUT',
+      headers: {
+        ...getAuthHeaders({ 'Content-Type': 'application/json' }),
+      },
+      body: JSON.stringify({ quantity }),
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      return result;
+    }
+  } catch (error) {
+    console.warn('Failed to update cart quantity via API, using mock data:', error);
+  }
+
+  await delay(300);
+  return {
+    success: true,
+    message: 'Cart quantity updated'
+  };
+};
+
 // Remove item from user's cart
 export const removeFromCart = async (userId, productId) => {
   try {
@@ -240,7 +448,7 @@ export const removeFromCart = async (userId, productId) => {
     const response = await fetch(`${API_BASE_URL}/api/users/${userId}/cart/${productId}`, {
       method: 'DELETE',
       headers: {
-        'Content-Type': 'application/json',
+        ...getAuthHeaders({ 'Content-Type': 'application/json' }),
       },
     });
     
@@ -264,7 +472,9 @@ export const removeFromCart = async (userId, productId) => {
 export const getUserWishlist = async (userId) => {
   try {
     // Try to fetch via API
-    const response = await fetch(`${API_BASE_URL}/api/users/${userId}/wishlist`);
+    const response = await fetch(`${API_BASE_URL}/api/users/${userId}/wishlist`, {
+      headers: getAuthHeaders()
+    });
     if (response.ok) {
       const wishlist = await response.json();
       return wishlist;
@@ -287,7 +497,7 @@ export const addToWishlist = async (userId, productId) => {
     const response = await fetch(`${API_BASE_URL}/api/users/${userId}/wishlist`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        ...getAuthHeaders({ 'Content-Type': 'application/json' }),
       },
       body: JSON.stringify({ productId }),
     });
@@ -315,7 +525,7 @@ export const removeFromWishlist = async (userId, productId) => {
     const response = await fetch(`${API_BASE_URL}/api/users/${userId}/wishlist/${productId}`, {
       method: 'DELETE',
       headers: {
-        'Content-Type': 'application/json',
+        ...getAuthHeaders({ 'Content-Type': 'application/json' }),
       },
     });
     
@@ -339,7 +549,9 @@ export const removeFromWishlist = async (userId, productId) => {
 export const getUserOrders = async (userId) => {
   try {
     // Try to fetch via API
-    const response = await fetch(`${API_BASE_URL}/api/users/${userId}/orders`);
+    const response = await fetch(`${API_BASE_URL}/api/users/${userId}/orders`, {
+      headers: getAuthHeaders()
+    });
     if (response.ok) {
       const orders = await response.json();
       return orders;
@@ -411,10 +623,17 @@ export const getProductsByIds = async (productIds) => {
 export default {
   authenticateUser,
   createUser,
+  authenticateWithGoogle,
+  getGoogleAuthConfig,
+  requestPasswordReset,
+  validatePasswordResetToken,
+  resetPasswordWithToken,
+  changeUserPassword,
   getUserProfile,
   updateUserProfile,
   getUserCart,
   addToCart,
+  updateCartItemQuantity,
   removeFromCart,
   getUserWishlist,
   addToWishlist,

@@ -1,23 +1,46 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import { DEFAULT_ADMIN_SCOPE } from '../config/adminScopes';
 
 export default function AdminLogin() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
-    // Simple validation for demo purposes
-    if (username === 'admin' && password === 'admin123') {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/admin/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error || 'Invalid username or password');
+        return;
+      }
+
       localStorage.setItem('adminLoggedIn', 'true');
-      router.push('/dashboard');
-    } else {
-      setError('Invalid username or password');
+      localStorage.setItem('adminToken', data.token);
+      localStorage.setItem('adminUser', JSON.stringify(data.user || {}));
+      const scope = localStorage.getItem('adminScope') || DEFAULT_ADMIN_SCOPE;
+      router.push(`/admin/${scope}`);
+    } catch (err) {
+      console.error('Admin login error:', err);
+      setError('Unable to login. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -130,9 +153,10 @@ export default function AdminLogin() {
               <div>
                 <button
                   type="submit"
+                  disabled={loading}
                   className="w-full flex justify-center py-3 px-4 border border-transparent rounded-none shadow-lg text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300"
                 >
-                  Sign in
+                  {loading ? 'Signing in...' : 'Sign in'}
                 </button>
               </div>
             </form>

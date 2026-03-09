@@ -34,6 +34,8 @@ const NewsBlogSectionCarousel = ({
             src={imageUrl}
             alt={item.title}
             className="w-full h-full object-cover transition-transform duration-700 hover:scale-110"
+            loading="lazy"
+            decoding="async"
             onError={(e) => (e.target.src = '/placeholder-news-blog.jpg')}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
@@ -186,6 +188,8 @@ const NewsBlogSectionCarousel = ({
                     src={p.logo}
                     alt={p.name}
                     className="max-h-14 grayscale hover:grayscale-0 transition"
+                    loading="lazy"
+                    decoding="async"
                   />
                 </div>
               </div>

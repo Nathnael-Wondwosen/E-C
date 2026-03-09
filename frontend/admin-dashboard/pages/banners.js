@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import ImageUploader from '../components/ImageUploader';
+import { withAdminScopeUrl } from '../utils/scopeApi';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
 
@@ -30,7 +31,7 @@ export default function BannersManagement() {
   const fetchBanners = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/banners`);
+      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/banners`));
       if (!response.ok) {
         throw new Error('Failed to fetch banners');
       }
@@ -82,7 +83,7 @@ export default function BannersManagement() {
   const handleAddBanner = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(`${API_BASE_URL}/api/banners`, {
+      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/banners`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -118,7 +119,7 @@ export default function BannersManagement() {
   const handleUpdateBanner = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(`${API_BASE_URL}/api/banners/${editingBanner}`, {
+      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/banners/${editingBanner}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -156,7 +157,7 @@ export default function BannersManagement() {
   // Update banner status
   const toggleBannerStatus = async (id, currentStatus) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/banners/${id}/toggle`, {
+      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/banners/${id}/toggle`), {
         method: 'PATCH',
       });
       
@@ -184,7 +185,7 @@ export default function BannersManagement() {
     }
     
     try {
-      const response = await fetch(`${API_BASE_URL}/api/banners/${id}`, {
+      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/banners/${id}`), {
         method: 'DELETE',
       });
       

@@ -13,13 +13,12 @@ export default function HotDealsSection({ displayedHotDeals = [], currentDealInd
   // Handle horizontal scrolling for deals
   const scrollDeals = (direction) => {
     const container = document.getElementById('deals-container');
-    if (container) {
-      const scrollAmount = 320; // Adjusted for minimized card width
-      if (direction === 'left') {
-        setCurrentDealIndex(prev => (prev === 0 ? displayedHotDeals.length - 1 : prev - 1));
-      } else {
-        setCurrentDealIndex(prev => (prev === displayedHotDeals.length - 1 ? 0 : prev + 1));
-      }
+    if (!container) return;
+
+    if (direction === 'left') {
+      setCurrentDealIndex(prev => (prev === 0 ? displayedHotDeals.length - 1 : prev - 1));
+    } else {
+      setCurrentDealIndex(prev => (prev === displayedHotDeals.length - 1 ? 0 : prev + 1));
     }
   };
 
@@ -39,6 +38,8 @@ export default function HotDealsSection({ displayedHotDeals = [], currentDealInd
               src={deal.images[0]} 
               alt={deal.name}
               className="w-full h-44 object-cover"
+              loading="lazy"
+              decoding="async"
               onError={() => setImageError(true)}
             />
           ) : (

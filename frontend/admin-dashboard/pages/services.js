@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import AdminLayout from '../components/AdminLayout';
+import { withAdminScopeUrl } from '../utils/scopeApi';
 
 export default function ServicesManagement() {
   const [services, setServices] = useState([]);
@@ -17,6 +18,7 @@ export default function ServicesManagement() {
     order: 0
   });
   const router = useRouter();
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
 
   // Mock data for demonstration
   const mockServices = [
@@ -78,7 +80,7 @@ export default function ServicesManagement() {
         await new Promise(resolve => setTimeout(resolve, 100));
         
         // Check if services already exist in the database
-        const response = await fetch('http://localhost:3000/api/services/all');
+        const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/services/all`));
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -90,7 +92,7 @@ export default function ServicesManagement() {
           // Create each mock service
           for (const service of mockServices) {
             try {
-              const createResponse = await fetch('http://localhost:3000/api/services', {
+              const createResponse = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/services`), {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -140,7 +142,7 @@ export default function ServicesManagement() {
       await new Promise(resolve => setTimeout(resolve, 100));
       
       // Load services from API
-      const response = await fetch('http://localhost:3000/api/services/all');
+      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/services/all`));
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -151,7 +153,7 @@ export default function ServicesManagement() {
       console.error('Error loading services from API:', error);
       // Try to load active services as fallback
       try {
-        const activeResponse = await fetch('http://localhost:3000/api/services');
+        const activeResponse = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/services`));
         if (activeResponse.ok) {
           const activeServices = await activeResponse.json();
           setServices(activeServices);
@@ -186,7 +188,7 @@ export default function ServicesManagement() {
         // Update existing service
         // Use the service's _id if available, otherwise use id
         const serviceId = editingService._id || editingService.id;
-        const response = await fetch(`http://localhost:3000/api/services/${serviceId}`, {
+        const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/services/${serviceId}`), {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -202,7 +204,7 @@ export default function ServicesManagement() {
 
       } else {
         // Add new service
-        const response = await fetch('http://localhost:3000/api/services', {
+        const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/services`), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -253,7 +255,7 @@ export default function ServicesManagement() {
       try {
         // Use the service's _id if available, otherwise use id
         const serviceId = service._id || service.id;
-        const response = await fetch(`http://localhost:3000/api/services/${serviceId}`, {
+        const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/services/${serviceId}`), {
           method: 'DELETE',
         });
         
@@ -274,7 +276,7 @@ export default function ServicesManagement() {
     try {
       // Use the service's _id if available, otherwise use id
       const serviceId = service._id || service.id;
-      const response = await fetch(`http://localhost:3000/api/services/${serviceId}/toggle`, {
+      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/services/${serviceId}/toggle`), {
         method: 'PATCH',
       });
       
@@ -546,3 +548,4 @@ export default function ServicesManagement() {
     </AdminLayout>
   );
 }
+
