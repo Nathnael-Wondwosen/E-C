@@ -1,12 +1,11 @@
-import { useEffect } from 'react';
-import { useRouter } from 'next/router';
+import MarketRouteLanding from '../components/markets/MarketRouteLanding';
 
-export default function ChinaMarketRedirect() {
-  const router = useRouter();
-
-  useEffect(() => {
-    router.replace('/markets/china');
-  }, [router]);
-
-  return null;
+export default function ChinaMarketPage() {
+  return (
+    <MarketRouteLanding
+      title="China Market"
+      subtitle="Source competitive products from trusted China-focused listings with clear pricing and fast trade workflows."
+      targetHref="/markets/china"
+    />
+  );
 }

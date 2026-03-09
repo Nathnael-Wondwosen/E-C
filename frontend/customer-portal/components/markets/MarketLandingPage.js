@@ -1,7 +1,11 @@
 import Head from 'next/head';
 import Link from 'next/link';
+import { useState } from 'react';
+import Header from '../header/Header';
 
 export default function MarketLandingPage({ market, products = [] }) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
   return (
     <>
       <Head>
@@ -10,6 +14,8 @@ export default function MarketLandingPage({ market, products = [] }) {
       </Head>
 
       <main className="min-h-screen bg-gray-50">
+        <Header isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} categories={[]} />
+
         <section className="bg-gray-900 text-white">
           <div className="max-w-7xl mx-auto px-4 py-10">
             <p className="text-xs uppercase tracking-widest text-blue-300">{market.heroTag}</p>
