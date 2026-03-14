@@ -5,7 +5,7 @@ import AccountDropdown from '../components/header/AccountDropdown';
 
 const platformNavLinks = [
   { label: 'Ecommerce', href: '/e-commerce', external: false },
-  { label: 'Tesbinn', href: 'https://tesbin.com', external: true },
+  { label: 'Tesbinn', href: 'https://tesbinn.com', external: true },
   { label: 'Enisra', href: 'https://www.ensira.com', external: true },
   { label: 'Tradex', href: 'https://tradex.com', external: true },
   { label: 'Buna Tale', href: 'https://bunatale.com', external: true },
