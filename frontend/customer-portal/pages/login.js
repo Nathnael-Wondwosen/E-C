@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -9,11 +9,26 @@ export default function CustomerLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleReady, setGoogleReady] = useState(false);
+  const [googleWarning, setGoogleWarning] = useState('');
   const [resolvedGoogleClientId, setResolvedGoogleClientId] = useState(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '');
+  const googleInitRef = useRef({ initialized: false, clientId: '' });
   const router = useRouter();
   const googleClientId = resolvedGoogleClientId;
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    const wasRegistered = String(router.query?.registered || '') === '1';
+    const fromSignupEmail = typeof router.query?.email === 'string' ? router.query.email : '';
+    if (wasRegistered) {
+      setNotice('Registration successful. Please sign in with your new account.');
+      if (fromSignupEmail && !email) {
+        setEmail(fromSignupEmail);
+      }
+    }
+  }, [router.isReady, router.query?.registered, router.query?.email, email]);
 
   useEffect(() => {
     if (googleClientId) return;
@@ -85,23 +100,47 @@ export default function CustomerLogin() {
       return;
     }
 
-    window.google.accounts.id.initialize({
-      client_id: googleClientId,
-      callback: handleGoogleCredential,
-    });
+    if (
+      googleInitRef.current.initialized &&
+      googleInitRef.current.clientId === googleClientId &&
+      window.__customerPortalGoogleInitClientId === googleClientId
+    ) {
+      return;
+    }
 
-    const googleButton = document.getElementById('google-signin-button');
-    if (googleButton) {
-      googleButton.innerHTML = '';
-      window.google.accounts.id.renderButton(googleButton, {
-        theme: 'outline',
-        size: 'large',
-        width: 320,
-        text: 'continue_with',
-        shape: 'rectangular',
+    try {
+      window.google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: handleGoogleCredential,
       });
+      googleInitRef.current = { initialized: true, clientId: googleClientId };
+      window.__customerPortalGoogleInitClientId = googleClientId;
+      setGoogleWarning('');
+
+      const googleButton = document.getElementById('google-signin-button');
+      if (googleButton) {
+        googleButton.innerHTML = '';
+        window.google.accounts.id.renderButton(googleButton, {
+          theme: 'outline',
+          size: 'large',
+          width: 320,
+          text: 'continue_with',
+          shape: 'rectangular',
+        });
+      }
+    } catch (error) {
+      console.error('Google button initialization failed:', error);
+      setGoogleWarning('Google sign-in is not available for this origin. Add this URL to Google OAuth authorized JavaScript origins.');
     }
   }, [googleClientId, googleReady, handleGoogleCredential]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !googleClientId) return;
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      setGoogleWarning('If Google shows "origin is not allowed", add this local URL in Google OAuth authorized origins.');
+    }
+  }, [googleClientId]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -155,6 +194,12 @@ export default function CustomerLogin() {
           </div>
 
           <form className="space-y-4" onSubmit={handleSubmit}>
+            {notice && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 text-sm text-emerald-700">
+                {notice}
+              </div>
+            )}
+
             <div>
               <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-slate-700">
                 Email Address
@@ -252,6 +297,9 @@ export default function CustomerLogin() {
                 <div className="mt-3 flex justify-center">
                   <div id="google-signin-button" />
                 </div>
+                {googleWarning ? (
+                  <p className="mt-2 text-center text-xs text-amber-700">{googleWarning}</p>
+                ) : null}
               </div>
             ) : (
               <p className="text-center text-xs text-amber-700">Google sign-in is not configured yet. Set `GOOGLE_CLIENT_ID` on the API gateway or `NEXT_PUBLIC_GOOGLE_CLIENT_ID` in customer portal env.</p>

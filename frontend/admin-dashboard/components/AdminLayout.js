@@ -70,6 +70,14 @@ const ICONS = {
       d="M4 19.25h16M6 16l4.25-4.25L13 14.5l5-6.5"
     />
   ),
+  Logs: (
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.8"
+      d="M7 4h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm2.5 4h5m-5 4h7m-7 4h4"
+    />
+  ),
   Settings: (
     <path
       strokeLinecap="round"
@@ -160,6 +168,7 @@ export default function AdminLayout({ children, title = 'Admin Dashboard' }) {
       },
       { name: 'Services', href: '/services', icon: 'Services' },
       { name: 'Analytics', href: '/analytics', icon: 'Analytics' },
+      { name: 'Logs', href: '/logs', icon: 'Logs' },
       { name: 'Settings', href: '/settings', icon: 'Settings' },
     ],
     []

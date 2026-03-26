@@ -2,8 +2,7 @@
 // This service fetches hero carousel data from the MongoDB database via API
 
 import { getCloudinaryImageUrl } from './cloudinaryService';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000'; // API Gateway
+import { requestJson } from './httpClient';
 
 // Cache for hero slides to improve performance
 let heroSlidesCache = null;
@@ -44,12 +43,9 @@ export async function getHeroSlides() {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/hero-slides`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const slides = await response.json();
+    const { ok, payload } = await requestJson('/api/hero-slides', { retries: 1 });
+    if (!ok) throw new Error('Failed to fetch hero slides');
+    const slides = payload;
     
     // Update cache
     heroSlidesCache = slides;
@@ -82,12 +78,9 @@ export async function getServices() {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/services`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const services = await response.json();
+    const { ok, payload } = await requestJson('/api/services', { retries: 1 });
+    if (!ok) throw new Error('Failed to fetch services');
+    const services = payload.items || payload;
     
     // Update cache
     servicesCache = services;
@@ -109,12 +102,9 @@ export async function getCategories() {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/categories`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const categories = await response.json();
+    const { ok, payload } = await requestJson('/api/categories', { retries: 1 });
+    if (!ok) throw new Error('Failed to fetch categories');
+    const categories = payload.items || payload;
     
     // Update cache
     categoriesCache = categories;
@@ -128,6 +118,27 @@ export async function getCategories() {
   }
 }
 
+export async function getCategoriesPage(page = 1, limit = 30) {
+  try {
+    const { ok, payload } = await requestJson(`/api/categories?page=${page}&limit=${limit}`, { retries: 1 });
+    if (!ok) {
+      return { items: [], total: 0, page, limit, totalPages: 1 };
+    }
+    if (Array.isArray(payload)) {
+      return { items: payload, total: payload.length, page: 1, limit: payload.length || limit, totalPages: 1 };
+    }
+    return {
+      items: payload.items || [],
+      total: payload.total || 0,
+      page: payload.page || page,
+      limit: payload.limit || limit,
+      totalPages: payload.totalPages || 1
+    };
+  } catch (error) {
+    return { items: [], total: 0, page, limit, totalPages: 1 };
+  }
+}
+
 // Fetch products from API
 export async function getProducts() {
   // Check if we have valid cached data
@@ -137,12 +148,9 @@ export async function getProducts() {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/products`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const products = await response.json();
+    const { ok, payload } = await requestJson('/api/products', { retries: 1 });
+    if (!ok) throw new Error('Failed to fetch products');
+    const products = payload.items || payload;
     
     // Update cache
     productsCache = products;
@@ -156,6 +164,27 @@ export async function getProducts() {
   }
 }
 
+export async function getProductsPage(page = 1, limit = 24) {
+  try {
+    const { ok, payload } = await requestJson(`/api/products?page=${page}&limit=${limit}`, { retries: 1 });
+    if (!ok) {
+      return { items: [], total: 0, page, limit, totalPages: 1 };
+    }
+    if (Array.isArray(payload)) {
+      return { items: payload, total: payload.length, page: 1, limit: payload.length || limit, totalPages: 1 };
+    }
+    return {
+      items: payload.items || [],
+      total: payload.total || 0,
+      page: payload.page || page,
+      limit: payload.limit || limit,
+      totalPages: payload.totalPages || 1
+    };
+  } catch (error) {
+    return { items: [], total: 0, page, limit, totalPages: 1 };
+  }
+}
+
 // Fetch special offers from API
 export async function getSpecialOffers() {
   // Check if we have valid cached data
@@ -165,12 +194,9 @@ export async function getSpecialOffers() {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/special-offers/active`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const offers = await response.json();
+    const { ok, payload } = await requestJson('/api/special-offers/active', { retries: 1 });
+    if (!ok) throw new Error('Failed to fetch special offers');
+    const offers = payload.items || payload;
     
     // Update cache
     specialOffersCache = offers;
@@ -193,12 +219,9 @@ export async function getGlobalBackgroundImage() {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/global-background-image`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const data = await response.json();
+    const { ok, payload } = await requestJson('/api/global-background-image', { retries: 1 });
+    if (!ok) throw new Error('Failed to fetch global background image');
+    const data = payload;
     const imageUrl = data.imageUrl || '/hero-background.jpg';
     
     // Update cache

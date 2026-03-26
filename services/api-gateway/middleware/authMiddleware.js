@@ -1,12 +1,27 @@
 const jwt = require('jsonwebtoken');
 
+const isAdminFromClaims = (auth = {}) => {
+  if (!auth || typeof auth !== 'object') return false;
+  const userType = String(auth.userType || '').toLowerCase();
+  const role = String(auth.role || '').toLowerCase();
+  const roles = Array.isArray(auth.roles)
+    ? auth.roles.map((value) => String(value || '').toLowerCase())
+    : [];
+
+  return userType === 'admin' || role === 'admin' || roles.includes('admin');
+};
+
 const createAuthTokenFactory = ({ jwtSecret, expiresIn }) =>
   (user) =>
     jwt.sign(
       {
         sub: user._id.toString(),
         email: user.email,
-        userType: user.userType || 'buyer'
+        userType: user.userType || user.role || 'buyer',
+        role: user.role || user.userType || 'buyer',
+        roles: Array.isArray(user.roles) && user.roles.length
+          ? user.roles
+          : [user.userType || user.role || 'buyer']
       },
       jwtSecret,
       { expiresIn: expiresIn || '7d' }
@@ -33,7 +48,7 @@ const authenticateTokenFactory = ({ jwtSecret }) =>
 const requireSelfOrAdmin = (req, res, next) => {
   const requestedUserId = req.params.id;
   const authUserId = req.auth?.sub;
-  const isAdmin = req.auth?.userType === 'admin';
+  const isAdmin = isAdminFromClaims(req.auth);
 
   if (isAdmin || (requestedUserId && authUserId && requestedUserId === authUserId)) {
     return next();
@@ -43,7 +58,7 @@ const requireSelfOrAdmin = (req, res, next) => {
 };
 
 const requireAdmin = (req, res, next) => {
-  if (req.auth?.userType === 'admin') {
+  if (isAdminFromClaims(req.auth)) {
     return next();
   }
   return res.status(403).json({ error: 'Forbidden: admin access required' });

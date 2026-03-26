@@ -2,24 +2,28 @@
 // This connects to the actual MongoDB database using the provided URI
 
 import { withAdminScopeUrl } from './scopeApi';
+import { requestJson } from './httpClient';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000'; // API Gateway
+const ALLOW_MOCK_FALLBACKS = process.env.NEXT_PUBLIC_ALLOW_MOCK_FALLBACKS === 'true';
 
 // Simulate API delay
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const normalizeEntityId = (entity) => ({
+  ...entity,
+  id: `${entity?._id || entity?.id || ''}`
+});
 
 // Product management functions
 export const getProducts = async () => {
   try {
-    // Try to fetch from API first
-    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/products`));
-    if (response.ok) {
-      const products = await response.json();
-      return products.map(product => ({
-        ...product,
-        id: product._id || product.id
-      }));
-    }
+    const { ok, payload, message } = await requestJson(withAdminScopeUrl(`${API_BASE_URL}/api/products`), { retries: 1 });
+    if (!ok) throw new Error(message || 'Failed to fetch products');
+    const products = payload.items || payload;
+    return products.map(normalizeEntityId);
   } catch (error) {
+    if (!ALLOW_MOCK_FALLBACKS) {
+      throw new Error('Failed to fetch products from API');
+    }
     console.warn('Failed to fetch products from API, using mock data:', error);
   }
   
@@ -39,16 +43,13 @@ export const getProducts = async () => {
 
 export const getProductById = async (id) => {
   try {
-    // Try to fetch from API first
-    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/products/${id}`));
-    if (response.ok) {
-      const product = await response.json();
-      return {
-        ...product,
-        id: product._id || product.id
-      };
-    }
+    const { ok, payload, message } = await requestJson(withAdminScopeUrl(`${API_BASE_URL}/api/products/${id}`), { retries: 1 });
+    if (!ok) throw new Error(message || 'Failed to fetch product');
+    return normalizeEntityId(payload);
   } catch (error) {
+    if (!ALLOW_MOCK_FALLBACKS) {
+      throw new Error('Failed to fetch product from API');
+    }
     console.warn('Failed to fetch product from API, using mock data:', error);
   }
   
@@ -77,6 +78,9 @@ export const createProduct = async (productData) => {
       };
     }
   } catch (error) {
+    if (!ALLOW_MOCK_FALLBACKS) {
+      throw new Error('Failed to create product via API');
+    }
     console.warn('Failed to create product via API, using mock data:', error);
   }
   
@@ -107,6 +111,9 @@ export const updateProduct = async (id, productData) => {
       };
     }
   } catch (error) {
+    if (!ALLOW_MOCK_FALLBACKS) {
+      throw new Error('Failed to update product via API');
+    }
     console.warn('Failed to update product via API, using mock data:', error);
   }
   
@@ -129,6 +136,9 @@ export const deleteProduct = async (id) => {
       return { success: true };
     }
   } catch (error) {
+    if (!ALLOW_MOCK_FALLBACKS) {
+      throw new Error('Failed to delete product via API');
+    }
     console.warn('Failed to delete product via API, using mock data:', error);
   }
   
@@ -140,16 +150,14 @@ export const deleteProduct = async (id) => {
 // Category management functions
 export const getCategories = async () => {
   try {
-    // Try to fetch from API first
-    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/categories`));
-    if (response.ok) {
-      const categories = await response.json();
-      return categories.map(category => ({
-        ...category,
-        id: category._id || category.id
-      }));
-    }
+    const { ok, payload, message } = await requestJson(withAdminScopeUrl(`${API_BASE_URL}/api/categories`), { retries: 1 });
+    if (!ok) throw new Error(message || 'Failed to fetch categories');
+    const categories = payload.items || payload;
+    return categories.map(normalizeEntityId);
   } catch (error) {
+    if (!ALLOW_MOCK_FALLBACKS) {
+      throw new Error('Failed to fetch categories from API');
+    }
     console.warn('Failed to fetch categories from API, using mock data:', error);
   }
   
@@ -169,16 +177,13 @@ export const getCategories = async () => {
 
 export const getCategoryById = async (id) => {
   try {
-    // Try to fetch from API first
-    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/categories/${id}`));
-    if (response.ok) {
-      const category = await response.json();
-      return {
-        ...category,
-        id: category._id || category.id
-      };
-    }
+    const { ok, payload, message } = await requestJson(withAdminScopeUrl(`${API_BASE_URL}/api/categories/${id}`), { retries: 1 });
+    if (!ok) throw new Error(message || 'Failed to fetch category');
+    return normalizeEntityId(payload);
   } catch (error) {
+    if (!ALLOW_MOCK_FALLBACKS) {
+      throw new Error('Failed to fetch category from API');
+    }
     console.warn('Failed to fetch category from API, using mock data:', error);
   }
   
@@ -207,6 +212,9 @@ export const createCategory = async (categoryData) => {
       };
     }
   } catch (error) {
+    if (!ALLOW_MOCK_FALLBACKS) {
+      throw new Error('Failed to create category via API');
+    }
     console.warn('Failed to create category via API, using mock data:', error);
   }
   
@@ -237,6 +245,9 @@ export const updateCategory = async (id, categoryData) => {
       };
     }
   } catch (error) {
+    if (!ALLOW_MOCK_FALLBACKS) {
+      throw new Error('Failed to update category via API');
+    }
     console.warn('Failed to update category via API, using mock data:', error);
   }
   
@@ -259,6 +270,9 @@ export const deleteCategory = async (id) => {
       return { success: true };
     }
   } catch (error) {
+    if (!ALLOW_MOCK_FALLBACKS) {
+      throw new Error('Failed to delete category via API');
+    }
     console.warn('Failed to delete category via API, using mock data:', error);
   }
   
@@ -294,21 +308,69 @@ export const updateOrderStatus = async (id, status) => {
   };
 };
 
+// Admin user/account management
+export const getAdminUsersPage = async ({ search = '', role = '', status = '', page = 1, limit = 20 } = {}) => {
+  const params = new URLSearchParams();
+  if (search) params.set('search', search);
+  if (role) params.set('role', role);
+  if (status) params.set('status', status);
+  params.set('page', String(page));
+  params.set('limit', String(limit));
+
+  const target = withAdminScopeUrl(`${API_BASE_URL}/api/admin/users?${params.toString()}`);
+  const { ok, payload, message } = await requestJson(target, { retries: 1 });
+  if (!ok) throw new Error(message || 'Failed to fetch users');
+
+  return {
+    items: (payload.items || []).map(normalizeEntityId),
+    total: payload.total || 0,
+    page: payload.page || page,
+    limit: payload.limit || limit,
+    totalPages: payload.totalPages || 1,
+    summary: payload.summary || { roles: {}, statuses: {} }
+  };
+};
+
+export const updateAdminUserAccount = async (id, updates) => {
+  const target = withAdminScopeUrl(`${API_BASE_URL}/api/admin/users/${id}`);
+  const response = await fetch(target, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(updates || {}),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || payload.message || 'Failed to update user');
+  }
+  return payload;
+};
+
+export const deleteAdminUserAccount = async (id) => {
+  const target = withAdminScopeUrl(`${API_BASE_URL}/api/admin/users/${id}`);
+  const response = await fetch(target, {
+    method: 'DELETE'
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || payload.message || 'Failed to delete user');
+  }
+  return payload;
+};
+
 // Hero Slides management functions
 export const getHeroSlides = async () => {
   try {
-    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/hero-slides`));
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const slides = await response.json();
-    // Convert MongoDB _id to id for frontend compatibility
-    return slides.map(slide => ({
-      ...slide,
-      id: slide._id.toString() // Ensure ID is a string
-    }));
+    const { ok, payload, message } = await requestJson(withAdminScopeUrl(`${API_BASE_URL}/api/hero-slides`), { retries: 1 });
+    if (!ok) throw new Error(message || 'Failed to fetch hero slides');
+    const slides = payload.items || payload;
+    return slides.map(normalizeEntityId);
   } catch (error) {
     console.error('Error fetching hero slides:', error);
+    if (!ALLOW_MOCK_FALLBACKS) {
+      throw new Error('Failed to fetch hero slides from API');
+    }
     // Return default slides if API fails
     return [
       {
@@ -344,18 +406,15 @@ export const getHeroSlides = async () => {
 
 export const getAllHeroSlides = async () => {
   try {
-    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/hero-slides/all`));
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const slides = await response.json();
-    // Convert MongoDB _id to id for frontend compatibility
-    return slides.map(slide => ({
-      ...slide,
-      id: slide._id.toString() // Ensure ID is a string
-    }));
+    const { ok, payload, message } = await requestJson(withAdminScopeUrl(`${API_BASE_URL}/api/hero-slides/all`), { retries: 1 });
+    if (!ok) throw new Error(message || 'Failed to fetch hero slides');
+    const slides = payload.items || payload;
+    return slides.map(normalizeEntityId);
   } catch (error) {
     console.error('Error fetching all hero slides:', error);
+    if (!ALLOW_MOCK_FALLBACKS) {
+      throw new Error('Failed to fetch hero slides from API');
+    }
     // Return default slides if API fails
     return [
       {
@@ -513,18 +572,15 @@ export const authenticateAdmin = async (username, password) => {
 // Special Offers management functions
 export const getSpecialOffers = async () => {
   try {
-    const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/special-offers`));
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const offers = await response.json();
-    // Convert MongoDB _id to id for frontend compatibility
-    return offers.map(offer => ({
-      ...offer,
-      id: offer._id.toString() // Ensure ID is a string
-    }));
+    const { ok, payload, message } = await requestJson(withAdminScopeUrl(`${API_BASE_URL}/api/special-offers`), { retries: 1 });
+    if (!ok) throw new Error(message || 'Failed to fetch special offers');
+    const offers = payload.items || payload;
+    return offers.map(normalizeEntityId);
   } catch (error) {
     console.error('Error fetching special offers:', error);
+    if (!ALLOW_MOCK_FALLBACKS) {
+      throw new Error('Failed to fetch special offers from API');
+    }
     // Return default offers if API fails
     return [
       {

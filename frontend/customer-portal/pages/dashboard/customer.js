@@ -233,6 +233,12 @@ export default function CustomerDashboard() {
                       </svg>
                       View Orders
                     </Link>
+                    <Link href="/inquiries" className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50">
+                      <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16h6M5 6h14a2 2 0 012 2v8a2 2 0 01-2 2H9l-4 3V8a2 2 0 012-2z" />
+                      </svg>
+                      My Inquiries
+                    </Link>
                   </div>
                 </div>
 

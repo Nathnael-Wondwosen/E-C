@@ -55,7 +55,15 @@ const registerAuthRoutes = ({
     }
 
     if (IDENTITY_SERVICE_URL) {
-      return proxyJsonToIdentityService(req, res, '/api/auth/login');
+      const proxied = await proxyJsonToIdentityService(
+        req,
+        res,
+        '/api/auth/login',
+        { suppressUnavailable: !enforceIdentityBoundary }
+      );
+      if (proxied) {
+        return;
+      }
     }
 
     try {
@@ -141,7 +149,15 @@ const registerAuthRoutes = ({
         displayName: name || '',
         profile: profile || {}
       };
-      return proxyJsonToIdentityService(req, res, '/api/auth/register');
+      const proxied = await proxyJsonToIdentityService(
+        req,
+        res,
+        '/api/auth/register',
+        { suppressUnavailable: !enforceIdentityBoundary }
+      );
+      if (proxied) {
+        return;
+      }
     }
 
     try {

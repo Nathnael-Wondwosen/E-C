@@ -113,6 +113,13 @@ export default function B2BProductsManagement() {
 
   const handleCreateProduct = async () => {
     if (newProduct.name && newProduct.price && newProduct.category) {
+      const supplierId = String(newProduct.supplierId || '').trim();
+      const companyId = String(newProduct.companyId || '').trim();
+      if (!supplierId && !companyId) {
+        alert('Supplier ID or Company ID is required so inquiries can reach the product owner.');
+        return;
+      }
+
       try {
         const productData = {
           name: newProduct.name,
@@ -144,8 +151,8 @@ export default function B2BProductsManagement() {
           leadTime: newProduct.leadTime ? parseInt(newProduct.leadTime) : null,
           shippingOptions: newProduct.shippingOptions || [],
           certifications: newProduct.certifications || [],
-          supplierId: newProduct.supplierId || null,
-          companyId: newProduct.companyId || null,
+          supplierId: supplierId || null,
+          companyId: companyId || null,
           businessType: newProduct.businessType || null,
           createdAt: new Date(),
           updatedAt: new Date()
@@ -192,6 +199,13 @@ export default function B2BProductsManagement() {
 
   const handleUpdateProduct = async () => {
     if (editingProduct && editingProduct.name && editingProduct.price && editingProduct.category) {
+      const supplierId = String(editingProduct.supplierId || '').trim();
+      const companyId = String(editingProduct.companyId || '').trim();
+      if (!supplierId && !companyId) {
+        alert('Supplier ID or Company ID is required so inquiries can reach the product owner.');
+        return;
+      }
+
       try {
         const updatedProduct = {
           ...editingProduct,
@@ -219,8 +233,8 @@ export default function B2BProductsManagement() {
           leadTime: editingProduct.leadTime ? parseInt(editingProduct.leadTime) : null,
           shippingOptions: editingProduct.shippingOptions || [],
           certifications: editingProduct.certifications || [],
-          supplierId: editingProduct.supplierId || null,
-          companyId: editingProduct.companyId || null,
+          supplierId: supplierId || null,
+          companyId: companyId || null,
           businessType: editingProduct.businessType || null,
           updatedAt: new Date()
         };

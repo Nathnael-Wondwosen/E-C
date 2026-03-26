@@ -1,3 +1,10 @@
+const {
+  buildRequestCacheKey,
+  getCachedResponse,
+  setCachedResponse,
+  invalidateCacheByPrefixes
+} = require('../helpers/cacheHelpers');
+
 const registerServicesPartnersRoutes = ({
   app,
   getDb,
@@ -11,7 +18,8 @@ const registerServicesPartnersRoutes = ({
     buildScopedQuery,
     applyMarketScopeToDocument,
     ensureDocumentScopeAccess,
-    findDocumentByFlexibleId
+    findDocumentByFlexibleId,
+    sendOptimizedJson
   } = helpers;
 
   const resolveByFlexibleOrNumericId = async (collection, entityId) => {
@@ -25,6 +33,18 @@ const registerServicesPartnersRoutes = ({
 
     return findDocumentByFlexibleId(collection, entityId);
   };
+  const normalizeEntityId = (doc) => ({
+    ...doc,
+    id: (doc?._id || doc?.id)?.toString?.() || doc?.id
+  });
+  const parsePagination = (req) => {
+    const hasPaginationInput = req.query.page !== undefined || req.query.limit !== undefined;
+    if (!hasPaginationInput) return null;
+    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
+    const skip = (page - 1) * limit;
+    return { page, limit, skip };
+  };
 
   // Services Routes
   app.get('/api/services', async (req, res) => {
@@ -35,11 +55,33 @@ const registerServicesPartnersRoutes = ({
       }
 
       const collection = db.collection('services');
-      const services = await collection
-        .find(buildScopedQuery(resolveRequestedScope(req), { isActive: true }))
-        .sort({ order: 1 })
-        .toArray();
-      res.json(services);
+      const query = buildScopedQuery(resolveRequestedScope(req), { isActive: true });
+      const cacheKey = buildRequestCacheKey(req, 'services-active');
+      const cached = await getCachedResponse(cacheKey);
+      if (cached) {
+        return sendOptimizedJson(req, res, cached);
+      }
+      const pagination = parsePagination(req);
+      if (pagination) {
+        const [services, total] = await Promise.all([
+          collection.find(query).sort({ order: 1, _id: -1 }).skip(pagination.skip).limit(pagination.limit).toArray(),
+          collection.countDocuments(query)
+        ]);
+        const payload = {
+          items: services.map(normalizeEntityId),
+          total,
+          page: pagination.page,
+          limit: pagination.limit,
+          totalPages: Math.max(1, Math.ceil(total / pagination.limit))
+        };
+        await setCachedResponse(cacheKey, payload, 10_000);
+        return sendOptimizedJson(req, res, payload);
+      }
+
+      const services = await collection.find(query).sort({ order: 1 }).toArray();
+      const payload = services.map(normalizeEntityId);
+      await setCachedResponse(cacheKey, payload, 10_000);
+      return sendOptimizedJson(req, res, payload);
     } catch (error) {
       console.error('Error fetching services:', error);
       res.status(500).json({ error: 'Failed to fetch services' });
@@ -54,11 +96,33 @@ const registerServicesPartnersRoutes = ({
       }
 
       const collection = db.collection('services');
-      const services = await collection
-        .find(buildScopedQuery(resolveRequestedScope(req), {}))
-        .sort({ order: 1 })
-        .toArray();
-      res.json(services);
+      const query = buildScopedQuery(resolveRequestedScope(req), {});
+      const cacheKey = buildRequestCacheKey(req, 'services-all');
+      const cached = await getCachedResponse(cacheKey);
+      if (cached) {
+        return sendOptimizedJson(req, res, cached);
+      }
+      const pagination = parsePagination(req);
+      if (pagination) {
+        const [services, total] = await Promise.all([
+          collection.find(query).sort({ order: 1, _id: -1 }).skip(pagination.skip).limit(pagination.limit).toArray(),
+          collection.countDocuments(query)
+        ]);
+        const payload = {
+          items: services.map(normalizeEntityId),
+          total,
+          page: pagination.page,
+          limit: pagination.limit,
+          totalPages: Math.max(1, Math.ceil(total / pagination.limit))
+        };
+        await setCachedResponse(cacheKey, payload, 10_000);
+        return sendOptimizedJson(req, res, payload);
+      }
+
+      const services = await collection.find(query).sort({ order: 1 }).toArray();
+      const payload = services.map(normalizeEntityId);
+      await setCachedResponse(cacheKey, payload, 10_000);
+      return sendOptimizedJson(req, res, payload);
     } catch (error) {
       console.error('Error fetching all services:', error);
       res.status(500).json({ error: 'Failed to fetch services' });
@@ -82,7 +146,8 @@ const registerServicesPartnersRoutes = ({
 
       const result = await collection.insertOne(newService);
       const insertedService = await collection.findOne({ _id: result.insertedId });
-      res.status(201).json(insertedService);
+      await invalidateCacheByPrefixes(['services-active', 'services-all']);
+      res.status(201).json(normalizeEntityId(insertedService));
     } catch (error) {
       console.error('Error creating service:', error);
       res.status(500).json({ error: 'Failed to create service' });
@@ -124,7 +189,8 @@ const registerServicesPartnersRoutes = ({
       }
 
       const updatedService = await collection.findOne(lookupFilter);
-      res.json(updatedService);
+      await invalidateCacheByPrefixes(['services-active', 'services-all']);
+      res.json(normalizeEntityId(updatedService));
     } catch (error) {
       console.error('Error updating service:', error);
       res.status(500).json({ error: 'Failed to update service' });
@@ -150,6 +216,7 @@ const registerServicesPartnersRoutes = ({
       }
 
       await collection.deleteOne(lookupFilter);
+      await invalidateCacheByPrefixes(['services-active', 'services-all']);
       res.json({ message: 'Service deleted successfully' });
     } catch (error) {
       console.error('Error deleting service:', error);
@@ -208,7 +275,8 @@ const registerServicesPartnersRoutes = ({
       );
 
       const updatedService = await collection.findOne(updateFilter);
-      res.json(updatedService);
+      await invalidateCacheByPrefixes(['services-active', 'services-all']);
+      res.json(normalizeEntityId(updatedService));
     } catch (error) {
       console.error('Error toggling service status:', error);
       res.status(500).json({ error: 'Failed to toggle service status' });
@@ -224,11 +292,33 @@ const registerServicesPartnersRoutes = ({
       }
 
       const collection = db.collection('partners');
-      const partners = await collection
-        .find(buildScopedQuery(resolveRequestedScope(req), {}))
-        .sort({ order: 1 })
-        .toArray();
-      res.json(partners);
+      const query = buildScopedQuery(resolveRequestedScope(req), {});
+      const cacheKey = buildRequestCacheKey(req, 'partners-all');
+      const cached = await getCachedResponse(cacheKey);
+      if (cached) {
+        return sendOptimizedJson(req, res, cached);
+      }
+      const pagination = parsePagination(req);
+      if (pagination) {
+        const [partners, total] = await Promise.all([
+          collection.find(query).sort({ order: 1, _id: -1 }).skip(pagination.skip).limit(pagination.limit).toArray(),
+          collection.countDocuments(query)
+        ]);
+        const payload = {
+          items: partners.map(normalizeEntityId),
+          total,
+          page: pagination.page,
+          limit: pagination.limit,
+          totalPages: Math.max(1, Math.ceil(total / pagination.limit))
+        };
+        await setCachedResponse(cacheKey, payload, 10_000);
+        return sendOptimizedJson(req, res, payload);
+      }
+
+      const partners = await collection.find(query).sort({ order: 1 }).toArray();
+      const payload = partners.map(normalizeEntityId);
+      await setCachedResponse(cacheKey, payload, 10_000);
+      return sendOptimizedJson(req, res, payload);
     } catch (error) {
       console.error('Error fetching partners:', error);
       res.status(500).json({ error: 'Failed to fetch partners' });
@@ -243,11 +333,33 @@ const registerServicesPartnersRoutes = ({
       }
 
       const collection = db.collection('partners');
-      const partners = await collection
-        .find(buildScopedQuery(resolveRequestedScope(req), { isActive: true }))
-        .sort({ order: 1 })
-        .toArray();
-      res.json(partners);
+      const query = buildScopedQuery(resolveRequestedScope(req), { isActive: true });
+      const cacheKey = buildRequestCacheKey(req, 'partners-active');
+      const cached = await getCachedResponse(cacheKey);
+      if (cached) {
+        return sendOptimizedJson(req, res, cached);
+      }
+      const pagination = parsePagination(req);
+      if (pagination) {
+        const [partners, total] = await Promise.all([
+          collection.find(query).sort({ order: 1, _id: -1 }).skip(pagination.skip).limit(pagination.limit).toArray(),
+          collection.countDocuments(query)
+        ]);
+        const payload = {
+          items: partners.map(normalizeEntityId),
+          total,
+          page: pagination.page,
+          limit: pagination.limit,
+          totalPages: Math.max(1, Math.ceil(total / pagination.limit))
+        };
+        await setCachedResponse(cacheKey, payload, 10_000);
+        return sendOptimizedJson(req, res, payload);
+      }
+
+      const partners = await collection.find(query).sort({ order: 1 }).toArray();
+      const payload = partners.map(normalizeEntityId);
+      await setCachedResponse(cacheKey, payload, 10_000);
+      return sendOptimizedJson(req, res, payload);
     } catch (error) {
       console.error('Error fetching active partners:', error);
       res.status(500).json({ error: 'Failed to fetch active partners' });
@@ -270,7 +382,8 @@ const registerServicesPartnersRoutes = ({
 
       const result = await collection.insertOne(newPartner);
       const insertedPartner = await collection.findOne({ _id: result.insertedId });
-      res.status(201).json(insertedPartner);
+      await invalidateCacheByPrefixes(['partners-all', 'partners-active']);
+      res.status(201).json(normalizeEntityId(insertedPartner));
     } catch (error) {
       console.error('Error creating partner:', error);
       res.status(500).json({ error: 'Failed to create partner' });
@@ -312,7 +425,8 @@ const registerServicesPartnersRoutes = ({
       }
 
       const updatedPartner = await collection.findOne(lookupFilter);
-      res.json(updatedPartner);
+      await invalidateCacheByPrefixes(['partners-all', 'partners-active']);
+      res.json(normalizeEntityId(updatedPartner));
     } catch (error) {
       console.error('Error updating partner:', error);
       res.status(500).json({ error: 'Failed to update partner' });
@@ -339,6 +453,7 @@ const registerServicesPartnersRoutes = ({
       }
 
       await collection.deleteOne(lookupFilter);
+      await invalidateCacheByPrefixes(['partners-all', 'partners-active']);
       res.json({ message: 'Partner deleted successfully' });
     } catch (error) {
       console.error('Error deleting partner:', error);
@@ -397,7 +512,8 @@ const registerServicesPartnersRoutes = ({
       );
 
       const updatedPartner = await collection.findOne(updateFilter);
-      res.json(updatedPartner);
+      await invalidateCacheByPrefixes(['partners-all', 'partners-active']);
+      res.json(normalizeEntityId(updatedPartner));
     } catch (error) {
       console.error('Error toggling partner status:', error);
       res.status(500).json({ error: 'Failed to toggle partner status' });

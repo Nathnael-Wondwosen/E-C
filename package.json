@@ -8,12 +8,12 @@
     "shared"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev --workspace=frontend/admin-dashboard\" \"npm run dev --workspace=frontend/customer-portal\" \"npm run dev --workspace=services/api-gateway\" \"npm run dev --workspace=services/user-service\" \"npm run dev --workspace=services/product-service\" \"npm run dev --workspace=services/banners-service\" \"npm run dev --workspace=services/categories-service\" \"npm run dev --workspace=services/hero-slides-service\" \"npm run dev --workspace=services/special-offers-service\" \"npm run dev --workspace=services/news-blog-posts-service\" \"npm run dev --workspace=services/partners-service\" \"npm run dev --workspace=services/services-service\"",
+    "dev": "concurrently \"npm run dev --workspace=frontend/admin-dashboard\" \"npm run dev --workspace=frontend/customer-portal\" \"npm run dev --workspace=services/api-gateway\" \"npm run dev --workspace=services/identity-service\" \"npm run dev --workspace=services/user-service\"",
     "dev:current": "concurrently \"npm run dev --workspace=frontend/admin-dashboard\" \"npm run dev --workspace=frontend/customer-portal\" \"npm run dev --workspace=services/api-gateway\" \"npm run dev --workspace=services/user-service\" \"npm run dev --workspace=services/identity-service\"",
     "dev:identity": "npm run dev --workspace=services/identity-service",
     "build": "npm run build --workspaces",
     "test": "npm run test --workspaces",
-    "dev:backend": "concurrently \"npm run dev --workspace=services/api-gateway\" \"npm run dev --workspace=services/user-service\" \"npm run dev --workspace=services/product-service\" \"npm run dev --workspace=services/banners-service\" \"npm run dev --workspace=services/categories-service\" \"npm run dev --workspace=services/hero-slides-service\" \"npm run dev --workspace=services/special-offers-service\" \"npm run dev --workspace=services/news-blog-posts-service\" \"npm run dev --workspace=services/partners-service\" \"npm run dev --workspace=services/services-service\"",
+    "dev:backend": "concurrently \"npm run dev --workspace=services/api-gateway\" \"npm run dev --workspace=services/identity-service\" \"npm run dev --workspace=services/user-service\"",
     "start": "echo 'Use npm run start:services and npm run start:frontend'",
     "start:services": "concurrently \"npm run start --workspace=services/api-gateway\" \"npm run start --workspace=services/identity-service\" \"npm run start --workspace=services/user-service\"",
     "start:frontend": "concurrently \"PORT=3005 npm run start --workspace=frontend/customer-portal\" \"npm run start --workspace=frontend/admin-dashboard\"",
@@ -24,7 +24,10 @@
     "concurrently": "^7.6.0"
   },
   "dependencies": {
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.5.0",
     "form-data": "^4.0.5",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "three": "^0.183.2"
   }
 }

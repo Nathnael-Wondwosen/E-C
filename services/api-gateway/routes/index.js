@@ -79,7 +79,8 @@ const registerGatewayRoutes = ({
     getDb,
     middleware: {
       authenticateToken,
-      requireSelfOrAdmin
+      requireSelfOrAdmin,
+      requireAdmin
     },
     deps: userCommerceDeps,
     ObjectId: objectId

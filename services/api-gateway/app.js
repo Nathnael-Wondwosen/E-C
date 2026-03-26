@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const morgan = require('morgan');
 const { ObjectId } = require('mongodb');
 const multer = require('multer');
 const { OAuth2Client } = require('google-auth-library');
@@ -15,8 +14,13 @@ const {
   requireSelfOrAdmin,
   requireAdmin
 } = require('./middleware/authMiddleware');
+const { createRequestIdMiddleware } = require('./middleware/requestId');
+const { createRequestLogCollector } = require('./middleware/requestLogger');
+const { createRateLimiter } = require('./middleware/rateLimit');
+const { createMetricsCollector } = require('./middleware/metrics');
 const { loadGatewayEnv } = require('./config/env');
 const { connectToMongo } = require('./config/database');
+const { ensureGatewayIndexes } = require('./config/indexes');
 const { buildCorsOptions } = require('./config/cors');
 const {
   resolveRequestedScope,
@@ -25,6 +29,8 @@ const {
   ensureDocumentScopeAccess
 } = require('./helpers/scopeHelpers');
 const { findDocumentByFlexibleIdFactory } = require('./helpers/idLookupHelpers');
+const { sendOptimizedJson } = require('./helpers/responseHelpers');
+const { initCacheStore, pruneExpiredCacheEntries } = require('./helpers/cacheHelpers');
 const { createProxyJsonToIdentityService } = require('./services/identityProxy');
 
 const createApp = ({ env, db }) => {
@@ -56,19 +62,40 @@ const createApp = ({ env, db }) => {
   const authenticateToken = authenticateTokenFactory({ jwtSecret });
   const findDocumentByFlexibleId = findDocumentByFlexibleIdFactory({ ObjectId });
   const proxyJsonToIdentityService = createProxyJsonToIdentityService({ identityServiceUrl });
+  const metrics = createMetricsCollector();
+  const requestLogs = createRequestLogCollector();
 
   app.use(cors(buildCorsOptions({ corsOrigin })));
   app.use(helmet());
-  app.use(morgan('combined'));
+  app.use(createRequestIdMiddleware());
+  app.use(requestLogs.middleware);
+  app.use(createRateLimiter({ maxRequestsPerMinute: Number(process.env.RATE_LIMIT_PER_MINUTE || 300), db }));
+  app.use(metrics.middleware);
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
+
+  app.get('/metrics', (_req, res) => {
+    res.json(metrics.getSnapshot());
+  });
+  app.get('/metrics/prom', (_req, res) => {
+    res.setHeader('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+    res.send(metrics.renderPrometheus());
+  });
+  app.get('/logs/requests', (req, res) => {
+    const { requestId = '', limit = '200' } = req.query || {};
+    res.json({
+      generatedAt: new Date().toISOString(),
+      items: requestLogs.getSnapshot({ requestId, limit })
+    });
+  });
 
   const scopedHelpers = {
     resolveRequestedScope,
     buildScopedQuery,
     applyMarketScopeToDocument,
     ensureDocumentScopeAccess,
-    findDocumentByFlexibleId
+    findDocumentByFlexibleId,
+    sendOptimizedJson
   };
 
   registerGatewayRoutes({
@@ -113,11 +140,21 @@ const startServer = async () => {
   const env = loadGatewayEnv();
   const db = await connectToMongo({ mongoUri: env.mongoUri, dbName: env.dbName });
   console.log(`Connected to MongoDB database: ${env.dbName}`);
+  await initCacheStore({ redisUrl: process.env.REDIS_URL || '' });
+  await ensureGatewayIndexes(db);
+  console.log('Gateway indexes ensured');
 
   const app = createApp({ env, db });
   app.listen(env.port, () => {
     console.log(`API Gateway running on port ${env.port}`);
   });
+
+  const pruneTimer = setInterval(() => {
+    pruneExpiredCacheEntries();
+  }, 30_000);
+  if (typeof pruneTimer.unref === 'function') {
+    pruneTimer.unref();
+  }
 
   return app;
 };

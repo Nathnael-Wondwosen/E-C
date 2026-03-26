@@ -117,6 +117,13 @@ export default function ProductsManagement() {
 
   const handleCreateProduct = async () => {
     if (newProduct.name && newProduct.price && newProduct.category) {
+      const supplierId = String(newProduct.supplierId || '').trim();
+      const companyId = String(newProduct.companyId || '').trim();
+      if (!supplierId && !companyId) {
+        alert('Supplier ID or Company ID is required so inquiries can reach the product owner.');
+        return;
+      }
+
       try {
         const productData = {
           name: newProduct.name,
@@ -133,6 +140,8 @@ export default function ProductsManagement() {
           discountPercentage: newProduct.discountPercentage ? parseFloat(newProduct.discountPercentage) : null,
           tags: newProduct.tags || [],
           specifications: newProduct.specifications || {},
+          supplierId: supplierId || null,
+          companyId: companyId || null,
           createdAt: new Date(),
           updatedAt: new Date()
         };
@@ -155,7 +164,9 @@ export default function ProductsManagement() {
           isPremium: false,
           discountPercentage: '',
           tags: [],
-          specifications: {}
+          specifications: {},
+          supplierId: '',
+          companyId: ''
         });
         setShowAddForm(false);
         
@@ -178,6 +189,13 @@ export default function ProductsManagement() {
 
   const handleUpdateProduct = async () => {
     if (editingProduct && editingProduct.name && editingProduct.price && editingProduct.category) {
+      const supplierId = String(editingProduct.supplierId || '').trim();
+      const companyId = String(editingProduct.companyId || '').trim();
+      if (!supplierId && !companyId) {
+        alert('Supplier ID or Company ID is required so inquiries can reach the product owner.');
+        return;
+      }
+
       try {
         const updatedProduct = {
           ...editingProduct,
@@ -190,6 +208,8 @@ export default function ProductsManagement() {
           discountPercentage: editingProduct.discountPercentage ? parseFloat(editingProduct.discountPercentage) : null,
           tags: editingProduct.tags || [],
           specifications: editingProduct.specifications || {},
+          supplierId: supplierId || null,
+          companyId: companyId || null,
           updatedAt: new Date()
         };
         
@@ -762,6 +782,42 @@ export default function ProductsManagement() {
                           </button>
                         )}
                       </div>
+                    </div>
+
+                    <div>
+                      <label htmlFor="product-supplier-id" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Supplier ID *
+                      </label>
+                      <input
+                        type="text"
+                        id="product-supplier-id"
+                        className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
+                        placeholder="Owner user ID"
+                        value={editingProduct ? (editingProduct.supplierId || '') : newProduct.supplierId}
+                        onChange={(e) =>
+                          editingProduct
+                            ? setEditingProduct({ ...editingProduct, supplierId: e.target.value })
+                            : setNewProduct({ ...newProduct, supplierId: e.target.value })
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="product-company-id" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Company ID
+                      </label>
+                      <input
+                        type="text"
+                        id="product-company-id"
+                        className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
+                        placeholder="Optional company mapping"
+                        value={editingProduct ? (editingProduct.companyId || '') : newProduct.companyId}
+                        onChange={(e) =>
+                          editingProduct
+                            ? setEditingProduct({ ...editingProduct, companyId: e.target.value })
+                            : setNewProduct({ ...newProduct, companyId: e.target.value })
+                        }
+                      />
                     </div>
                     
                     <div className="sm:col-span-2">

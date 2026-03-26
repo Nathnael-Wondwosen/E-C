@@ -16,11 +16,8 @@ echo "[reload] repo: $REPO_DIR"
 echo "[reload] branch: $BRANCH"
 
 if [[ -n "$(git status --porcelain)" ]]; then
-  echo "[reload] warning: local changes detected. Stashing before pull..."
-  git stash push -u -m "reload.sh auto-stash $(date -u +%Y-%m-%dT%H:%M:%SZ)" >/dev/null
-  STASHED="1"
-else
-  STASHED="0"
+  echo "[reload] warning: local changes detected. Continuing without auto-stash."
+  echo "[reload] warning: if git pull fails, commit/stash changes manually and rerun."
 fi
 
 OLD_LOCK_SHA="$(sha1sum package-lock.json 2>/dev/null | awk '{print $1}' || true)"
@@ -57,11 +54,15 @@ fi
 
 pm2 save
 
-if [[ "$STASHED" == "1" ]]; then
-  echo "[reload] note: local changes were stashed. Review with: git stash list"
-fi
-
 echo "[reload] done."
 echo "[reload] health check:"
-curl -fsS http://127.0.0.1:3000/health || true
+for i in {1..15}; do
+  if curl -fsS http://127.0.0.1:3000/health >/dev/null; then
+    curl -fsS http://127.0.0.1:3000/health
+    exit 0
+  fi
+  sleep 2
+done
 
+echo "[reload] health check failed after retries"
+exit 1

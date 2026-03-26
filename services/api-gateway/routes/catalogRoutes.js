@@ -1,3 +1,10 @@
+const {
+  buildRequestCacheKey,
+  getCachedResponse,
+  setCachedResponse,
+  invalidateCacheByPrefixes
+} = require('../helpers/cacheHelpers');
+
 const registerCatalogRoutes = ({
   app,
   getDb,
@@ -11,20 +18,64 @@ const registerCatalogRoutes = ({
     buildScopedQuery,
     applyMarketScopeToDocument,
     ensureDocumentScopeAccess,
-    findDocumentByFlexibleId
+    findDocumentByFlexibleId,
+    sendOptimizedJson
   } = helpers;
 
   const transformProduct = (product) => ({
     ...product,
-    id: product._id || product.id,
+    id: (product._id || product.id)?.toString?.() || product.id,
     isFeatured: !!product.isFeatured,
     isHotDeal: !!product.isHotDeal,
     isPremium: !!product.isPremium,
     discountPercentage: product.discountPercentage ? Number(product.discountPercentage) : null,
     images: Array.isArray(product.images) ? product.images : [],
     stock: Number(product.stock) || 0,
-    price: Number(product.price) || 0
+    price: Number(product.price) || 0,
+    hasOwnerMapping: Boolean(
+      String(
+        product?.supplierId ||
+        product?.companyId ||
+        product?.ownerId ||
+        product?.sellerId ||
+        product?.createdBy ||
+        ''
+      ).trim()
+    )
   });
+  const normalizeEntityId = (doc) => ({
+    ...doc,
+    id: (doc?._id || doc?.id)?.toString?.() || doc?.id
+  });
+  const parsePagination = (req) => {
+    const hasPaginationInput = req.query.page !== undefined || req.query.limit !== undefined;
+    if (!hasPaginationInput) return null;
+
+    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
+    const skip = (page - 1) * limit;
+    return { page, limit, skip };
+  };
+  const parseCursorPagination = (req) => {
+    const hasCursorInput = req.query.cursor !== undefined || req.query.limit !== undefined;
+    if (!hasCursorInput) return null;
+    const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
+    const cursor = typeof req.query.cursor === 'string' && req.query.cursor.trim() ? req.query.cursor.trim() : '';
+    return { limit, cursor };
+  };
+
+  const extractOwnerMapping = (source = {}) => ({
+    supplierId: String(source?.supplierId || '').trim(),
+    companyId: String(source?.companyId || '').trim(),
+    ownerId: String(source?.ownerId || '').trim(),
+    sellerId: String(source?.sellerId || '').trim(),
+    createdBy: String(source?.createdBy || '').trim()
+  });
+
+  const hasOwnerMapping = (source = {}) => {
+    const owner = extractOwnerMapping(source);
+    return Boolean(owner.supplierId || owner.companyId || owner.ownerId || owner.sellerId || owner.createdBy);
+  };
 
   // Categories Routes
   app.get('/api/categories', async (req, res) => {
@@ -37,9 +88,65 @@ const registerCatalogRoutes = ({
       }
 
       const collection = db.collection('categories');
-      const categories = await collection.find(buildScopedQuery(resolveRequestedScope(req), {})).toArray();
-      console.log('Categories fetched successfully:', categories.length);
-      res.json(categories);
+      const query = buildScopedQuery(resolveRequestedScope(req), {});
+      const cursorPagination = parseCursorPagination(req);
+      const pagination = parsePagination(req);
+      const cacheKey = buildRequestCacheKey(req, 'categories');
+      const cached = await getCachedResponse(cacheKey);
+      if (cached) {
+        return sendOptimizedJson(req, res, cached);
+      }
+
+      if (cursorPagination) {
+        const cursorFilter = { ...query };
+        if (cursorPagination.cursor && ObjectId.isValid(cursorPagination.cursor)) {
+          cursorFilter._id = { $lt: new ObjectId(cursorPagination.cursor) };
+        }
+        const rows = await collection
+          .find(cursorFilter)
+          .sort({ _id: -1 })
+          .limit(cursorPagination.limit + 1)
+          .toArray();
+
+        const hasMore = rows.length > cursorPagination.limit;
+        const items = rows.slice(0, cursorPagination.limit).map(normalizeEntityId);
+        const payload = {
+          items,
+          nextCursor: hasMore ? items[items.length - 1]?.id || null : null,
+          limit: cursorPagination.limit
+        };
+        await setCachedResponse(cacheKey, payload, 10_000);
+        return sendOptimizedJson(req, res, payload);
+      }
+
+      if (pagination) {
+        const [categories, total] = await Promise.all([
+          collection
+            .find(query)
+            .sort({ createdAt: -1, _id: -1 })
+            .skip(pagination.skip)
+            .limit(pagination.limit)
+            .toArray(),
+          collection.countDocuments(query)
+        ]);
+        const items = categories.map(normalizeEntityId);
+        console.log('Categories fetched successfully:', items.length);
+        const payload = {
+          items,
+          total,
+          page: pagination.page,
+          limit: pagination.limit,
+          totalPages: Math.max(1, Math.ceil(total / pagination.limit))
+        };
+        await setCachedResponse(cacheKey, payload, 10_000);
+        return sendOptimizedJson(req, res, payload);
+      }
+
+      const categories = await collection.find(query).toArray();
+      const items = categories.map(normalizeEntityId);
+      console.log('Categories fetched successfully:', items.length);
+      await setCachedResponse(cacheKey, items, 10_000);
+      return sendOptimizedJson(req, res, items);
     } catch (error) {
       console.error('Error fetching categories:', error);
       res.status(500).json({ error: 'Failed to fetch categories' });
@@ -78,7 +185,7 @@ const registerCatalogRoutes = ({
         return;
       }
 
-      res.json(category);
+      res.json(normalizeEntityId(category));
     } catch (error) {
       console.error('Error fetching category:', error);
       res.status(500).json({ error: 'Failed to fetch category' });
@@ -101,7 +208,8 @@ const registerCatalogRoutes = ({
 
       const result = await collection.insertOne(categoryData);
       const newCategory = await collection.findOne({ _id: result.insertedId });
-      res.status(201).json(newCategory);
+      await invalidateCacheByPrefixes(['categories']);
+      res.status(201).json(normalizeEntityId(newCategory));
     } catch (error) {
       console.error('Error creating category:', error);
       res.status(500).json({ error: 'Failed to create category' });
@@ -158,7 +266,8 @@ const registerCatalogRoutes = ({
       }
 
       const updatedCategory = await collection.findOne(updateFilter);
-      res.json(updatedCategory);
+      await invalidateCacheByPrefixes(['categories']);
+      res.json(normalizeEntityId(updatedCategory));
     } catch (error) {
       console.error('Error updating category:', error);
       res.status(500).json({ error: 'Failed to update category' });
@@ -184,6 +293,7 @@ const registerCatalogRoutes = ({
       }
 
       await collection.deleteOne(lookupFilter);
+      await invalidateCacheByPrefixes(['categories']);
       res.json({ message: 'Category deleted successfully' });
     } catch (error) {
       console.error('Error deleting category:', error);
@@ -257,9 +367,65 @@ const registerCatalogRoutes = ({
 
       const collection = db.collection('products');
       console.log('Collection accessed, fetching products');
-      const products = await collection.find(buildScopedQuery(resolveRequestedScope(req), {})).toArray();
-      console.log('Products fetched successfully:', products.length);
-      res.json(products.map(transformProduct));
+      const query = buildScopedQuery(resolveRequestedScope(req), {});
+      const cursorPagination = parseCursorPagination(req);
+      const pagination = parsePagination(req);
+      const cacheKey = buildRequestCacheKey(req, 'products');
+      const cached = await getCachedResponse(cacheKey);
+      if (cached) {
+        return sendOptimizedJson(req, res, cached);
+      }
+
+      if (cursorPagination) {
+        const cursorFilter = { ...query };
+        if (cursorPagination.cursor && ObjectId.isValid(cursorPagination.cursor)) {
+          cursorFilter._id = { $lt: new ObjectId(cursorPagination.cursor) };
+        }
+
+        const rows = await collection
+          .find(cursorFilter)
+          .sort({ _id: -1 })
+          .limit(cursorPagination.limit + 1)
+          .toArray();
+        const hasMore = rows.length > cursorPagination.limit;
+        const items = rows.slice(0, cursorPagination.limit).map(transformProduct);
+        const payload = {
+          items,
+          nextCursor: hasMore ? items[items.length - 1]?.id || null : null,
+          limit: cursorPagination.limit
+        };
+        await setCachedResponse(cacheKey, payload, 10_000);
+        return sendOptimizedJson(req, res, payload);
+      }
+
+      if (pagination) {
+        const [products, total] = await Promise.all([
+          collection
+            .find(query)
+            .sort({ createdAt: -1, _id: -1 })
+            .skip(pagination.skip)
+            .limit(pagination.limit)
+            .toArray(),
+          collection.countDocuments(query)
+        ]);
+        const items = products.map(transformProduct);
+        console.log('Products fetched successfully:', items.length);
+        const payload = {
+          items,
+          total,
+          page: pagination.page,
+          limit: pagination.limit,
+          totalPages: Math.max(1, Math.ceil(total / pagination.limit))
+        };
+        await setCachedResponse(cacheKey, payload, 10_000);
+        return sendOptimizedJson(req, res, payload);
+      }
+
+      const products = await collection.find(query).toArray();
+      const items = products.map(transformProduct);
+      console.log('Products fetched successfully:', items.length);
+      await setCachedResponse(cacheKey, items, 10_000);
+      return sendOptimizedJson(req, res, items);
     } catch (error) {
       console.error('Error fetching products:', error);
       res.status(500).json({ error: 'Failed to fetch products' });
@@ -302,12 +468,68 @@ const registerCatalogRoutes = ({
     }
   });
 
+  app.get('/api/products/ownership/audit', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const db = getDb();
+      if (!db) {
+        return res.status(500).json({ error: 'Database connection not available' });
+      }
+
+      const collection = db.collection('products');
+      const query = buildScopedQuery(resolveRequestedScope(req), {});
+      const rows = await collection
+        .find(query, {
+          projection: {
+            _id: 1,
+            id: 1,
+            name: 1,
+            supplierId: 1,
+            companyId: 1,
+            ownerId: 1,
+            sellerId: 1,
+            createdBy: 1
+          }
+        })
+        .toArray();
+
+      const missing = rows
+        .filter((row) => !hasOwnerMapping(row))
+        .map((row) => ({
+          id: (row._id || row.id)?.toString?.() || row.id,
+          name: row.name || '',
+          supplierId: row.supplierId || '',
+          companyId: row.companyId || '',
+          ownerId: row.ownerId || '',
+          sellerId: row.sellerId || '',
+          createdBy: row.createdBy || ''
+        }));
+
+      return res.json({
+        totalProducts: rows.length,
+        missingOwnerCount: missing.length,
+        ownerCoveragePercent: rows.length ? Math.round(((rows.length - missing.length) / rows.length) * 100) : 100,
+        missingOwnerProducts: missing
+      });
+    } catch (error) {
+      console.error('Error running product ownership audit:', error);
+      return res.status(500).json({ error: 'Failed to audit product ownership' });
+    }
+  });
+
   app.post('/api/products', authenticateToken, requireAdmin, async (req, res) => {
     try {
       const db = getDb();
       if (!db) {
         return res.status(500).json({ error: 'Database connection not available' });
       }
+
+      if (!hasOwnerMapping(req.body || {})) {
+        return res.status(400).json({
+          error: 'Product owner is required. Provide supplierId or companyId (ownerId/sellerId/createdBy also supported).'
+        });
+      }
+
+      const ownerMapping = extractOwnerMapping(req.body || {});
 
       const productData = applyMarketScopeToDocument(req, {
         ...req.body,
@@ -325,6 +547,7 @@ const registerCatalogRoutes = ({
         discountPercentage: req.body.discountPercentage ? Number(req.body.discountPercentage) : null,
         tags: Array.isArray(req.body.tags) ? req.body.tags.filter((tag) => typeof tag === 'string') : [],
         specifications: req.body.specifications && typeof req.body.specifications === 'object' ? req.body.specifications : {},
+        ...ownerMapping,
         variants: Array.isArray(req.body.variants)
           ? req.body.variants.map((variant) => ({
               ...variant,
@@ -342,6 +565,7 @@ const registerCatalogRoutes = ({
       const collection = db.collection('products');
       const result = await collection.insertOne(productData);
       const newProduct = await collection.findOne({ _id: result.insertedId });
+      await invalidateCacheByPrefixes(['products']);
       res.status(201).json(transformProduct(newProduct));
     } catch (error) {
       console.error('Error creating product:', error);
@@ -419,12 +643,23 @@ const registerCatalogRoutes = ({
         return;
       }
 
+      const mergedForOwnership = {
+        ...product,
+        ...updateData
+      };
+      if (!hasOwnerMapping(mergedForOwnership)) {
+        return res.status(400).json({
+          error: 'Product owner is required. Provide supplierId or companyId (ownerId/sellerId/createdBy also supported).'
+        });
+      }
+
       const result = await collection.updateOne(updateFilter, { $set: applyMarketScopeToDocument(req, updateData) });
       if (result.matchedCount === 0) {
         return res.status(404).json({ error: 'Product not found' });
       }
 
       const updatedProduct = await collection.findOne(updateFilter);
+      await invalidateCacheByPrefixes(['products']);
       res.json(transformProduct(updatedProduct));
     } catch (error) {
       console.error('Error updating product:', error);
@@ -450,6 +685,7 @@ const registerCatalogRoutes = ({
       }
 
       await collection.deleteOne(lookupFilter);
+      await invalidateCacheByPrefixes(['products']);
       res.json({ message: 'Product deleted successfully' });
     } catch (error) {
       console.error('Error deleting product:', error);
@@ -476,6 +712,7 @@ const registerCatalogRoutes = ({
           $or: [{ _id: { $in: objectIds } }, { id: { $in: ids } }]
         })
       );
+      await invalidateCacheByPrefixes(['products']);
 
       res.json({
         message: `${result.deletedCount} products deleted successfully`,

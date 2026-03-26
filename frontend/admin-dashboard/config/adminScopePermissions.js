@@ -3,55 +3,7 @@ const { DEFAULT_ADMIN_SCOPE } = require('./adminScopes');
 const SCOPE_ALLOWED_PREFIXES = Object.freeze({
   local: [
     '/dashboard',
-    '/products',
-    '/categories',
-    '/banners',
-    '/sections',
-    '/services',
-    '/partners',
-    '/analytics'
-  ],
-  global: [
-    '/dashboard',
-    '/products',
-    '/categories',
-    '/banners',
-    '/sections',
-    '/services',
-    '/partners',
-    '/analytics'
-  ],
-  africa: [
-    '/dashboard',
-    '/products',
-    '/categories',
-    '/banners',
-    '/sections',
-    '/services',
-    '/partners',
-    '/analytics'
-  ],
-  china: [
-    '/dashboard',
-    '/products',
-    '/categories',
-    '/banners',
-    '/sections',
-    '/services',
-    '/partners',
-    '/analytics'
-  ],
-  b2b: [
-    '/dashboard',
-    '/products',
-    '/categories',
-    '/b2b',
-    '/services',
-    '/partners',
-    '/analytics'
-  ],
-  system: [
-    '/dashboard',
+    '/customers',
     '/products',
     '/categories',
     '/banners',
@@ -59,6 +11,66 @@ const SCOPE_ALLOWED_PREFIXES = Object.freeze({
     '/services',
     '/partners',
     '/analytics',
+    '/logs'
+  ],
+  global: [
+    '/dashboard',
+    '/customers',
+    '/products',
+    '/categories',
+    '/banners',
+    '/sections',
+    '/services',
+    '/partners',
+    '/analytics',
+    '/logs'
+  ],
+  africa: [
+    '/dashboard',
+    '/customers',
+    '/products',
+    '/categories',
+    '/banners',
+    '/sections',
+    '/services',
+    '/partners',
+    '/analytics',
+    '/logs'
+  ],
+  china: [
+    '/dashboard',
+    '/customers',
+    '/products',
+    '/categories',
+    '/banners',
+    '/sections',
+    '/services',
+    '/partners',
+    '/analytics',
+    '/logs'
+  ],
+  b2b: [
+    '/dashboard',
+    '/customers',
+    '/products',
+    '/categories',
+    '/b2b',
+    '/services',
+    '/partners',
+    '/analytics',
+    '/logs'
+  ],
+  system: [
+    '/dashboard',
+    '/customers',
+    '/products',
+    '/categories',
+    '/banners',
+    '/sections',
+    '/services',
+    '/partners',
+    '/analytics',
+    '/logs',
     '/auto-categorize',
     '/product-variants',
     '/b2b'

@@ -15,7 +15,7 @@ export default function RandomProductsSection({ loadingProducts, fallbackRandomP
         </div>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {(loadingProducts ? fallbackRandomProducts : randomProducts).map((product) => (
+          {(loadingProducts ? fallbackRandomProducts : (randomProducts || [])).map((product) => (
             <div key={product.id} className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg transition transform hover:-translate-y-1">
               <div className="w-full h-48 flex items-center justify-center overflow-hidden">
                 {product.images && product.images.length > 0 ? (

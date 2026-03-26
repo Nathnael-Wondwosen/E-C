@@ -17,8 +17,11 @@ export default function AdminDashboard() {
   });
   const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [metrics, setMetrics] = useState({ routes: [] });
+  const [metricsLoading, setMetricsLoading] = useState(false);
   const [activeScope, setActiveScope] = useState(DEFAULT_ADMIN_SCOPE);
   const router = useRouter();
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
 
   useEffect(() => {
     // Check if user is logged in
@@ -75,6 +78,30 @@ export default function AdminDashboard() {
     }
   };
 
+  const loadMetrics = async () => {
+    try {
+      setMetricsLoading(true);
+      const response = await fetch(`${API_BASE_URL}/metrics`);
+      if (!response.ok) {
+        throw new Error(`Failed to load metrics (${response.status})`);
+      }
+      const payload = await response.json();
+      setMetrics(payload || { routes: [] });
+    } catch (error) {
+      setMetrics({ routes: [] });
+    } finally {
+      setMetricsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const loggedIn = localStorage.getItem('adminLoggedIn');
+    if (!loggedIn) return;
+    loadMetrics();
+    const timer = setInterval(loadMetrics, 15000);
+    return () => clearInterval(timer);
+  }, []);
+
   if (loading) {
     return (
       <AdminLayout title="Dashboard">
@@ -91,6 +118,23 @@ export default function AdminDashboard() {
 
   const scopeConfig = getAdminScopeById(activeScope);
   const scopeApiConfig = getScopeApiConfig(activeScope);
+  const routes = metrics.routes || [];
+  const topSlowRoutes = [...routes].sort((a, b) => (b.p95Ms || 0) - (a.p95Ms || 0)).slice(0, 5);
+  const topErrorRoutes = [...routes]
+    .map((r) => ({
+      ...r,
+      errorRate: r.count > 0 ? (r.errors / r.count) * 100 : 0
+    }))
+    .sort((a, b) => b.errorRate - a.errorRate)
+    .slice(0, 5);
+  const alertRoutes = routes
+    .map((r) => ({
+      ...r,
+      errorRate: r.count > 0 ? (r.errors / r.count) * 100 : 0
+    }))
+    .filter((r) => (r.p95Ms || 0) > 500 || r.errorRate > 2)
+    .sort((a, b) => (b.p95Ms || 0) - (a.p95Ms || 0))
+    .slice(0, 6);
 
   return (
     <AdminLayout title={`${scopeConfig.name} Dashboard`}>
@@ -238,6 +282,132 @@ export default function AdminDashboard() {
                   </li>
                 ))}
               </ul>
+            </div>
+          </div>
+
+          <div className="mt-8">
+            <div className="bg-white dark:bg-gray-800 shadow rounded-none overflow-hidden">
+              <div className="bg-white dark:bg-gray-800 px-4 py-5 border-b border-gray-200 dark:border-gray-700 sm:px-6 flex items-center justify-between">
+                <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">Live API Metrics</h3>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {metricsLoading ? 'Refreshing...' : 'Auto-refresh 15s'}
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Route</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Count</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Errors</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">P95</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">P99</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {(metrics.routes || []).length === 0 ? (
+                      <tr>
+                        <td colSpan="5" className="px-4 py-4 text-sm text-gray-500 dark:text-gray-400">
+                          No route metrics available yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      metrics.routes
+                        .slice(0, 12)
+                        .map((row) => (
+                          <tr key={row.route}>
+                            <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{row.route}</td>
+                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{row.count}</td>
+                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{row.errors}</td>
+                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{row.p95Ms} ms</td>
+                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{row.p99Ms} ms</td>
+                          </tr>
+                        ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white dark:bg-gray-800 shadow rounded-none overflow-hidden">
+              <div className="px-4 py-5 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Top Slow Routes (P95)</h3>
+              </div>
+              <div className="p-4 space-y-3">
+                {topSlowRoutes.length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">No route latency data yet.</p>
+                ) : (
+                  topSlowRoutes.map((route) => {
+                    const width = Math.min(100, Math.round(((route.p95Ms || 0) / Math.max(1, topSlowRoutes[0].p95Ms || 1)) * 100));
+                    return (
+                      <div key={route.route}>
+                        <div className="flex items-center justify-between text-xs text-gray-700 dark:text-gray-300">
+                          <span className="truncate max-w-[70%]">{route.route}</span>
+                          <span>{route.p95Ms} ms</span>
+                        </div>
+                        <div className="mt-1 h-2 bg-gray-200 dark:bg-gray-700 rounded">
+                          <div className="h-2 bg-indigo-500 rounded" style={{ width: `${width}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 shadow rounded-none overflow-hidden">
+              <div className="px-4 py-5 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Top Route Error Rates</h3>
+              </div>
+              <div className="p-4 space-y-3">
+                {topErrorRoutes.length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">No route error data yet.</p>
+                ) : (
+                  topErrorRoutes.map((route) => {
+                    const width = Math.max(2, Math.min(100, Math.round(route.errorRate)));
+                    return (
+                      <div key={route.route}>
+                        <div className="flex items-center justify-between text-xs text-gray-700 dark:text-gray-300">
+                          <span className="truncate max-w-[70%]">{route.route}</span>
+                          <span>{route.errorRate.toFixed(1)}%</span>
+                        </div>
+                        <div className="mt-1 h-2 bg-gray-200 dark:bg-gray-700 rounded">
+                          <div className="h-2 bg-rose-500 rounded" style={{ width: `${width}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8">
+            <div className="bg-white dark:bg-gray-800 shadow rounded-none overflow-hidden">
+              <div className="px-4 py-5 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Route Alerts</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Alert when P95 &gt; 500ms or error rate &gt; 2%.
+                </p>
+              </div>
+              <div className="p-4">
+                {alertRoutes.length === 0 ? (
+                  <p className="text-sm text-emerald-700 dark:text-emerald-400">No active latency/error alerts.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {alertRoutes.map((route) => (
+                      <div key={route.route} className="flex items-center justify-between border border-amber-200 bg-amber-50 px-3 py-2 text-sm">
+                        <span className="font-medium text-gray-900">{route.route}</span>
+                        <span className="text-gray-700">
+                          p95: {route.p95Ms} ms | error: {route.errorRate.toFixed(1)}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

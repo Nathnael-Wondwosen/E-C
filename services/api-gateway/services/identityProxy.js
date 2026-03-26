@@ -1,5 +1,6 @@
 const createProxyJsonToIdentityService = ({ identityServiceUrl }) =>
-  async (req, res, path) => {
+  async (req, res, path, options = {}) => {
+    const { suppressUnavailable = false } = options;
     if (!identityServiceUrl) {
       return false;
     }
@@ -23,12 +24,18 @@ const createProxyJsonToIdentityService = ({ identityServiceUrl }) =>
 
       res.status(upstreamResponse.status);
       if (contentType.includes('application/json')) {
-        return res.type('application/json').send(responseText);
+        res.type('application/json').send(responseText);
+        return true;
       }
-      return res.send(responseText);
+      res.send(responseText);
+      return true;
     } catch (error) {
       console.error('Failed to proxy request to identity-service:', error);
-      return res.status(502).json({ error: 'Identity service is unavailable' });
+      if (suppressUnavailable) {
+        return false;
+      }
+      res.status(502).json({ error: 'Identity service is unavailable' });
+      return true;
     }
   };
 
