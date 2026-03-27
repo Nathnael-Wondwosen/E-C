@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function HotDealsSection({ displayedHotDeals = [], currentDealIndex, setCurrentDealIndex }) {
   // Auto-advance deals
   useEffect(() => {
+    if (displayedHotDeals.length <= 1) return undefined;
     const interval = setInterval(() => {
       scrollDeals('right');
     }, 4000);
@@ -12,8 +14,7 @@ export default function HotDealsSection({ displayedHotDeals = [], currentDealInd
 
   // Handle horizontal scrolling for deals
   const scrollDeals = (direction) => {
-    const container = document.getElementById('deals-container');
-    if (!container) return;
+    if (displayedHotDeals.length === 0) return;
 
     if (direction === 'left') {
       setCurrentDealIndex(prev => (prev === 0 ? displayedHotDeals.length - 1 : prev - 1));
@@ -34,12 +35,13 @@ export default function HotDealsSection({ displayedHotDeals = [], currentDealInd
         <div className="relative">
           {/* Product Image with Fallback */}
           {deal.images && deal.images.length > 0 && !imageError ? (
-            <img 
-              src={deal.images[0]} 
+            <Image
+              src={deal.images[0]}
               alt={deal.name}
+              width={500}
+              height={440}
+              sizes="240px"
               className="w-full h-44 object-cover"
-              loading="lazy"
-              decoding="async"
               onError={() => setImageError(true)}
             />
           ) : (
@@ -120,10 +122,7 @@ export default function HotDealsSection({ displayedHotDeals = [], currentDealInd
         </div>
         
         {/* Horizontal Scroll Container - Infinite Loop */}
-        <div 
-          id="deals-container"
-          className="flex overflow-x-hidden pb-6 snap-mandatory snap-x w-full"
-        >
+        <div className="flex overflow-x-hidden pb-6 snap-mandatory snap-x w-full">
           <div className="flex transition-transform duration-500 ease-in-out" style={{ transform: `translateX(-${currentDealIndex * 320}px)` }}>
             {/* Duplicate first set of cards for infinite loop effect */}
             {displayedHotDeals.map((deal) => (

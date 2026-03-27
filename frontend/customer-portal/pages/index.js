@@ -110,6 +110,29 @@ const navItems = [
   { name: 'Contact', href: '#contact' },
 ];
 
+function createDeterministicParticles(length, seedBase) {
+  const particles = [];
+  let seed = seedBase;
+
+  const next = () => {
+    seed = (seed * 1664525 + 1013904223) % 4294967296;
+    return seed / 4294967296;
+  };
+
+  for (let index = 0; index < length; index += 1) {
+    particles.push({
+      id: index,
+      size: 4 + next() * 8,
+      left: next() * 100,
+      top: next() * 100,
+      delay: next() * 6,
+      duration: 6 + next() * 8,
+    });
+  }
+
+  return particles;
+}
+
 function useReveal() {
   const ref = useRef(null);
 
@@ -163,15 +186,7 @@ function SectionHeading({ isDarkMode, badge, title, text }) {
 
 function ParticleBackground({ isDarkMode }) {
   const particles = useMemo(
-    () =>
-      Array.from({ length: 36 }).map((_, i) => ({
-        id: i,
-        size: 4 + Math.random() * 8,
-        left: Math.random() * 100,
-        top: Math.random() * 100,
-        delay: Math.random() * 6,
-        duration: 6 + Math.random() * 8,
-      })),
+    () => createDeterministicParticles(36, 97),
     []
   );
 
@@ -283,17 +298,13 @@ export default function Home() {
   const [activeNode, setActiveNode] = useState('b2b');
   const [activeModal, setActiveModal] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [mouse, setMouse] = useState({ x: 0, y: 0 });
+  const heroMotionRef = useRef(null);
+  const heroFrameRef = useRef(null);
 
   const valueRef = useReveal();
   const ecosystemRef = useReveal();
   const pricingRef = useReveal();
   const ctaRef = useReveal();
-
-  const activeSector = useMemo(
-    () => sectorEcosystem.find((item) => item.id === activeNode) || sectorEcosystem[0],
-    [activeNode]
-  );
 
   useEffect(() => {
     document.body.classList.remove('dark-mode', 'light-mode');
@@ -316,11 +327,22 @@ export default function Home() {
     const handleMouseMove = (e) => {
       const x = (e.clientX / window.innerWidth - 0.5) * 18;
       const y = (e.clientY / window.innerHeight - 0.5) * 18;
-      setMouse({ x, y });
+      if (heroFrameRef.current) {
+        cancelAnimationFrame(heroFrameRef.current);
+      }
+
+      heroFrameRef.current = window.requestAnimationFrame(() => {
+        heroMotionRef.current?.style.setProperty('--hero-translate', `translate3d(${x}px, ${y}px, 0)`);
+      });
     };
 
     window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      if (heroFrameRef.current) {
+        cancelAnimationFrame(heroFrameRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -349,10 +371,6 @@ export default function Home() {
           content="A futuristic, investor-ready gateway for the TradeEthiopia Business Group ecosystem."
         />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap"
-          rel="stylesheet"
-        />
       </Head>
 
       <style jsx global>{`
@@ -875,9 +893,10 @@ export default function Home() {
               </div>
 
               <div
+                ref={heroMotionRef}
                 className="hero-perspective w-full transition-transform duration-300"
                 style={{
-                  transform: `translate3d(${mouse.x}px, ${mouse.y}px, 0) translateY(var(--hero-shift, 0px))`,
+                  transform: 'var(--hero-translate, translate3d(0, 0, 0)) translateY(var(--hero-shift, 0px))',
                 }}
               >
 <div className="w-full max-w-[620px] h-[540px]">
@@ -1248,23 +1267,6 @@ export default function Home() {
         )}
       </main>
 
-      {activeModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-white text-black p-8 rounded-xl max-w-md">
-            <h2 className="text-xl font-bold mb-4">
-              {activeModal.title}
-            </h2>
-            <p className="mb-4">{activeModal.description}</p>
-
-            <button
-              onClick={() => setActiveModal(null)}
-              className="px-4 py-2 bg-indigo-600 text-white rounded"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
     </>
   );
 }

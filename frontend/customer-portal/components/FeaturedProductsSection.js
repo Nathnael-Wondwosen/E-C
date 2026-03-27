@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState } from 'react';
 
 // Sample product data for demo purposes
@@ -25,12 +26,13 @@ export default function FeaturedProductsSection({ loadingProducts, fallbackFeatu
       <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all duration-200 hover:-translate-y-1 border border-gray-100">
         {/* Product Image with Fallback */}
         {product.images && product.images.length > 0 && !imageError ? (
-          <img 
-            src={product.images[0]} 
+          <Image
+            src={product.images[0]}
             alt={product.name}
+            width={500}
+            height={500}
+            sizes="(min-width: 1024px) 16vw, (min-width: 768px) 24vw, 50vw"
             className="w-full h-48 object-cover"
-            loading="lazy"
-            decoding="async"
             onError={() => setImageError(true)}
           />
         ) : (

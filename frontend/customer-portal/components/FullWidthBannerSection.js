@@ -1,9 +1,11 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function FullWidthBannerSection({ bannerSlides = [], currentBannerIndex, setCurrentBannerIndex }) {
   // Auto-advance banners
   useEffect(() => {
+    if (bannerSlides.length <= 1) return undefined;
     const interval = setInterval(() => {
       setCurrentBannerIndex(prev => (bannerSlides.length > 0 ? (prev === bannerSlides.length - 1 ? 0 : prev + 1) : 0));
     }, 5000);
@@ -39,12 +41,13 @@ export default function FullWidthBannerSection({ bannerSlides = [], currentBanne
                     className="flex-shrink-0 w-full h-full relative"
                   >
                     {/* Background image */}
-                    <img 
+                    <Image
                       src={slide.imageUrl || slide.image}
                       alt={slide.title}
+                      fill
+                      sizes="100vw"
+                      priority={index === 0}
                       className="absolute inset-0 w-full h-full object-cover transition-all duration-1000 ease-in-out"
-                      loading={index === currentBannerIndex ? 'eager' : 'lazy'}
-                      decoding="async"
                     />
                     
                     {/* Overlay for better readability */}

@@ -1,9 +1,11 @@
 import Head from 'next/head';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import Image from 'next/image';
 import { useRouter } from 'next/router';
 import { useMemo, useState, useEffect } from 'react';
 import { getCachedHeroSlides, getGlobalBackgroundImage, getCategories, getProducts, getSpecialOffers } from '../utils/heroDataService';
+import { requestJson } from '../utils/httpClient';
 
 // Import section components
 import HeroCarousel from '../components/HeroCarousel';
@@ -33,12 +35,26 @@ const inferScopeFromProduct = (product, index) => {
   return index % 3 === 0 ? 'local' : index % 3 === 1 ? 'africa' : 'global';
 };
 
+function createSeededShuffle(items, seedBase) {
+  const array = [...items];
+  let seed = seedBase;
+
+  const next = () => {
+    seed = (seed * 1664525 + 1013904223) % 4294967296;
+    return seed / 4294967296;
+  };
+
+  for (let index = array.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(next() * (index + 1));
+    [array[index], array[swapIndex]] = [array[swapIndex], array[index]];
+  }
+
+  return array;
+}
+
 export default function Home() {
   const router = useRouter();
   // CSS animations are defined in the component using jsx style tag
-  
-  // Define API base URL for client-side requests
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
 
   // State hooks - must be declared before any useEffect hooks
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -62,200 +78,131 @@ export default function Home() {
   const [newsBlogPosts, setNewsBlogPosts] = useState([]);
   const [partners, setPartners] = useState([]);
 
-  // Load hero slides on component mount
   useEffect(() => {
-    const loadHeroSlides = async () => {
+    let isMounted = true;
+
+    const loadHomepageData = async () => {
       try {
-        const fetchedSlides = await getCachedHeroSlides();
-        // Convert MongoDB _id to id for frontend compatibility
-        const convertedSlides = fetchedSlides.map(slide => ({
+        setLoadingHeroSlides(true);
+        setLoadingProducts(true);
+
+        const [
+          fetchedSlides,
+          imageUrl,
+          fetchedOffers,
+          fetchedCategories,
+          fetchedProducts,
+          bannersResponse,
+          postsResponse,
+          partnersResponse,
+        ] = await Promise.all([
+          getCachedHeroSlides(),
+          getGlobalBackgroundImage(),
+          getSpecialOffers(),
+          getCategories(),
+          getProducts(),
+          requestJson('/api/banners/active', { retries: 1 }),
+          requestJson('/api/news-blog-posts/active', { retries: 1 }),
+          requestJson('/api/partners/active', { retries: 1 }),
+        ]);
+
+        if (!isMounted) return;
+
+        const convertedSlides = fetchedSlides.map((slide) => ({
           ...slide,
-          id: slide._id || slide.id
+          id: slide._id || slide.id,
         }));
         setHeroSlides(convertedSlides);
-        setLoadingHeroSlides(false);
-      } catch (error) {
-        console.error('Error loading hero slides:', error);
-        setLoadingHeroSlides(false);
-      }
-    };
-    
-    loadHeroSlides();
-  }, []);
-  
-  // Load global background image on component mount
-  useEffect(() => {
-    const loadGlobalBackgroundImage = async () => {
-      try {
-        const imageUrl = await getGlobalBackgroundImage();
         setGlobalBackgroundImage(imageUrl);
-      } catch (error) {
-        console.error('Error loading global background image:', error);
-      }
-    };
-    
-    loadGlobalBackgroundImage();
-  }, []);
-  
-  // Load special offers on component mount
-  useEffect(() => {
-    const loadSpecialOffers = async () => {
-      try {
-        const fetchedOffers = await getSpecialOffers();
-        // Convert MongoDB _id to id for frontend compatibility
-        const convertedOffers = fetchedOffers.map(offer => ({
+
+        const convertedOffers = fetchedOffers.map((offer) => ({
           ...offer,
-          id: offer._id || offer.id
+          id: offer._id || offer.id,
         }));
         setSpecialOffers(convertedOffers);
-      } catch (error) {
-        console.error('Error loading special offers:', error);
-      }
-    };
-    
-    loadSpecialOffers();
-  }, []);
-  
-  // Load categories on component mount
-  useEffect(() => {
-    const loadCategories = async () => {
-      try {
-        const fetchedCategories = await getCategories();
-        // Convert MongoDB _id to id for frontend compatibility
-        const convertedCategories = fetchedCategories.map(category => ({
+
+        const convertedCategories = fetchedCategories.map((category) => ({
           ...category,
-          id: category._id || category.id
+          id: category._id || category.id,
         }));
         setCategories(convertedCategories);
-      } catch (error) {
-        console.error('Error loading categories:', error);
-      }
-    };
-    
-    loadCategories();
-  }, []);
-  
-  // Load products on component mount
-  useEffect(() => {
-    const loadProducts = async () => {
-      try {
-        setLoadingProducts(true);
-        const fetchedProducts = await getProducts();
-        // Filter out B2B products - only show regular products on the homepage
-        const regularProducts = fetchedProducts.filter(product => product.productType !== 'B2B');
-        // Convert MongoDB _id to id for frontend compatibility
-        const convertedProducts = regularProducts.map(product => ({
+
+        const regularProducts = fetchedProducts.filter((product) => product.productType !== 'B2B');
+        const convertedProducts = regularProducts.map((product) => ({
           ...product,
-          id: product._id || product.id
+          id: product._id || product.id,
         }));
         setAllProducts(convertedProducts);
-        
-        // Set hot deals products (products marked as hot deal or with significant discount)
+
         const hotDeals = convertedProducts
-          .filter(product => product.isHotDeal || (product.discountPercentage && product.discountPercentage >= 20))
+          .filter((product) => product.isHotDeal || (product.discountPercentage && product.discountPercentage >= 20))
           .slice(0, 8)
-          .map(product => ({
+          .map((product) => ({
             ...product,
             discountedPrice: `$${(product.price * (100 - product.discountPercentage) / 100).toFixed(2)}`,
             originalPrice: `$${product.price.toFixed(2)}`,
-            discount: product.discountPercentage ? `${Math.round(product.discountPercentage)}% OFF` : null
+            discount: product.discountPercentage ? `${Math.round(product.discountPercentage)}% OFF` : null,
           }));
         setFetchedHotDeals(hotDeals);
-        
-        // Set premium products (products marked as premium)
+
         const premium = convertedProducts
-          .filter(product => product.isPremium)
+          .filter((product) => product.isPremium)
           .slice(0, 6)
-          .map(product => ({
+          .map((product) => ({
             ...product,
             price: `$${product.price.toFixed(2)}`,
-            originalPrice: product.discountPercentage ? `$${(product.price * 100 / (100 - product.discountPercentage)).toFixed(2)}` : null
+            originalPrice: product.discountPercentage ? `$${(product.price * 100 / (100 - product.discountPercentage)).toFixed(2)}` : null,
           }));
         setPremiumProducts(premium);
-        
-        // Set random products (limit to 8)
-        const shuffled = [...convertedProducts].sort(() => 0.5 - Math.random());
-        const random = shuffled.slice(0, 8).map(product => ({
+
+        const shuffled = createSeededShuffle(convertedProducts, 53);
+        const random = shuffled.slice(0, 8).map((product) => ({
           ...product,
           price: `$${product.price.toFixed(2)}`,
-          originalPrice: product.discountPercentage ? `$${(product.price * 100 / (100 - product.discountPercentage)).toFixed(2)}` : null
+          originalPrice: product.discountPercentage ? `$${(product.price * 100 / (100 - product.discountPercentage)).toFixed(2)}` : null,
         }));
         setRandomProducts(random);
+
+        setBanners(
+          bannersResponse.ok
+            ? (Array.isArray(bannersResponse.payload) ? bannersResponse.payload : bannersResponse.payload.items || []).map((banner) => ({
+                ...banner,
+                id: banner._id || banner.id,
+              }))
+            : []
+        );
+
+        setNewsBlogPosts(
+          postsResponse.ok
+            ? Array.isArray(postsResponse.payload)
+              ? postsResponse.payload
+              : postsResponse.payload.items || []
+            : []
+        );
+
+        setPartners(
+          partnersResponse.ok
+            ? (Array.isArray(partnersResponse.payload) ? partnersResponse.payload : partnersResponse.payload.items || []).map((partner) => ({
+                ...partner,
+                id: partner._id || partner.id,
+              }))
+            : []
+        );
       } catch (error) {
-        console.error('Error loading products:', error);
+        console.error('Error loading homepage data:', error);
       } finally {
-        setLoadingProducts(false);
-      }
-    };
-    
-    loadProducts();
-  }, []);
-
-  // Load banners on component mount
-  useEffect(() => {
-    const loadBanners = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/banners/active`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        if (isMounted) {
+          setLoadingHeroSlides(false);
+          setLoadingProducts(false);
         }
-        
-        const fetchedBanners = await response.json();
-        // Convert MongoDB _id to id for frontend compatibility
-        const convertedBanners = fetchedBanners.map(banner => ({
-          ...banner,
-          id: banner._id || banner.id
-        }));
-        setBanners(convertedBanners);
-      } catch (error) {
-        console.error('Error loading banners:', error);
       }
     };
-    
-    loadBanners();
-  }, []);
 
-  // Load news and blog posts on component mount
-  useEffect(() => {
-    const loadNewsBlogPosts = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/news-blog-posts/active`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const fetchedPosts = await response.json();
-        setNewsBlogPosts(fetchedPosts);
-      } catch (error) {
-        console.error('Error loading news and blog posts:', error);
-      }
-    };
-    
-    loadNewsBlogPosts();
-  }, []);
+    loadHomepageData();
 
-  // Load partners on component mount
-  useEffect(() => {
-    const loadPartners = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/partners/active`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const fetchedPartners = await response.json();
-        // Convert MongoDB _id to id for frontend compatibility
-        const convertedPartners = fetchedPartners.map(partner => ({
-          ...partner,
-          id: partner._id || partner.id
-        }));
-        setPartners(convertedPartners);
-      } catch (error) {
-        console.error('Error loading partners:', error);
-      }
+    return () => {
+      isMounted = false;
     };
-    
-    loadPartners();
   }, []);
 
   const fallbackCarouselSlides = [
@@ -640,9 +587,11 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
             <div className="md:col-span-2">
               <h3 className="text-2xl font-bold mb-4 flex items-center">
-                <img 
-                  src="/TE-logo.png" 
-                  alt="TradeEthiopia Logo" 
+                <Image
+                  src="/TE-logo.png"
+                  alt="TradeEthiopia Logo"
+                  width={160}
+                  height={40}
                   className="h-10 w-auto mr-3"
                 />
                 TradeEthiopia

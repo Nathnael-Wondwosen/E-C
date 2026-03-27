@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/router';
 import { getUserCart, getUserWishlist } from '../../utils/userService';
 import { STATIC_NAVBAR_LINKS } from '../../constants/navbarLinks';
@@ -166,7 +167,7 @@ export default function Header({ isMenuOpen, setIsMenuOpen, categories = [] }) {
       <div className="container mx-auto px-4">
         <div className="h-14 hidden md:grid grid-cols-[auto_1fr_auto] items-center gap-4">
           <Link href="/" className="flex items-center gap-2">
-            <img src="/TE-logo.png" alt="TradeEthiopia Logo" className="h-7 w-auto" />
+            <Image src="/TE-logo.png" alt="TradeEthiopia Logo" width={120} height={28} priority className="h-7 w-auto" />
             <span className="text-base font-bold text-gray-900">TradeEthiopia</span>
           </Link>
 
@@ -391,7 +392,7 @@ export default function Header({ isMenuOpen, setIsMenuOpen, categories = [] }) {
           </button>
 
           <Link href="/" className="flex items-center gap-2">
-            <img src="/TE-logo.png" alt="TradeEthiopia Logo" className="h-7 w-auto" />
+            <Image src="/TE-logo.png" alt="TradeEthiopia Logo" width={120} height={28} priority className="h-7 w-auto" />
             <span className="text-base font-bold text-gray-900">TradeEthiopia</span>
           </Link>
 
