@@ -91,23 +91,29 @@ export default function NetworkCore({ onNodeSelect, isDarkMode = true }) {
       }
     : {
         shell: 'from-white via-sky-50 to-rose-50',
-        glowA: 'bg-sky-300/22',
-        glowB: 'bg-fuchsia-200/22',
-        ringA: 'border-sky-400/18',
-        ringB: 'border-fuchsia-300/18',
-        ringC: 'border-slate-300/35',
-        dashedA: 'border-slate-300/26',
-        dashedB: 'border-sky-300/26',
+        glowA: 'bg-sky-300/42',
+        glowB: 'bg-fuchsia-200/40',
+        ringA: 'border-sky-500/52',
+        ringB: 'border-fuchsia-400/42',
+        ringC: 'border-slate-400/58',
+        dashedA: 'border-slate-400/36',
+        dashedB: 'border-sky-500/38',
         chipBg: 'rgba(255,255,255,0.78)',
         chipBorder: 'rgba(148,163,184,0.18)',
         chipText: 'text-sky-700',
-        card: 'bg-white/82 text-slate-800 border-slate-200/80',
+        card: 'bg-white/56 text-slate-800 border-white/70',
         cardActive: 'bg-slate-950 text-white border-slate-900',
         cardShadow: '0 16px 30px rgba(148,163,184,0.18)',
         activeShadow: '0 18px 36px rgba(15,23,42,0.18)',
         center: 'from-white via-sky-100 to-fuchsia-100',
         centerGlow: 'bg-white/70',
-        particle: 'bg-sky-400/28',
+        particle: 'bg-sky-400/18',
+        orbitGlowA: '0 0 18px rgba(14,165,233,0.22), 0 0 56px rgba(186,230,253,0.22)',
+        orbitGlowB: '0 0 20px rgba(217,70,239,0.2), 0 0 52px rgba(245,208,254,0.18)',
+        orbitGlowC: '0 0 16px rgba(148,163,184,0.16), 0 0 34px rgba(255,255,255,0.16)',
+        bubbleA: 'rgba(255,255,255,0.42)',
+        bubbleB: 'rgba(186,230,253,0.28)',
+        bubbleC: 'rgba(245,208,254,0.24)',
       };
 
   const cinematicPanels = useMemo(
@@ -121,16 +127,45 @@ export default function NetworkCore({ onNodeSelect, isDarkMode = true }) {
     [isDarkMode]
   );
 
+  const backgroundBubbles = useMemo(
+    () =>
+      isDarkMode
+        ? []
+        : [
+            { id: 'bubble-a', size: 152, x: 158, y: -118, color: palette.bubbleA, blur: 26, opacity: 1 },
+            { id: 'bubble-b', size: 126, x: 226, y: 98, color: palette.bubbleB, blur: 30, opacity: 0.95 },
+            { id: 'bubble-c', size: 98, x: 54, y: 174, color: palette.bubbleC, blur: 24, opacity: 0.9 },
+            { id: 'bubble-d', size: 86, x: -168, y: -138, color: palette.bubbleA, blur: 22, opacity: 0.8 },
+          ],
+    [isDarkMode, palette.bubbleA, palette.bubbleB, palette.bubbleC]
+  );
+
   return (
     <div className="relative w-full h-[560px] flex items-center justify-center overflow-visible">
       <div className={`absolute w-[440px] h-[440px] rounded-full ${palette.glowA} blur-3xl transition-all duration-[1200ms] ease-out ${themePulse ? 'scale-[1.06] opacity-90' : ''} ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`} />
       <div className={`absolute w-[310px] h-[310px] rounded-full ${palette.glowB} blur-3xl transition-all duration-[1200ms] ease-out ${themePulse ? 'scale-[1.08] opacity-90' : ''} ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`} />
 
       {!isDarkMode &&
+        backgroundBubbles.map((bubble) => (
+          <div
+            key={bubble.id}
+            className={`absolute rounded-full transition-all duration-[1300ms] ease-out ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}
+            style={{
+              width: `${bubble.size}px`,
+              height: `${bubble.size}px`,
+              transform: `translate(${bubble.x}px, ${bubble.y}px)`,
+              background: `radial-gradient(circle at 32% 30%, rgba(255,255,255,0.92), ${bubble.color})`,
+              filter: `blur(${bubble.blur}px)`,
+              opacity: bubble.opacity,
+            }}
+          />
+        ))}
+
+      {!isDarkMode &&
         cinematicPanels.map((panel) => (
           <div
             key={panel.id}
-            className="absolute rounded-[1.8rem] border border-white/70 bg-white/55 backdrop-blur-xl shadow-[0_18px_46px_rgba(148,163,184,0.18)] transition-all duration-[1200ms] ease-out"
+            className="absolute rounded-[1.8rem] border border-white/60 bg-white/38 backdrop-blur-[24px] shadow-[0_22px_60px_rgba(148,163,184,0.15)] transition-all duration-[1200ms] ease-out"
             style={{
               width: `${panel.w}px`,
               height: `${panel.h}px`,
@@ -139,15 +174,45 @@ export default function NetworkCore({ onNodeSelect, isDarkMode = true }) {
           />
         ))}
 
-      <div className={`absolute w-[390px] h-[390px] rounded-full border ${palette.ringA} animate-spin-slower transition-all duration-[1400ms] ease-out ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`} />
-      <div className={`absolute w-[312px] h-[312px] rounded-full border ${palette.ringB} animate-spin-reverse-slower transition-all duration-[1500ms] ease-out ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`} />
-      <div className={`absolute w-[232px] h-[232px] rounded-full border ${palette.ringC} transition-all duration-[1600ms] ease-out ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`} />
-      <div className={`absolute w-[426px] h-[426px] rounded-full border border-dashed ${palette.dashedA} opacity-40 animate-orbit-drift transition-all duration-[1700ms] ease-out ${introReady ? 'scale-100' : 'scale-95 opacity-0'}`} />
-      <div className={`absolute w-[344px] h-[344px] rounded-full border border-dashed ${palette.dashedB} opacity-50 animate-orbit-drift-reverse transition-all duration-[1800ms] ease-out ${introReady ? 'scale-100' : 'scale-95 opacity-0'}`} />
+      <div
+        className={`absolute w-[390px] h-[390px] rounded-full border ${palette.ringA} animate-spin-slower transition-all duration-[1400ms] ease-out ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}
+        style={{
+          boxShadow: !isDarkMode ? palette.orbitGlowA : undefined,
+          background: !isDarkMode ? 'radial-gradient(circle, rgba(255,255,255,0) 60%, rgba(186,230,253,0.05) 100%)' : undefined,
+        }}
+      />
+      <div
+        className={`absolute w-[312px] h-[312px] rounded-full border ${palette.ringB} animate-spin-reverse-slower transition-all duration-[1500ms] ease-out ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}
+        style={{
+          boxShadow: !isDarkMode ? palette.orbitGlowB : undefined,
+          background: !isDarkMode ? 'radial-gradient(circle, rgba(255,255,255,0) 62%, rgba(245,208,254,0.05) 100%)' : undefined,
+        }}
+      />
+      <div
+        className={`absolute w-[232px] h-[232px] rounded-full border ${palette.ringC} transition-all duration-[1600ms] ease-out ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}
+        style={{
+          boxShadow: !isDarkMode ? palette.orbitGlowC : undefined,
+          background: !isDarkMode ? 'radial-gradient(circle, rgba(255,255,255,0.18), rgba(255,255,255,0.01) 76%)' : undefined,
+        }}
+      />
+      <div
+        className={`absolute w-[426px] h-[426px] rounded-full border border-dashed ${palette.dashedA} opacity-40 animate-orbit-drift transition-all duration-[1700ms] ease-out ${introReady ? 'scale-100' : 'scale-95 opacity-0'}`}
+        style={{ filter: !isDarkMode ? 'drop-shadow(0 0 10px rgba(186,230,253,0.28))' : undefined }}
+      />
+      <div
+        className={`absolute w-[344px] h-[344px] rounded-full border border-dashed ${palette.dashedB} opacity-50 animate-orbit-drift-reverse transition-all duration-[1800ms] ease-out ${introReady ? 'scale-100' : 'scale-95 opacity-0'}`}
+        style={{ filter: !isDarkMode ? 'drop-shadow(0 0 10px rgba(245,208,254,0.22))' : undefined }}
+      />
 
-      <div className={`absolute w-24 h-24 rounded-full ${isDarkMode ? 'bg-cyan-400/16' : 'bg-sky-300/22'} animate-core-ping transition-all duration-[1200ms] ease-out ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-50'}`} />
-      <div className={`absolute w-44 h-44 rounded-full border ${palette.ringB} animate-soft-pulse transition-all duration-[1400ms] ease-out ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`} />
-      <div className={`absolute w-56 h-56 rounded-full border ${palette.ringA} animate-soft-pulse-delayed transition-all duration-[1600ms] ease-out ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`} />
+      <div className={`absolute w-24 h-24 rounded-full ${isDarkMode ? 'bg-cyan-400/16' : 'bg-sky-300/28'} animate-core-ping transition-all duration-[1200ms] ease-out ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-50'}`} />
+      <div
+        className={`absolute w-44 h-44 rounded-full border ${palette.ringB} animate-soft-pulse transition-all duration-[1400ms] ease-out ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}
+        style={{ boxShadow: !isDarkMode ? '0 0 18px rgba(217,70,239,0.08)' : undefined }}
+      />
+      <div
+        className={`absolute w-56 h-56 rounded-full border ${palette.ringA} animate-soft-pulse-delayed transition-all duration-[1600ms] ease-out ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}
+        style={{ boxShadow: !isDarkMode ? '0 0 18px rgba(14,165,233,0.08)' : undefined }}
+      />
 
       <div className={`absolute top-[12%] left-[5%] z-20 transition-all duration-[900ms] ease-out ${introReady ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
         <div className="rounded-[1.3rem] px-4 py-3 border backdrop-blur-xl shadow-[0_14px_36px_rgba(15,23,42,0.08)] transition-all duration-[900ms] ease-out" style={{ background: palette.chipBg, borderColor: palette.chipBorder }}>
@@ -166,8 +231,8 @@ export default function NetworkCore({ onNodeSelect, isDarkMode = true }) {
       <div className={`relative z-20 w-40 h-40 rounded-full overflow-hidden border shadow-[0_0_120px_rgba(103,232,249,0.18)] transition-all duration-[1400ms] ease-out ${themePulse ? 'scale-[1.03]' : ''} ${introReady ? 'opacity-100 scale-100 rotate-0' : 'opacity-0 scale-75 rotate-[-8deg]'}`} style={{ borderColor: palette.chipBorder }}>
         <div className={`absolute inset-0 bg-gradient-to-br ${palette.center} transition-all duration-[1200ms] ease-out`} />
         <div className={`absolute inset-[8%] rounded-full border ${isDarkMode ? 'border-white/10' : 'border-slate-200/80'} transition-all duration-[1200ms] ease-out`} />
-        <div className={`absolute inset-[18%] rounded-full ${palette.centerGlow} blur-md transition-all duration-[1200ms] ease-out`} />
-        {!isDarkMode && <div className="absolute inset-x-[24%] top-[14%] h-[18%] rounded-full bg-white/80 blur-md transition-all duration-[1200ms] ease-out" />}
+        <div className={`absolute inset-[18%] rounded-full ${palette.centerGlow} blur-md transition-all duration-[1200ms] ease-out`} style={{ opacity: isDarkMode ? 1 : 0.58 }} />
+        {!isDarkMode && <div className="absolute inset-x-[24%] top-[14%] h-[18%] rounded-full bg-white/70 blur-md transition-all duration-[1200ms] ease-out" />}
         <div className="absolute inset-0 flex items-center justify-center">
           <img
             src="/te-center.png"
@@ -190,7 +255,16 @@ export default function NetworkCore({ onNodeSelect, isDarkMode = true }) {
             className="absolute z-10"
             style={{ transform: `translate(${x}px, ${y}px)` }}
           >
-            <div className={`rounded-full ${isDarkMode ? 'bg-cyan-300/80' : 'bg-white'} shadow-[0_0_16px_rgba(125,211,252,0.75)] transition-all duration-[1200ms] ease-out ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-50'}`} style={{ width: isDarkMode ? '8px' : '10px', height: isDarkMode ? '8px' : '10px' }} />
+            <div
+              className={`rounded-full ${isDarkMode ? 'bg-cyan-300/80' : 'bg-white'} shadow-[0_0_16px_rgba(125,211,252,0.75)] transition-all duration-[1200ms] ease-out ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-50'}`}
+              style={{
+                width: isDarkMode ? '8px' : '12px',
+                height: isDarkMode ? '8px' : '12px',
+                boxShadow: isDarkMode
+                  ? '0 0 16px rgba(125,211,252,0.75)'
+                  : '0 0 20px rgba(255,255,255,0.95), 0 0 30px rgba(56,189,248,0.18)',
+              }}
+            />
           </div>
         );
       })}
@@ -226,7 +300,7 @@ export default function NetworkCore({ onNodeSelect, isDarkMode = true }) {
                     : '0 0 12px rgba(129,140,248,0.8)'
                   : isActive
                   ? '0 0 12px rgba(15,23,42,0.4)'
-                  : '0 0 12px rgba(56,189,248,0.4)',
+                  : '0 0 16px rgba(56,189,248,0.28)',
               }}
             />
 
@@ -239,7 +313,7 @@ export default function NetworkCore({ onNodeSelect, isDarkMode = true }) {
                 backdropFilter: isDarkMode ? 'blur(0px)' : 'blur(14px)',
                 fontSize: isDarkMode ? '12px' : '11px',
                 letterSpacing: isDarkMode ? '0' : '0.08em',
-                padding: isDarkMode ? '0.5rem 1rem' : '0.45rem 0.85rem',
+                padding: isDarkMode ? '0.5rem 1rem' : '0.42rem 0.82rem',
               }}
             >
               {node.label}
@@ -378,8 +452,8 @@ export default function NetworkCore({ onNodeSelect, isDarkMode = true }) {
         }
 
         @keyframes floatParticle {
-          0%, 100% { transform: translateY(0px); opacity: 0.16; }
-          50% { transform: translateY(-14px); opacity: 0.42; }
+          0%, 100% { transform: translateY(0px); opacity: 0.12; }
+          50% { transform: translateY(-14px); opacity: 0.28; }
         }
 
       `}</style>
