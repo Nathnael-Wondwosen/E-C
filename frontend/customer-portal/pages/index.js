@@ -343,12 +343,16 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>TradeEthiopia | Investor Pitch Gateway</title>
+        <title>TradeEthiopia | All is There</title>
         <meta
           name="description"
           content="A futuristic, investor-ready gateway for the TradeEthiopia Business Group ecosystem."
         />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap"
+          rel="stylesheet"
+        />
       </Head>
 
       <style jsx global>{`
@@ -871,14 +875,14 @@ export default function Home() {
               </div>
 
               <div
-                className="hero-perspective w-full flex justify-center transition-transform duration-300"
+                className="hero-perspective w-full transition-transform duration-300"
                 style={{
                   transform: `translate3d(${mouse.x}px, ${mouse.y}px, 0) translateY(var(--hero-shift, 0px))`,
                 }}
               >
-                <div className="w-full max-w-[620px] h-[540px]">
-                  <NetworkCore isDarkMode={isDarkMode} onNodeSelect={openSectorModal} />
-                </div>
+<div className="w-full max-w-[620px] h-[540px]">
+  <NetworkCore isDarkMode={isDarkMode} onNodeSelect={openSectorModal} />
+</div>
               </div>
             </div>
           </div>
@@ -1129,9 +1133,9 @@ export default function Home() {
                     <p className={`font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                       TradeEthiopia
                     </p>
-                    <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    {/* <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                       Investor Pitch Gateway
-                    </p>
+                    </p> */}
                   </div>
                 </div>
                 <p className={`text-sm leading-7 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
