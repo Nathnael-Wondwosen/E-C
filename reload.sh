@@ -20,20 +20,13 @@ if [[ -n "$(git status --porcelain)" ]]; then
   echo "[reload] warning: if git pull fails, commit/stash changes manually and rerun."
 fi
 
-OLD_LOCK_SHA="$(sha1sum package-lock.json 2>/dev/null | awk '{print $1}' || true)"
-
 echo "[reload] fetching latest..."
 git fetch --all --prune
 git checkout "$BRANCH"
 git pull --ff-only origin "$BRANCH"
 
-NEW_LOCK_SHA="$(sha1sum package-lock.json 2>/dev/null | awk '{print $1}' || true)"
-if [[ "$OLD_LOCK_SHA" != "$NEW_LOCK_SHA" ]]; then
-  echo "[reload] dependencies changed. Running npm ci..."
-  npm ci
-else
-  echo "[reload] dependencies unchanged. Skipping npm ci."
-fi
+echo "[reload] installing dependencies..."
+npm ci
 
 echo "[reload] building services/frontend..."
 npm run build:services
