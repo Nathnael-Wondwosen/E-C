@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const nodes = [
   { id: 'b2b', label: 'B2B', angle: 0, stat: 'Digital Trade' },
@@ -9,25 +9,62 @@ const nodes = [
   { id: 'buna', label: 'Buna', angle: 300, stat: 'Coffee Brand' },
 ];
 
-export default function NetworkCore({ onNodeSelect, isDarkMode = true }) {
+export default function NetworkCore({ activeNode, onNodeSelect, isDarkMode = true }) {
   const [rotation, setRotation] = useState(0);
-  const [active, setActive] = useState('b2b');
+  const [internalActive, setInternalActive] = useState(activeNode || 'b2b');
   const [hovered, setHovered] = useState(null);
   const [themePulse, setThemePulse] = useState(false);
   const [introReady, setIntroReady] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [viewportWidth, setViewportWidth] = useState(1280);
   const [stats, setStats] = useState({
     platforms: 6,
     uptime: 24,
     reach: 360,
   });
+  const wheelRef = useRef(null);
+  const dragStateRef = useRef({
+    active: false,
+    startAngle: 0,
+    startRotation: 0,
+  });
+
+  const isControlled = activeNode !== undefined;
+  const resolvedActive = isControlled ? activeNode : internalActive;
+  const wheelSize = isMobileViewport
+    ? Math.max(280, Math.min(viewportWidth - 32, 360))
+    : 560;
+  const primaryRadius = isDarkMode ? wheelSize * 0.304 : wheelSize * 0.282;
+  const secondaryRadius = isDarkMode ? wheelSize * 0.211 : wheelSize * 0.236;
 
   useEffect(() => {
+    if (activeNode !== undefined) {
+      setInternalActive(activeNode);
+    }
+  }, [activeNode]);
+
+  useEffect(() => {
+    const updateViewport = () => {
+      const width = window.innerWidth;
+      setViewportWidth(width);
+      setIsMobileViewport(width < 768);
+    };
+
+    updateViewport();
+    window.addEventListener('resize', updateViewport);
+    return () => window.removeEventListener('resize', updateViewport);
+  }, []);
+
+  useEffect(() => {
+    if (isDragging) return undefined;
+
     const interval = setInterval(() => {
-      setRotation((value) => value + 0.22);
+      setRotation((value) => value + (isMobileViewport ? 0.16 : 0.22));
     }, 30);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [isDragging, isMobileViewport]);
 
   useEffect(() => {
     const timeout = setTimeout(() => setIntroReady(true), 80);
@@ -65,12 +102,8 @@ export default function NetworkCore({ onNodeSelect, isDarkMode = true }) {
     [isDarkMode]
   );
 
-  const primaryRadius = isDarkMode ? 170 : 158;
-  const secondaryRadius = isDarkMode ? 118 : 132;
-
   const palette = isDarkMode
     ? {
-        shell: 'from-slate-950 via-indigo-900 to-cyan-800',
         glowA: 'bg-cyan-400/12',
         glowB: 'bg-indigo-500/12',
         ringA: 'border-indigo-400/14',
@@ -90,7 +123,6 @@ export default function NetworkCore({ onNodeSelect, isDarkMode = true }) {
         particle: 'bg-cyan-300/38',
       }
     : {
-        shell: 'from-white via-sky-50 to-rose-50',
         glowA: 'bg-sky-300/42',
         glowB: 'bg-fuchsia-200/40',
         ringA: 'border-sky-500/52',
@@ -121,10 +153,24 @@ export default function NetworkCore({ onNodeSelect, isDarkMode = true }) {
       isDarkMode
         ? []
         : [
-            { id: 'panel-a', x: -188, y: -110, rotate: -14, w: 150, h: 84 },
-            { id: 'panel-b', x: 176, y: 104, rotate: 12, w: 164, h: 92 },
+            {
+              id: 'panel-a',
+              x: wheelSize * -0.336,
+              y: wheelSize * -0.196,
+              rotate: -14,
+              w: wheelSize * 0.268,
+              h: wheelSize * 0.15,
+            },
+            {
+              id: 'panel-b',
+              x: wheelSize * 0.314,
+              y: wheelSize * 0.186,
+              rotate: 12,
+              w: wheelSize * 0.293,
+              h: wheelSize * 0.164,
+            },
           ],
-    [isDarkMode]
+    [isDarkMode, wheelSize]
   );
 
   const backgroundBubbles = useMemo(
@@ -132,229 +178,445 @@ export default function NetworkCore({ onNodeSelect, isDarkMode = true }) {
       isDarkMode
         ? []
         : [
-            { id: 'bubble-a', size: 152, x: 158, y: -118, color: palette.bubbleA, blur: 26, opacity: 1 },
-            { id: 'bubble-b', size: 126, x: 226, y: 98, color: palette.bubbleB, blur: 30, opacity: 0.95 },
-            { id: 'bubble-c', size: 98, x: 54, y: 174, color: palette.bubbleC, blur: 24, opacity: 0.9 },
-            { id: 'bubble-d', size: 86, x: -168, y: -138, color: palette.bubbleA, blur: 22, opacity: 0.8 },
+            {
+              id: 'bubble-a',
+              size: wheelSize * 0.271,
+              x: wheelSize * 0.282,
+              y: wheelSize * -0.211,
+              color: palette.bubbleA,
+              blur: 26,
+              opacity: 1,
+            },
+            {
+              id: 'bubble-b',
+              size: wheelSize * 0.225,
+              x: wheelSize * 0.404,
+              y: wheelSize * 0.175,
+              color: palette.bubbleB,
+              blur: 30,
+              opacity: 0.95,
+            },
+            {
+              id: 'bubble-c',
+              size: wheelSize * 0.175,
+              x: wheelSize * 0.096,
+              y: wheelSize * 0.311,
+              color: palette.bubbleC,
+              blur: 24,
+              opacity: 0.9,
+            },
+            {
+              id: 'bubble-d',
+              size: wheelSize * 0.154,
+              x: wheelSize * -0.3,
+              y: wheelSize * -0.246,
+              color: palette.bubbleA,
+              blur: 22,
+              opacity: 0.8,
+            },
           ],
-    [isDarkMode, palette.bubbleA, palette.bubbleB, palette.bubbleC]
+    [isDarkMode, palette.bubbleA, palette.bubbleB, palette.bubbleC, wheelSize]
   );
 
+  const handleSelect = (id) => {
+    setInternalActive(id);
+    if (isMobileViewport) {
+      const selectedNode = nodes.find((node) => node.id === id);
+      if (selectedNode) {
+        setRotation(-selectedNode.angle);
+      }
+    }
+    onNodeSelect?.(id);
+  };
+
+  const getPointerAngle = (clientX, clientY) => {
+    const bounds = wheelRef.current?.getBoundingClientRect();
+    if (!bounds) return 0;
+
+    const centerX = bounds.left + bounds.width / 2;
+    const centerY = bounds.top + bounds.height / 2;
+
+    return (Math.atan2(clientY - centerY, clientX - centerX) * 180) / Math.PI;
+  };
+
+  const snapToClosestNode = (rawRotation) => {
+    let closestNode = nodes[0];
+    let shortestDistance = Number.POSITIVE_INFINITY;
+
+    nodes.forEach((node) => {
+      const normalized = ((node.angle + rawRotation) % 360 + 360) % 360;
+      const distance = Math.min(Math.abs(normalized), Math.abs(normalized - 360));
+
+      if (distance < shortestDistance) {
+        shortestDistance = distance;
+        closestNode = node;
+      }
+    });
+
+    setRotation(-closestNode.angle);
+    handleSelect(closestNode.id);
+  };
+
   return (
-    <div className="relative w-full h-[560px] flex items-center justify-center overflow-visible">
-      <div className={`absolute w-[440px] h-[440px] rounded-full ${palette.glowA} blur-3xl transition-all duration-[1200ms] ease-out ${themePulse ? 'scale-[1.06] opacity-90' : ''} ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`} />
-      <div className={`absolute w-[310px] h-[310px] rounded-full ${palette.glowB} blur-3xl transition-all duration-[1200ms] ease-out ${themePulse ? 'scale-[1.08] opacity-90' : ''} ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`} />
-
-      {!isDarkMode &&
-        backgroundBubbles.map((bubble) => (
-          <div
-            key={bubble.id}
-            className={`absolute rounded-full transition-all duration-[1300ms] ease-out ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}
-            style={{
-              width: `${bubble.size}px`,
-              height: `${bubble.size}px`,
-              transform: `translate(${bubble.x}px, ${bubble.y}px)`,
-              background: `radial-gradient(circle at 32% 30%, rgba(255,255,255,0.92), ${bubble.color})`,
-              filter: `blur(${bubble.blur}px)`,
-              opacity: bubble.opacity,
-            }}
-          />
-        ))}
-
-      {!isDarkMode &&
-        cinematicPanels.map((panel) => (
-          <div
-            key={panel.id}
-            className="absolute rounded-[1.8rem] border border-white/60 bg-white/38 backdrop-blur-[24px] shadow-[0_22px_60px_rgba(148,163,184,0.15)] transition-all duration-[1200ms] ease-out"
-            style={{
-              width: `${panel.w}px`,
-              height: `${panel.h}px`,
-              transform: `translate(${panel.x}px, ${panel.y}px) rotate(${panel.rotate}deg)`,
-            }}
-          />
-        ))}
-
+    <div
+      className={`relative w-full flex items-center overflow-visible ${
+        isMobileViewport ? 'flex-col justify-start gap-2 pb-0' : 'h-[560px] justify-center'
+      }`}
+    >
       <div
-        className={`absolute w-[390px] h-[390px] rounded-full border ${palette.ringA} animate-spin-slower transition-all duration-[1400ms] ease-out ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}
-        style={{
-          boxShadow: !isDarkMode ? palette.orbitGlowA : undefined,
-          background: !isDarkMode ? 'radial-gradient(circle, rgba(255,255,255,0) 60%, rgba(186,230,253,0.05) 100%)' : undefined,
+        ref={wheelRef}
+        className="relative flex items-center justify-center overflow-visible select-none touch-none"
+        style={{ width: `${wheelSize}px`, height: `${wheelSize}px` }}
+        onTouchStart={(event) => {
+          if (!isMobileViewport) return;
+          const touch = event.touches[0];
+          if (!touch) return;
+
+          setIsDragging(true);
+          dragStateRef.current = {
+            active: true,
+            startAngle: getPointerAngle(touch.clientX, touch.clientY),
+            startRotation: rotation,
+          };
         }}
-      />
-      <div
-        className={`absolute w-[312px] h-[312px] rounded-full border ${palette.ringB} animate-spin-reverse-slower transition-all duration-[1500ms] ease-out ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}
-        style={{
-          boxShadow: !isDarkMode ? palette.orbitGlowB : undefined,
-          background: !isDarkMode ? 'radial-gradient(circle, rgba(255,255,255,0) 62%, rgba(245,208,254,0.05) 100%)' : undefined,
+        onTouchMove={(event) => {
+          if (!isMobileViewport || !dragStateRef.current.active) return;
+          const touch = event.touches[0];
+          if (!touch) return;
+
+          const currentAngle = getPointerAngle(touch.clientX, touch.clientY);
+          const delta = currentAngle - dragStateRef.current.startAngle;
+          setRotation(dragStateRef.current.startRotation + delta);
         }}
-      />
-      <div
-        className={`absolute w-[232px] h-[232px] rounded-full border ${palette.ringC} transition-all duration-[1600ms] ease-out ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}
-        style={{
-          boxShadow: !isDarkMode ? palette.orbitGlowC : undefined,
-          background: !isDarkMode ? 'radial-gradient(circle, rgba(255,255,255,0.18), rgba(255,255,255,0.01) 76%)' : undefined,
+        onTouchEnd={() => {
+          if (!isMobileViewport || !dragStateRef.current.active) return;
+          dragStateRef.current.active = false;
+          setIsDragging(false);
+          snapToClosestNode(rotation);
         }}
-      />
-      <div
-        className={`absolute w-[426px] h-[426px] rounded-full border border-dashed ${palette.dashedA} opacity-40 animate-orbit-drift transition-all duration-[1700ms] ease-out ${introReady ? 'scale-100' : 'scale-95 opacity-0'}`}
-        style={{ filter: !isDarkMode ? 'drop-shadow(0 0 10px rgba(186,230,253,0.28))' : undefined }}
-      />
-      <div
-        className={`absolute w-[344px] h-[344px] rounded-full border border-dashed ${palette.dashedB} opacity-50 animate-orbit-drift-reverse transition-all duration-[1800ms] ease-out ${introReady ? 'scale-100' : 'scale-95 opacity-0'}`}
-        style={{ filter: !isDarkMode ? 'drop-shadow(0 0 10px rgba(245,208,254,0.22))' : undefined }}
-      />
+        onTouchCancel={() => {
+          if (!isMobileViewport || !dragStateRef.current.active) return;
+          dragStateRef.current.active = false;
+          setIsDragging(false);
+          snapToClosestNode(rotation);
+        }}
+      >
+        <div
+          className={`absolute rounded-full ${palette.glowA} blur-3xl transition-all duration-[1200ms] ease-out ${
+            themePulse ? 'scale-[1.06] opacity-90' : ''
+          } ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}
+          style={{ width: `${wheelSize * 0.786}px`, height: `${wheelSize * 0.786}px` }}
+        />
+        <div
+          className={`absolute rounded-full ${palette.glowB} blur-3xl transition-all duration-[1200ms] ease-out ${
+            themePulse ? 'scale-[1.08] opacity-90' : ''
+          } ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}
+          style={{ width: `${wheelSize * 0.554}px`, height: `${wheelSize * 0.554}px` }}
+        />
 
-      <div className={`absolute w-24 h-24 rounded-full ${isDarkMode ? 'bg-cyan-400/16' : 'bg-sky-300/28'} animate-core-ping transition-all duration-[1200ms] ease-out ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-50'}`} />
-      <div
-        className={`absolute w-44 h-44 rounded-full border ${palette.ringB} animate-soft-pulse transition-all duration-[1400ms] ease-out ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}
-        style={{ boxShadow: !isDarkMode ? '0 0 18px rgba(217,70,239,0.08)' : undefined }}
-      />
-      <div
-        className={`absolute w-56 h-56 rounded-full border ${palette.ringA} animate-soft-pulse-delayed transition-all duration-[1600ms] ease-out ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}
-        style={{ boxShadow: !isDarkMode ? '0 0 18px rgba(14,165,233,0.08)' : undefined }}
-      />
-
-      <div className={`absolute top-[12%] left-[5%] z-20 transition-all duration-[900ms] ease-out ${introReady ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
-        <div className="rounded-[1.3rem] px-4 py-3 border backdrop-blur-xl shadow-[0_14px_36px_rgba(15,23,42,0.08)] transition-all duration-[900ms] ease-out" style={{ background: palette.chipBg, borderColor: palette.chipBorder }}>
-          <p className={`text-[10px] uppercase tracking-[0.24em] mb-1 ${palette.chipText}`}>Gateway</p>
-          <p className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{stats.platforms} Active Platforms</p>
-        </div>
-      </div>
-
-      <div className={`absolute top-[18%] right-[5%] z-20 transition-all duration-[1000ms] ease-out ${introReady ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
-        <div className="rounded-[1.3rem] px-4 py-3 border backdrop-blur-xl shadow-[0_14px_36px_rgba(15,23,42,0.08)] transition-all duration-[900ms] ease-out" style={{ background: palette.chipBg, borderColor: palette.chipBorder }}>
-          <p className={`text-[10px] uppercase tracking-[0.24em] mb-1 ${palette.chipText}`}>Reach</p>
-          <p className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{stats.reach} deg Network</p>
-        </div>
-      </div>
-
-      <div className={`relative z-20 w-40 h-40 rounded-full overflow-hidden border shadow-[0_0_120px_rgba(103,232,249,0.18)] transition-all duration-[1400ms] ease-out ${themePulse ? 'scale-[1.03]' : ''} ${introReady ? 'opacity-100 scale-100 rotate-0' : 'opacity-0 scale-75 rotate-[-8deg]'}`} style={{ borderColor: palette.chipBorder }}>
-        <div className={`absolute inset-0 bg-gradient-to-br ${palette.center} transition-all duration-[1200ms] ease-out`} />
-        <div className={`absolute inset-[8%] rounded-full border ${isDarkMode ? 'border-white/10' : 'border-slate-200/80'} transition-all duration-[1200ms] ease-out`} />
-        <div className={`absolute inset-[18%] rounded-full ${palette.centerGlow} blur-md transition-all duration-[1200ms] ease-out`} style={{ opacity: isDarkMode ? 1 : 0.58 }} />
-        {!isDarkMode && <div className="absolute inset-x-[24%] top-[14%] h-[18%] rounded-full bg-white/70 blur-md transition-all duration-[1200ms] ease-out" />}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <img
-            src="/te-center.png"
-            alt="TradeEthiopia emblem"
-            className="h-[78%] w-[78%] object-contain drop-shadow-[0_10px_30px_rgba(255,215,120,0.28)]"
-          />
-        </div>
-      </div>
-
-      <div className={`absolute bottom-[17%] left-1/2 -translate-x-1/2 w-[220px] h-[26px] rounded-full ${isDarkMode ? 'bg-cyan-500/10' : 'bg-sky-200/45'} blur-xl transition-all duration-[1200ms] ease-out ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-50'}`} />
-
-      {nodes.slice(0, 3).map((node) => {
-        const angle = ((node.angle * 1.35 - rotation * 0.45) * Math.PI) / 180;
-        const x = Math.cos(angle) * secondaryRadius;
-        const y = Math.sin(angle) * secondaryRadius;
-
-        return (
-          <div
-            key={`secondary-${node.id}`}
-            className="absolute z-10"
-            style={{ transform: `translate(${x}px, ${y}px)` }}
-          >
+        {!isDarkMode &&
+          backgroundBubbles.map((bubble) => (
             <div
-              className={`rounded-full ${isDarkMode ? 'bg-cyan-300/80' : 'bg-white'} shadow-[0_0_16px_rgba(125,211,252,0.75)] transition-all duration-[1200ms] ease-out ${introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-50'}`}
-              style={{
-                width: isDarkMode ? '8px' : '12px',
-                height: isDarkMode ? '8px' : '12px',
-                boxShadow: isDarkMode
-                  ? '0 0 16px rgba(125,211,252,0.75)'
-                  : '0 0 20px rgba(255,255,255,0.95), 0 0 30px rgba(56,189,248,0.18)',
-              }}
-            />
-          </div>
-        );
-      })}
-
-      {nodes.map((node) => {
-        const angle = ((node.angle + rotation) * Math.PI) / 180;
-        const x = Math.cos(angle) * primaryRadius;
-        const y = Math.sin(angle) * primaryRadius;
-        const isActive = active === node.id;
-        const isHovered = hovered === node.id;
-
-        return (
-          <div
-            key={node.id}
-            className="absolute z-30 group cursor-pointer"
-            style={{ transform: `translate(${x}px, ${y}px)` }}
-            onClick={() => {
-              setActive(node.id);
-              onNodeSelect?.(node.id);
-            }}
-            onMouseEnter={() => setHovered(node.id)}
-            onMouseLeave={() => setHovered(null)}
-          >
-            <div
-              className={`absolute left-1/2 w-2 h-2 -translate-x-1/2 rounded-full animate-flow-dot transition-colors duration-[900ms] ease-out ${
-                isDarkMode ? (isActive ? 'bg-cyan-300' : 'bg-indigo-300') : isActive ? 'bg-slate-900' : 'bg-sky-400'
+              key={bubble.id}
+              className={`absolute rounded-full transition-all duration-[1300ms] ease-out ${
+                introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-75'
               }`}
               style={{
-                top: `-${primaryRadius}px`,
-                boxShadow: isDarkMode
-                  ? isActive
-                    ? '0 0 16px rgba(34,211,238,1)'
-                    : '0 0 12px rgba(129,140,248,0.8)'
-                  : isActive
-                  ? '0 0 12px rgba(15,23,42,0.4)'
-                  : '0 0 16px rgba(56,189,248,0.28)',
+                width: `${bubble.size}px`,
+                height: `${bubble.size}px`,
+                transform: `translate(${bubble.x}px, ${bubble.y}px)`,
+                background: `radial-gradient(circle at 32% 30%, rgba(255,255,255,0.92), ${bubble.color})`,
+                filter: `blur(${bubble.blur}px)`,
+                opacity: bubble.opacity,
               }}
             />
+          ))}
 
+        {!isDarkMode &&
+          cinematicPanels.map((panel) => (
             <div
-              className={`relative rounded-full font-bold transition-all duration-[900ms] ease-out border ${
-                isActive ? palette.cardActive : palette.card
-              } ${isHovered ? 'scale-110' : ''}`}
+              key={panel.id}
+              className="absolute rounded-[1.8rem] border border-white/60 bg-white/38 backdrop-blur-[24px] shadow-[0_22px_60px_rgba(148,163,184,0.15)] transition-all duration-[1200ms] ease-out"
               style={{
-                boxShadow: isActive ? palette.activeShadow : palette.cardShadow,
-                backdropFilter: isDarkMode ? 'blur(0px)' : 'blur(14px)',
-                fontSize: isDarkMode ? '12px' : '11px',
-                letterSpacing: isDarkMode ? '0' : '0.08em',
-                padding: isDarkMode ? '0.5rem 1rem' : '0.42rem 0.82rem',
+                width: `${panel.w}px`,
+                height: `${panel.h}px`,
+                transform: `translate(${panel.x}px, ${panel.y}px) rotate(${panel.rotate}deg)`,
               }}
-            >
-              {node.label}
-            </div>
+            />
+          ))}
 
-            {(isHovered || isActive) && (
-              <div className="absolute left-1/2 -translate-x-1/2 top-12 w-max max-w-[170px] z-50 pointer-events-none">
-                <div
-                  className="px-3 py-2 rounded-xl text-center border backdrop-blur-xl"
-                  style={{
-                    background: palette.chipBg,
-                    borderColor: palette.chipBorder,
-                    boxShadow: isDarkMode ? '0 14px 30px rgba(0,0,0,0.24)' : '0 12px 26px rgba(148,163,184,0.18)',
-                  }}
-                >
-                  <p className={`text-[11px] font-semibold ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>{node.stat}</p>
-                </div>
-              </div>
-            )}
+        <div
+          className={`absolute rounded-full border ${palette.ringA} animate-spin-slower transition-all duration-[1400ms] ease-out ${
+            introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-90'
+          }`}
+          style={{
+            width: `${wheelSize * 0.696}px`,
+            height: `${wheelSize * 0.696}px`,
+            boxShadow: !isDarkMode ? palette.orbitGlowA : undefined,
+            background: !isDarkMode
+              ? 'radial-gradient(circle, rgba(255,255,255,0) 60%, rgba(186,230,253,0.05) 100%)'
+              : undefined,
+          }}
+        />
+        <div
+          className={`absolute rounded-full border ${palette.ringB} animate-spin-reverse-slower transition-all duration-[1500ms] ease-out ${
+            introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-90'
+          }`}
+          style={{
+            width: `${wheelSize * 0.557}px`,
+            height: `${wheelSize * 0.557}px`,
+            boxShadow: !isDarkMode ? palette.orbitGlowB : undefined,
+            background: !isDarkMode
+              ? 'radial-gradient(circle, rgba(255,255,255,0) 62%, rgba(245,208,254,0.05) 100%)'
+              : undefined,
+          }}
+        />
+        <div
+          className={`absolute rounded-full border ${palette.ringC} transition-all duration-[1600ms] ease-out ${
+            introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-90'
+          }`}
+          style={{
+            width: `${wheelSize * 0.414}px`,
+            height: `${wheelSize * 0.414}px`,
+            boxShadow: !isDarkMode ? palette.orbitGlowC : undefined,
+            background: !isDarkMode
+              ? 'radial-gradient(circle, rgba(255,255,255,0.18), rgba(255,255,255,0.01) 76%)'
+              : undefined,
+          }}
+        />
+        <div
+          className={`absolute rounded-full border border-dashed ${palette.dashedA} opacity-40 animate-orbit-drift transition-all duration-[1700ms] ease-out ${
+            introReady ? 'scale-100' : 'scale-95 opacity-0'
+          }`}
+          style={{
+            width: `${wheelSize * 0.761}px`,
+            height: `${wheelSize * 0.761}px`,
+            filter: !isDarkMode ? 'drop-shadow(0 0 10px rgba(186,230,253,0.28))' : undefined,
+          }}
+        />
+        <div
+          className={`absolute rounded-full border border-dashed ${palette.dashedB} opacity-50 animate-orbit-drift-reverse transition-all duration-[1800ms] ease-out ${
+            introReady ? 'scale-100' : 'scale-95 opacity-0'
+          }`}
+          style={{
+            width: `${wheelSize * 0.614}px`,
+            height: `${wheelSize * 0.614}px`,
+            filter: !isDarkMode ? 'drop-shadow(0 0 10px rgba(245,208,254,0.22))' : undefined,
+          }}
+        />
+
+        <div
+          className={`absolute rounded-full ${isDarkMode ? 'bg-cyan-400/16' : 'bg-sky-300/28'} animate-core-ping transition-all duration-[1200ms] ease-out ${
+            introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
+          }`}
+          style={{ width: `${wheelSize * 0.171}px`, height: `${wheelSize * 0.171}px` }}
+        />
+        <div
+          className={`absolute rounded-full border ${palette.ringB} animate-soft-pulse transition-all duration-[1400ms] ease-out ${
+            introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-75'
+          }`}
+          style={{
+            width: `${wheelSize * 0.314}px`,
+            height: `${wheelSize * 0.314}px`,
+            boxShadow: !isDarkMode ? '0 0 18px rgba(217,70,239,0.08)' : undefined,
+          }}
+        />
+        <div
+          className={`absolute rounded-full border ${palette.ringA} animate-soft-pulse-delayed transition-all duration-[1600ms] ease-out ${
+            introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-75'
+          }`}
+          style={{
+            width: `${wheelSize * 0.4}px`,
+            height: `${wheelSize * 0.4}px`,
+            boxShadow: !isDarkMode ? '0 0 18px rgba(14,165,233,0.08)' : undefined,
+          }}
+        />
+
+        <div
+          className={`absolute z-20 transition-all duration-[900ms] ease-out ${
+            introReady ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
+          } ${isMobileViewport ? 'top-[7%] left-[3%]' : 'top-[12%] left-[5%]'}`}
+        >
+          <div
+            className="rounded-[1.3rem] px-4 py-3 border backdrop-blur-xl shadow-[0_14px_36px_rgba(15,23,42,0.08)] transition-all duration-[900ms] ease-out"
+            style={{ background: palette.chipBg, borderColor: palette.chipBorder }}
+          >
+            <p className={`text-[10px] uppercase tracking-[0.24em] mb-1 ${palette.chipText}`}>Gateway</p>
+            <p className={`${isMobileViewport ? 'text-xs' : 'text-sm'} font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+              {stats.platforms} Active Platforms
+            </p>
           </div>
-        );
-      })}
+        </div>
 
-      <div className="absolute inset-0 pointer-events-none">
-        {particles.map((particle) => (
-          <span
-            key={particle.id}
-            className={`absolute rounded-full ${palette.particle} animate-float-particle transition-all duration-[1200ms] ease-out ${introReady ? 'opacity-100' : 'opacity-0'}`}
-            style={{
-              width: `${particle.size}px`,
-              height: `${particle.size}px`,
-              left: `${particle.left}%`,
-              top: `${particle.top}%`,
-              animationDelay: `${particle.delay}s`,
-              animationDuration: `${particle.duration}s`,
-            }}
-          />
-        ))}
+        <div
+          className={`absolute z-20 transition-all duration-[1000ms] ease-out ${
+            introReady ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
+          } ${isMobileViewport ? 'top-[12%] right-[3%]' : 'top-[18%] right-[5%]'}`}
+        >
+          <div
+            className="rounded-[1.3rem] px-4 py-3 border backdrop-blur-xl shadow-[0_14px_36px_rgba(15,23,42,0.08)] transition-all duration-[900ms] ease-out"
+            style={{ background: palette.chipBg, borderColor: palette.chipBorder }}
+          >
+            <p className={`text-[10px] uppercase tracking-[0.24em] mb-1 ${palette.chipText}`}>Reach</p>
+            <p className={`${isMobileViewport ? 'text-xs' : 'text-sm'} font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+              {stats.reach} deg Network
+            </p>
+          </div>
+        </div>
+
+        <div
+          className={`relative z-20 rounded-full overflow-hidden border shadow-[0_0_120px_rgba(103,232,249,0.18)] transition-all duration-[1400ms] ease-out ${
+            themePulse ? 'scale-[1.03]' : ''
+          } ${introReady ? 'opacity-100 scale-100 rotate-0' : 'opacity-0 scale-75 rotate-[-8deg]'}`}
+          style={{
+            width: `${wheelSize * 0.286}px`,
+            height: `${wheelSize * 0.286}px`,
+            borderColor: palette.chipBorder,
+          }}
+        >
+          <div className={`absolute inset-0 bg-gradient-to-br ${palette.center} transition-all duration-[1200ms] ease-out`} />
+          <div className={`absolute inset-[8%] rounded-full border ${isDarkMode ? 'border-white/10' : 'border-slate-200/80'} transition-all duration-[1200ms] ease-out`} />
+          <div className={`absolute inset-[18%] rounded-full ${palette.centerGlow} blur-md transition-all duration-[1200ms] ease-out`} style={{ opacity: isDarkMode ? 1 : 0.58 }} />
+          {!isDarkMode && <div className="absolute inset-x-[24%] top-[14%] h-[18%] rounded-full bg-white/70 blur-md transition-all duration-[1200ms] ease-out" />}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <img
+              src="/te-center.png"
+              alt="TradeEthiopia emblem"
+              className="h-[78%] w-[78%] object-contain drop-shadow-[0_10px_30px_rgba(255,215,120,0.28)]"
+            />
+          </div>
+        </div>
+
+        <div
+          className={`absolute bottom-[17%] left-1/2 -translate-x-1/2 rounded-full ${isDarkMode ? 'bg-cyan-500/10' : 'bg-sky-200/45'} blur-xl transition-all duration-[1200ms] ease-out ${
+            introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
+          }`}
+          style={{ width: `${wheelSize * 0.393}px`, height: `${wheelSize * 0.046}px` }}
+        />
+
+        {nodes.slice(0, 3).map((node) => {
+          const angle = ((node.angle * 1.35 - rotation * 0.45) * Math.PI) / 180;
+          const x = Math.cos(angle) * secondaryRadius;
+          const y = Math.sin(angle) * secondaryRadius;
+
+          return (
+            <div
+              key={`secondary-${node.id}`}
+              className="absolute z-10"
+              style={{ transform: `translate(${x}px, ${y}px)` }}
+            >
+              <div
+                className={`rounded-full ${isDarkMode ? 'bg-cyan-300/80' : 'bg-white'} shadow-[0_0_16px_rgba(125,211,252,0.75)] transition-all duration-[1200ms] ease-out ${
+                  introReady ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
+                }`}
+                style={{
+                  width: isDarkMode ? '8px' : '12px',
+                  height: isDarkMode ? '8px' : '12px',
+                  boxShadow: isDarkMode
+                    ? '0 0 16px rgba(125,211,252,0.75)'
+                    : '0 0 20px rgba(255,255,255,0.95), 0 0 30px rgba(56,189,248,0.18)',
+                }}
+              />
+            </div>
+          );
+        })}
+
+        {nodes.map((node) => {
+          const angle = ((node.angle + rotation) * Math.PI) / 180;
+          const x = Math.cos(angle) * primaryRadius;
+          const y = Math.sin(angle) * primaryRadius;
+          const isActive = resolvedActive === node.id;
+          const isHovered = hovered === node.id;
+
+          return (
+            <div
+              key={node.id}
+              className="absolute z-30 group cursor-pointer"
+              style={{ transform: `translate(${x}px, ${y}px)` }}
+              onClick={() => handleSelect(node.id)}
+              onMouseEnter={() => setHovered(node.id)}
+              onMouseLeave={() => setHovered(null)}
+            >
+              <div
+                className={`absolute left-1/2 w-2 h-2 -translate-x-1/2 rounded-full animate-flow-dot transition-colors duration-[900ms] ease-out ${
+                  isDarkMode ? (isActive ? 'bg-cyan-300' : 'bg-indigo-300') : isActive ? 'bg-slate-900' : 'bg-sky-400'
+                }`}
+                style={{
+                  top: `-${primaryRadius}px`,
+                  boxShadow: isDarkMode
+                    ? isActive
+                      ? '0 0 16px rgba(34,211,238,1)'
+                      : '0 0 12px rgba(129,140,248,0.8)'
+                    : isActive
+                    ? '0 0 12px rgba(15,23,42,0.4)'
+                    : '0 0 16px rgba(56,189,248,0.28)',
+                }}
+              />
+
+              <div
+                className={`relative rounded-full font-bold transition-all duration-[900ms] ease-out border ${
+                  isActive ? palette.cardActive : palette.card
+                } ${isHovered ? 'scale-110' : ''}`}
+                style={{
+                  boxShadow: isActive ? palette.activeShadow : palette.cardShadow,
+                  backdropFilter: isDarkMode ? 'blur(0px)' : 'blur(14px)',
+                  fontSize: isMobileViewport ? '10px' : isDarkMode ? '12px' : '11px',
+                  letterSpacing: isDarkMode ? '0' : '0.08em',
+                  padding: isMobileViewport
+                    ? '0.4rem 0.72rem'
+                    : isDarkMode
+                    ? '0.5rem 1rem'
+                    : '0.42rem 0.82rem',
+                }}
+              >
+                {node.label}
+              </div>
+
+              {(isHovered || isActive) && (
+                <div className="absolute left-1/2 -translate-x-1/2 top-12 w-max max-w-[170px] z-50 pointer-events-none">
+                  <div
+                    className="px-3 py-2 rounded-xl text-center border backdrop-blur-xl"
+                    style={{
+                      background: palette.chipBg,
+                      borderColor: palette.chipBorder,
+                      boxShadow: isDarkMode
+                        ? '0 14px 30px rgba(0,0,0,0.24)'
+                        : '0 12px 26px rgba(148,163,184,0.18)',
+                    }}
+                  >
+                    <p className={`text-[11px] font-semibold ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>{node.stat}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        <div className="absolute inset-0 pointer-events-none">
+          {particles.map((particle) => (
+            <span
+              key={particle.id}
+              className={`absolute rounded-full ${palette.particle} animate-float-particle transition-all duration-[1200ms] ease-out ${
+                introReady ? 'opacity-100' : 'opacity-0'
+              }`}
+              style={{
+                width: `${particle.size}px`,
+                height: `${particle.size}px`,
+                left: `${particle.left}%`,
+                top: `${particle.top}%`,
+                animationDelay: `${particle.delay}s`,
+                animationDuration: `${particle.duration}s`,
+              }}
+            />
+          ))}
+        </div>
       </div>
 
       <style jsx>{`
+        .touch-none {
+          touch-action: none;
+        }
+
         .animate-spin-slower {
           animation: spinSlow 34s linear infinite;
         }
@@ -455,7 +717,6 @@ export default function NetworkCore({ onNodeSelect, isDarkMode = true }) {
           0%, 100% { transform: translateY(0px); opacity: 0.12; }
           50% { transform: translateY(-14px); opacity: 0.28; }
         }
-
       `}</style>
     </div>
   );

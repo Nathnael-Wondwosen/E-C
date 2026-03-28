@@ -298,6 +298,7 @@ export default function Home() {
   const [activeNode, setActiveNode] = useState('b2b');
   const [activeModal, setActiveModal] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   const heroMotionRef = useRef(null);
   const heroFrameRef = useRef(null);
 
@@ -312,6 +313,18 @@ export default function Home() {
   }, [isDarkMode]);
 
   useEffect(() => {
+    const updateViewportMode = () => {
+      setIsMobileViewport(window.innerWidth < 768);
+    };
+
+    updateViewportMode();
+    window.addEventListener('resize', updateViewportMode);
+    return () => window.removeEventListener('resize', updateViewportMode);
+  }, []);
+
+  useEffect(() => {
+    if (isMobileViewport) return undefined;
+
     const interval = setInterval(() => {
       setActiveNode((prev) => {
         const currentIndex = sectorEcosystem.findIndex((item) => item.id === prev);
@@ -321,9 +334,14 @@ export default function Home() {
     }, 2400);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [isMobileViewport]);
 
   useEffect(() => {
+    if (isMobileViewport) {
+      heroMotionRef.current?.style.setProperty('--hero-translate', 'translate3d(0, 0, 0)');
+      return undefined;
+    }
+
     const handleMouseMove = (e) => {
       const x = (e.clientX / window.innerWidth - 0.5) * 18;
       const y = (e.clientY / window.innerHeight - 0.5) * 18;
@@ -343,7 +361,7 @@ export default function Home() {
         cancelAnimationFrame(heroFrameRef.current);
       }
     };
-  }, []);
+  }, [isMobileViewport]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -816,9 +834,9 @@ export default function Home() {
           )}
         </header>
 
-        <section id="gateway" className="relative z-10 px-4 sm:px-6 pt-10 sm:pt-16 pb-20 sm:pb-28">
+        <section id="gateway" className="relative z-10 px-4 sm:px-6 pt-10 sm:pt-16 pb-12 sm:pb-28">
           <div className="max-w-7xl mx-auto">
-            <div className="flex flex-col xl:grid xl:grid-cols-2 gap-12 lg:gap-16 items-center min-h-[82vh]">
+            <div className="flex flex-col xl:grid xl:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center min-h-[auto] xl:min-h-[82vh]">
               <div className="space-y-8 reveal revealed">
                 <div className="space-y-5">
                   <span
@@ -899,15 +917,19 @@ export default function Home() {
                   transform: 'var(--hero-translate, translate3d(0, 0, 0)) translateY(var(--hero-shift, 0px))',
                 }}
               >
-<div className="w-full max-w-[620px] h-[540px]">
-  <NetworkCore isDarkMode={isDarkMode} onNodeSelect={openSectorModal} />
+<div className="w-full max-w-[620px] h-auto min-h-[320px] sm:h-[540px]">
+  <NetworkCore
+    activeNode={activeNode}
+    isDarkMode={isDarkMode}
+    onNodeSelect={openSectorModal}
+  />
 </div>
               </div>
             </div>
           </div>
         </section>
 
-        <section id="vision" ref={valueRef} className="relative z-10 px-4 sm:px-6 py-20 sm:py-24 reveal">
+        <section id="vision" ref={valueRef} className="relative z-10 px-4 sm:px-6 py-14 sm:py-24 reveal">
           <div className="max-w-7xl mx-auto">
             <SectionHeading
               isDarkMode={isDarkMode}
