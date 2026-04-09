@@ -6,6 +6,7 @@ import { getCategories, getProducts } from '../../utils/heroDataService';
 import {
   addToCart,
   addToWishlist,
+  cachePreviewProducts,
   getUserCart,
   getUserInquiryInbox,
   getUserInquirySent,
@@ -158,6 +159,10 @@ function ProductRailSection({
   loadingWishlist,
   loadingCart
 }) {
+  const railContainerRef = useRef(null);
+  const autoScrollRafRef = useRef(null);
+  const isInteractingRef = useRef(false);
+  const resumeTimerRef = useRef(null);
   const styles = sectionVariants[variant] || sectionVariants.deals;
   const isTopDiscounts = title === 'Top Discounts';
   const isNewArrivals = title === 'New Arrivals';
@@ -167,7 +172,70 @@ function ProductRailSection({
       ? 'min-w-[205px] max-w-[205px]'
       : 'min-w-[220px] max-w-[220px]';
   const sectionPaddingClass = isTopDiscounts ? 'p-1' : isNewArrivals ? 'p-3' : 'p-4';
-  const railItems = autoScroll ? [...products, ...products] : products;
+  const railItems = autoScroll ? [...products, ...products, ...products] : products;
+
+  useEffect(() => {
+    if (!autoScroll) return undefined;
+    const rail = railContainerRef.current;
+    if (!rail || !products.length) return undefined;
+
+    const recenter = () => {
+      const full = rail.scrollWidth;
+      const oneSet = full / 3;
+      if (!Number.isFinite(oneSet) || oneSet <= 0) return;
+      if (rail.scrollLeft <= 0) {
+        rail.scrollLeft += oneSet;
+      } else if (rail.scrollLeft >= oneSet * 2) {
+        rail.scrollLeft -= oneSet;
+      }
+    };
+
+    const oneSet = rail.scrollWidth / 3;
+    if (Number.isFinite(oneSet) && oneSet > 0) {
+      rail.scrollLeft = oneSet;
+    }
+
+    let previousTs = null;
+    const speedPxPerMs = isTopDiscounts ? 0.03 : 0.035;
+    const tick = (ts) => {
+      if (!rail) return;
+      if (previousTs == null) {
+        previousTs = ts;
+      }
+      const delta = ts - previousTs;
+      previousTs = ts;
+
+      if (!isInteractingRef.current) {
+        rail.scrollLeft += delta * speedPxPerMs;
+        recenter();
+      }
+      autoScrollRafRef.current = window.requestAnimationFrame(tick);
+    };
+
+    autoScrollRafRef.current = window.requestAnimationFrame(tick);
+    return () => {
+      if (autoScrollRafRef.current) {
+        window.cancelAnimationFrame(autoScrollRafRef.current);
+      }
+      if (resumeTimerRef.current) {
+        window.clearTimeout(resumeTimerRef.current);
+      }
+    };
+  }, [autoScroll, isTopDiscounts, products.length]);
+
+  const pauseAutoScroll = () => {
+    if (!autoScroll) return;
+    isInteractingRef.current = true;
+    if (resumeTimerRef.current) window.clearTimeout(resumeTimerRef.current);
+  };
+
+  const resumeAutoScrollSoon = () => {
+    if (!autoScroll) return;
+    if (resumeTimerRef.current) window.clearTimeout(resumeTimerRef.current);
+    resumeTimerRef.current = window.setTimeout(() => {
+      isInteractingRef.current = false;
+    }, 1200);
+  };
 
   return (
     <div className={`border ${sectionPaddingClass} ${styles.section}`}>
@@ -176,14 +244,28 @@ function ProductRailSection({
           <h3 className={`${isTopDiscounts ? 'text-[11px] sm:text-xs md:text-sm' : 'text-lg'} font-bold text-slate-900`}>{title}</h3>
           <p className={`${isTopDiscounts ? 'hidden sm:block' : ''} text-xs text-slate-500`}>{subtitle}</p>
         </div>
-        <Link href="/e-commerce" className={`${isTopDiscounts ? 'text-xs' : 'text-sm'} text-[#1d4ed8] font-semibold`}>View All</Link>
+        <Link href="/marketplace" className={`${isTopDiscounts ? 'text-xs' : 'text-sm'} text-[#1d4ed8] font-semibold`}>View All</Link>
       </div>
 
-      <div className={autoScroll ? 'overflow-hidden' : `flex ${isTopDiscounts ? 'gap-1.5' : 'gap-2'} overflow-x-auto pb-1 scrollbar-hide`}>
+      <div
+        ref={railContainerRef}
+        className={`flex ${isTopDiscounts ? 'gap-1.5' : 'gap-2'} overflow-x-auto pb-1 scrollbar-hide`}
+        onMouseEnter={pauseAutoScroll}
+        onMouseLeave={resumeAutoScrollSoon}
+        onWheel={() => {
+          pauseAutoScroll();
+          resumeAutoScrollSoon();
+        }}
+        onTouchStart={pauseAutoScroll}
+        onTouchEnd={resumeAutoScrollSoon}
+        onTouchCancel={resumeAutoScrollSoon}
+        onPointerDown={pauseAutoScroll}
+        onPointerUp={resumeAutoScrollSoon}
+      >
         <div
           className={
             autoScroll
-              ? `market-auto-scroll flex w-max ${isTopDiscounts ? 'gap-1.5' : 'gap-2'} pb-1 hover:[animation-play-state:paused]`
+              ? `flex w-max ${isTopDiscounts ? 'gap-1.5' : 'gap-2'} pb-1`
               : 'contents'
           }
         >
@@ -575,9 +657,15 @@ export default function Home({ initialIsLocalMarketView = false }) {
   };
 
   const getProductHref = (item) => {
-    if (!isRealProduct(item)) return marketBasePath;
-    return `/products/${encodeURIComponent(String(item.id))}`;
+    const id = String(item?.id || '').trim();
+    if (!id) return marketBasePath;
+    return `/products/${encodeURIComponent(id)}`;
   };
+
+  useEffect(() => {
+    if (!productCatalog.length) return;
+    cachePreviewProducts(productCatalog);
+  }, [productCatalog]);
 
   const handleToggleWishlist = async (item) => {
     if (!item?.id || !isRealProduct(item)) {
@@ -829,7 +917,6 @@ export default function Home({ initialIsLocalMarketView = false }) {
   }, [listingPage, totalListingPages]);
 
   useEffect(() => {
-    if (!isLocalMarketView) return undefined;
     if (typeof window === 'undefined') return undefined;
 
     const onScroll = () => {
@@ -849,7 +936,7 @@ export default function Home({ initialIsLocalMarketView = false }) {
     window.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
     return () => window.removeEventListener('scroll', onScroll);
-  }, [isLocalMarketView]);
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -900,7 +987,7 @@ export default function Home({ initialIsLocalMarketView = false }) {
 
         <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
           <div className="max-w-[1440px] mx-auto px-2 py-2 sm:px-4 sm:py-3 flex items-center gap-2 sm:gap-4">
-            <Link href="/e-commerce" className="shrink-0">
+            <Link href="/marketplace" className="shrink-0">
               <img src="/TE-logo.png" alt="TradeEthiopia" className="h-7 w-7 object-contain md:hidden" />
               <span className="hidden md:inline text-2xl font-bold text-[#0f172a]">TradeEthiopia</span>
             </Link>
@@ -978,7 +1065,7 @@ export default function Home({ initialIsLocalMarketView = false }) {
           </nav>
         </header>
 
-        {isLocalMarketView ? (
+        {
           <>
             <div
               className={`fixed inset-x-0 top-0 z-40 bg-white/95 px-3 py-2 shadow-md backdrop-blur md:hidden transition-transform duration-200 ${
@@ -990,7 +1077,7 @@ export default function Home({ initialIsLocalMarketView = false }) {
                   type="text"
                   value={listingSearchTerm}
                   onChange={(e) => setListingSearchTerm(e.target.value)}
-                  placeholder="Search local products..."
+                  placeholder={isLocalMarketView ? 'Search local products...' : 'Search marketplace products...'}
                   className="h-9 flex-1 rounded-full border border-slate-300 bg-white px-3 text-sm outline-none focus:border-blue-500"
                 />
                 <button
@@ -1150,7 +1237,7 @@ export default function Home({ initialIsLocalMarketView = false }) {
               </div>
             </div>
           </>
-        ) : null}
+        }
 
         {!isLocalMarketView && (
           <section className="max-w-[1700px] mx-auto px-2 lg:px-3 py-4">
@@ -1180,7 +1267,7 @@ export default function Home({ initialIsLocalMarketView = false }) {
                       <p className="mt-2 max-w-[24ch] text-[13px] leading-5 text-slate-200">{card.subtitle}</p>
                       <div className="mt-4 flex items-end justify-between gap-2">
                         <Link
-                          href={card.ctaLink || '/e-commerce'}
+                          href={card.ctaLink || '/marketplace'}
                           className="inline-flex items-center rounded-xl border border-cyan-300/45 bg-cyan-500/20 px-3 py-1.5 text-xs font-semibold text-cyan-100 backdrop-blur-sm"
                         >
                           Shop Now
@@ -1198,7 +1285,7 @@ export default function Home({ initialIsLocalMarketView = false }) {
                       <p className="text-xs uppercase tracking-[0.16em] text-cyan-300">Market Focus</p>
                       <h3 className="mt-2 text-2xl font-bold leading-tight">{card.title}</h3>
                       <p className="mt-2 text-sm text-slate-200">{card.subtitle}</p>
-                      <Link href={card.ctaLink || '/e-commerce'} className="mt-4 inline-block text-sm font-semibold text-cyan-300">Shop Now</Link>
+                      <Link href={card.ctaLink || '/marketplace'} className="mt-4 inline-block text-sm font-semibold text-cyan-300">Shop Now</Link>
                     </div>
                   </article>
                 ))}
@@ -1692,7 +1779,7 @@ export default function Home({ initialIsLocalMarketView = false }) {
           </div>
         </section>
 
-        {isLocalMarketView && isMobileFilterOpen ? (
+        {isMobileFilterOpen ? (
           <div className="fixed inset-0 z-50 md:hidden">
             <button
               type="button"
@@ -1806,7 +1893,7 @@ export default function Home({ initialIsLocalMarketView = false }) {
           </div>
         ) : null}
 
-        {isLocalMarketView ? (
+        {
           <nav
             className={`fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur md:hidden transition-transform duration-200 ${
               showMobileBottomNav ? 'translate-y-0' : 'translate-y-full'
@@ -1824,7 +1911,7 @@ export default function Home({ initialIsLocalMarketView = false }) {
                 </svg>
                 Filter
               </button>
-              <Link href="/localmarket" className="flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold text-slate-700">
+              <Link href={marketBasePath} className="flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold text-slate-700">
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10l9-7 9 7v10a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1V10z" />
                 </svg>
@@ -1869,7 +1956,7 @@ export default function Home({ initialIsLocalMarketView = false }) {
               </Link>
             </div>
           </nav>
-        ) : null}
+        }
 
         <style jsx global>{`
           .scrollbar-hide {
@@ -1878,17 +1965,6 @@ export default function Home({ initialIsLocalMarketView = false }) {
           }
           .scrollbar-hide::-webkit-scrollbar {
             display: none;
-          }
-          .market-auto-scroll {
-            animation: marketMarquee 36s linear infinite;
-          }
-          @keyframes marketMarquee {
-            0% {
-              transform: translateX(0);
-            }
-            100% {
-              transform: translateX(-50%);
-            }
           }
         `}</style>
       </main>

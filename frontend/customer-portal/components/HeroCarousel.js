@@ -129,7 +129,7 @@ export default function HeroCarousel({ carouselSlides = [], currentSlide, setCur
   };
 
   return (
-    <section className="relative h-[24rem] md:h-[30rem] lg:h-[34rem] overflow-hidden">
+    <section className="relative h-[30rem] md:h-[30rem] lg:h-[34rem] overflow-hidden">
       <style jsx>{`
         .hero-enter {
           opacity: 0;
@@ -162,102 +162,169 @@ export default function HeroCarousel({ carouselSlides = [], currentSlide, setCur
 
       <div className="container mx-auto px-3 md:px-4 h-full relative z-10 flex items-center">
         <div className={`w-full max-w-4xl pl-1 md:pl-3 pr-0 md:pr-12 text-white ${scopeMeta.textShadow} ${isAnimating ? 'hero-enter' : ''}`}>
-          <div className="flex flex-wrap items-center gap-2 mb-2">
-            <p className="text-[11px] md:text-xs uppercase tracking-[0.2em] text-cyan-200">Front Page Gateway</p>
-            <span className="px-2 py-0.5 text-[10px] border border-white/25 bg-white/10 uppercase tracking-wide">{scopeMeta.badge}</span>
-          </div>
-          <h2 className="text-2xl md:text-4xl lg:text-[2.6rem] font-bold leading-tight max-w-3xl">
-            {heroTitle || 'Trade Fast. Sell Global.'}
-          </h2>
-          <p className="mt-3 text-sm md:text-base text-slate-100 max-w-2xl leading-relaxed">
-            {heroSubtitle || `Built for ${scopeMeta.label} growth. Move faster with trusted trade routes.`}
-          </p>
-
-          <div className={`mt-4 flex flex-wrap items-center gap-2 ${scopeMeta.glow}`}>
-            <span className="px-2 py-1 text-[11px] bg-white/10 border border-white/20 text-cyan-100">10k+ Verified Suppliers</span>
-            <span className="px-2 py-1 text-[11px] bg-white/10 border border-white/20 text-cyan-100">120k+ Products</span>
-            <span className="px-2 py-1 text-[11px] bg-white/10 border border-white/20 text-cyan-100">{scopeMeta.label} Focus</span>
-          </div>
-
-          <div className="mt-3 inline-flex border border-white/25 bg-white/10">
-            {['local', 'africa', 'global'].map((item) => {
-              const active = activeScope === item;
-              return (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => setScope(item)}
-                  className={`h-8 px-3 text-xs uppercase tracking-wide transition-colors ${
-                    active ? 'bg-white text-slate-900 font-semibold' : 'text-slate-100 hover:bg-white/15'
-                  }`}
-                >
-                  {scopeConfig[item].label}
-                </button>
-              );
-            })}
-          </div>
-
-          <form
-            onSubmit={handleSearch}
-            className={`mt-8 border border-white/30 p-3 md:p-4 rounded-xl ${scopeMeta.glow}`}
-          >
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_170px_150px_140px] gap-2">
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search products or suppliers"
-                className="h-11 px-4 text-gray-800 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="h-11 px-3 text-gray-700 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">All Categories</option>
-                <option value="electronics">Electronics</option>
-                <option value="fashion">Fashion</option>
-                <option value="home">Home</option>
-                <option value="beauty">Beauty</option>
-                <option value="industrial">Industrial</option>
-              </select>
-
-              <select
-                value={activeScope}
-                onChange={(e) => setScope(e.target.value)}
-                className="h-11 px-3 text-gray-700 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="local">Local</option>
-                <option value="africa">Africa</option>
-                <option value="global">Global</option>
-              </select>
-
-              <button
-                type="submit"
-                className="h-11 px-5 rounded-lg bg-gradient-to-r from-blue-700 to-cyan-600 text-white font-semibold hover:from-blue-800 hover:to-cyan-700 transition-colors"
-              >
-                Find
-              </button>
+          <div className="md:hidden rounded-2xl border border-white/20 bg-slate-900/55 p-3 shadow-[0_22px_60px_rgba(15,23,42,0.35)] backdrop-blur-sm">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-cyan-200">Front Page Gateway</p>
+              <span className="px-2 py-0.5 text-[10px] border border-white/25 bg-white/10 uppercase tracking-wide">{scopeMeta.badge}</span>
             </div>
-          </form>
+            <h2 className="mt-2 text-[1.25rem] font-bold leading-tight">
+              {heroTitle || 'Trade Fast. Sell Global.'}
+            </h2>
+            <p className="mt-2 text-[12px] text-slate-100 leading-relaxed line-clamp-2">
+              {heroSubtitle || `Built for ${scopeMeta.label} growth. Move faster with trusted trade routes.`}
+            </p>
 
-          <div className="mt-5 flex flex-wrap items-center gap-3">
-            <Link href={activeSlide?.ctaLink || '/marketplace'} className="px-4 py-2 border border-cyan-200/40 text-cyan-100 hover:bg-cyan-400/20 text-sm font-semibold rounded-lg transition-colors">
-              {activeSlide?.ctaText || activeSlide?.cta || 'Start Now'}
-            </Link>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-slate-200">{scopeMeta.label}:</span>
+            <div className="mt-3 inline-flex w-full border border-white/25 bg-white/10 rounded-lg overflow-hidden">
+              {['local', 'africa', 'global'].map((item) => {
+                const active = activeScope === item;
+                return (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => setScope(item)}
+                    className={`h-8 flex-1 text-[11px] uppercase tracking-wide transition-colors ${
+                      active ? 'bg-white text-slate-900 font-semibold' : 'text-slate-100 hover:bg-white/15'
+                    }`}
+                  >
+                    {scopeConfig[item].label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <form onSubmit={handleSearch} className="mt-3">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search products or suppliers"
+                  className="h-10 flex-1 px-3 text-[13px] text-gray-800 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  type="submit"
+                  className="h-10 px-3 rounded-lg bg-gradient-to-r from-blue-700 to-cyan-600 text-white text-sm font-semibold"
+                >
+                  Find
+                </button>
+              </div>
+            </form>
+
+            <div className="mt-3 flex items-center gap-2 overflow-x-auto scrollbar-hide">
+              <Link href={activeSlide?.ctaLink || '/marketplace'} className="shrink-0 px-3 py-1.5 border border-cyan-200/40 text-cyan-100 hover:bg-cyan-400/20 text-xs font-semibold rounded-lg transition-colors">
+                {activeSlide?.ctaText || activeSlide?.cta || 'Start Now'}
+              </Link>
               {scopeMeta.quickTerms.map((term) => (
                 <button
                   key={term}
                   type="button"
                   onClick={() => runQuickSearch(term)}
-                  className="px-2.5 py-1 text-xs rounded-full border border-cyan-200/40 text-cyan-100 hover:bg-cyan-400/20 transition-colors"
+                  className="shrink-0 px-2.5 py-1.5 text-[11px] rounded-full border border-cyan-200/40 text-cyan-100 hover:bg-cyan-400/20 transition-colors"
                 >
                   {term}
                 </button>
               ))}
+            </div>
+          </div>
+
+          <div className="hidden md:block">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <p className="text-[11px] md:text-xs uppercase tracking-[0.2em] text-cyan-200">Front Page Gateway</p>
+              <span className="px-2 py-0.5 text-[10px] border border-white/25 bg-white/10 uppercase tracking-wide">{scopeMeta.badge}</span>
+            </div>
+            <h2 className="text-2xl md:text-4xl lg:text-[2.6rem] font-bold leading-tight max-w-3xl">
+              {heroTitle || 'Trade Fast. Sell Global.'}
+            </h2>
+            <p className="mt-3 text-sm md:text-base text-slate-100 max-w-2xl leading-relaxed">
+              {heroSubtitle || `Built for ${scopeMeta.label} growth. Move faster with trusted trade routes.`}
+            </p>
+
+            <div className={`mt-4 flex flex-wrap items-center gap-2 ${scopeMeta.glow}`}>
+              <span className="px-2 py-1 text-[11px] bg-white/10 border border-white/20 text-cyan-100">10k+ Verified Suppliers</span>
+              <span className="px-2 py-1 text-[11px] bg-white/10 border border-white/20 text-cyan-100">120k+ Products</span>
+              <span className="px-2 py-1 text-[11px] bg-white/10 border border-white/20 text-cyan-100">{scopeMeta.label} Focus</span>
+            </div>
+
+            <div className="mt-3 inline-flex border border-white/25 bg-white/10">
+              {['local', 'africa', 'global'].map((item) => {
+                const active = activeScope === item;
+                return (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => setScope(item)}
+                    className={`h-8 px-3 text-xs uppercase tracking-wide transition-colors ${
+                      active ? 'bg-white text-slate-900 font-semibold' : 'text-slate-100 hover:bg-white/15'
+                    }`}
+                  >
+                    {scopeConfig[item].label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <form
+              onSubmit={handleSearch}
+              className={`mt-8 border border-white/30 p-3 md:p-4 rounded-xl ${scopeMeta.glow}`}
+            >
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_170px_150px_140px] gap-2">
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search products or suppliers"
+                  className="h-11 px-4 text-gray-800 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="h-11 px-3 text-gray-700 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Categories</option>
+                  <option value="electronics">Electronics</option>
+                  <option value="fashion">Fashion</option>
+                  <option value="home">Home</option>
+                  <option value="beauty">Beauty</option>
+                  <option value="industrial">Industrial</option>
+                </select>
+
+                <select
+                  value={activeScope}
+                  onChange={(e) => setScope(e.target.value)}
+                  className="h-11 px-3 text-gray-700 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="local">Local</option>
+                  <option value="africa">Africa</option>
+                  <option value="global">Global</option>
+                </select>
+
+                <button
+                  type="submit"
+                  className="h-11 px-5 rounded-lg bg-gradient-to-r from-blue-700 to-cyan-600 text-white font-semibold hover:from-blue-800 hover:to-cyan-700 transition-colors"
+                >
+                  Find
+                </button>
+              </div>
+            </form>
+
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <Link href={activeSlide?.ctaLink || '/marketplace'} className="px-4 py-2 border border-cyan-200/40 text-cyan-100 hover:bg-cyan-400/20 text-sm font-semibold rounded-lg transition-colors">
+                {activeSlide?.ctaText || activeSlide?.cta || 'Start Now'}
+              </Link>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-slate-200">{scopeMeta.label}:</span>
+                {scopeMeta.quickTerms.map((term) => (
+                  <button
+                    key={term}
+                    type="button"
+                    onClick={() => runQuickSearch(term)}
+                    className="px-2.5 py-1 text-xs rounded-full border border-cyan-200/40 text-cyan-100 hover:bg-cyan-400/20 transition-colors"
+                  >
+                    {term}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>

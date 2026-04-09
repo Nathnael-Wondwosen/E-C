@@ -22,8 +22,8 @@ export default function MarketLandingPage({ market, products = [] }) {
             <h1 className="text-3xl md:text-4xl font-bold mt-2">{market.name}</h1>
             <p className="text-sm md:text-base text-gray-300 mt-2 max-w-3xl">{market.description}</p>
             <div className="mt-4">
-              <Link href="/e-commerce" className="text-sm text-blue-300 hover:text-blue-200">
-                Back to E-commerce Gateway
+              <Link href="/marketplace" className="text-sm text-blue-300 hover:text-blue-200">
+                Back to Marketplace
               </Link>
             </div>
           </div>

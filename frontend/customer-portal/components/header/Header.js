@@ -39,8 +39,11 @@ const protectRoute = (route) => {
   window.location.href = route;
 };
 
-export default function Header({ isMenuOpen, setIsMenuOpen, categories = [] }) {
+export default function Header({ isMenuOpen, setIsMenuOpen, categories = [], mobileSeller = null, mobileTitle = '' }) {
   const router = useRouter();
+  const [internalMenuOpen, setInternalMenuOpen] = useState(false);
+  const menuOpen = typeof isMenuOpen === 'boolean' ? isMenuOpen : internalMenuOpen;
+  const setMenuOpen = typeof setIsMenuOpen === 'function' ? setIsMenuOpen : setInternalMenuOpen;
   const isProductDetailsPage = router.pathname === '/products/[id]';
   const [isUserLoggedIn, setIsUserLoggedIn] = useState(false);
   const [userType, setUserType] = useState('buyer');
@@ -147,7 +150,13 @@ export default function Header({ isMenuOpen, setIsMenuOpen, categories = [] }) {
         getUserWishlist(userId),
         currentType === 'seller' ? getUserInquiryInbox(userId) : getUserInquirySent(userId),
       ]);
-      setCartCount(cartData.count || 0);
+      const resolvedCartCount = Number(
+        cartData?.count ??
+        cartData?.totalItems ??
+        (Array.isArray(cartData?.items) ? cartData.items.length : 0) ??
+        0
+      );
+      setCartCount(Number.isFinite(resolvedCartCount) ? resolvedCartCount : 0);
       setWishlistCount(wishlistData.items?.length || 0);
       if (currentType === 'seller') {
         setInquiryNotificationCount(computeInquiryNotificationCount(inquiryResult?.inquiries || []));
@@ -258,6 +267,11 @@ export default function Header({ isMenuOpen, setIsMenuOpen, categories = [] }) {
     }, 4200);
   }, [inquiryNotificationCount, isUserLoggedIn, router.pathname]);
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    setMenuOpen(false);
+  }, [menuOpen, router.asPath, setMenuOpen]);
+
   const sortedLinks = [...STATIC_NAVBAR_LINKS]
     .filter((link) => link.enabled)
     .sort((a, b) => a.order - b.order);
@@ -289,6 +303,14 @@ export default function Header({ isMenuOpen, setIsMenuOpen, categories = [] }) {
     window.location.href = '/login';
   };
 
+  const handleMobileBack = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.push('/marketplace');
+  };
+
   const handleCategoryOpen = () => {
     if (closeCategoryTimeoutRef.current) {
       clearTimeout(closeCategoryTimeoutRef.current);
@@ -308,6 +330,9 @@ export default function Header({ isMenuOpen, setIsMenuOpen, categories = [] }) {
     const matched = topLevelCategories.find((category) => String(category.cid) === String(activeCategoryId));
     return matched || topLevelCategories[0];
   }, [topLevelCategories, activeCategoryId]);
+
+  const hasMobileSellerSlot = mobileSeller && typeof mobileSeller === 'object';
+  const canOpenSellerShop = Boolean(hasMobileSellerSlot && mobileSeller?.id);
 
   return (
     <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur-sm">
@@ -558,31 +583,56 @@ export default function Header({ isMenuOpen, setIsMenuOpen, categories = [] }) {
         </div>
 
         <div className="md:hidden h-14 flex items-center justify-between">
-          <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 text-gray-700">
+          <button type="button" onClick={handleMobileBack} className="p-2 text-gray-700" aria-label="Go back">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
 
-          <Link href="/" className="flex items-center gap-2">
-            <Image src="/TE-logo.png" alt="TradeEthiopia Logo" width={120} height={28} priority className="h-7 w-auto" />
-            <span className="text-base font-bold text-gray-900">TradeEthiopia</span>
-          </Link>
+          {mobileTitle ? (
+            <p className="max-w-[60vw] truncate text-base font-semibold text-gray-900">{mobileTitle}</p>
+          ) : (
+            <Link href="/" className="flex items-center gap-2">
+              <Image src="/TE-logo.png" alt="TradeEthiopia Logo" width={120} height={28} priority className="h-7 w-auto" />
+              <span className="text-base font-bold text-gray-900">TradeEthiopia</span>
+            </Link>
+          )}
 
-          <button type="button" onClick={() => protectRoute('/cart')} className="p-2 text-gray-700 relative">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17" />
-            </svg>
-            {isUserLoggedIn && cartCount > 0 && (
-              <span className="absolute top-0 right-0 h-4 min-w-4 px-1 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center">
-                {cartCount}
-              </span>
-            )}
-          </button>
+          {hasMobileSellerSlot ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (!canOpenSellerShop) return;
+                router.push(`/seller/${encodeURIComponent(String(mobileSeller.id))}`);
+              }}
+              className="relative h-9 w-9 overflow-hidden rounded-full border border-slate-200 bg-slate-100"
+              aria-label={`Open ${mobileSeller?.name || 'seller'} shop`}
+              title={`Open ${mobileSeller?.name || 'seller'} shop`}
+            >
+              {mobileSeller?.imageUrl ? (
+                <img src={mobileSeller.imageUrl} alt={mobileSeller?.name || 'Seller'} className="h-full w-full object-cover" />
+              ) : (
+                <span className="inline-flex h-full w-full items-center justify-center text-xs font-semibold text-slate-700">
+                  {String(mobileSeller?.name || 'S').trim().charAt(0).toUpperCase() || 'S'}
+                </span>
+              )}
+            </button>
+          ) : (
+            <button type="button" onClick={() => protectRoute('/cart')} className="p-2 text-gray-700 relative">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17" />
+              </svg>
+              {isUserLoggedIn && cartCount > 0 && (
+                <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold flex items-center justify-center">
+                  {cartCount > 99 ? '99+' : cartCount}
+                </span>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
-      {isMenuOpen && (
+      {menuOpen && (
         <div className="md:hidden border-t border-gray-100 bg-white shadow-lg">
           <div className="px-4 py-3 space-y-2 max-h-[70vh] overflow-y-auto">
             <div>
@@ -609,11 +659,11 @@ export default function Header({ isMenuOpen, setIsMenuOpen, categories = [] }) {
             <div className="border-t border-gray-100 pt-2">
               {sortedLinks.map((link) =>
                 link.type === 'external' ? (
-                  <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer" className="block py-2 text-sm text-gray-700" onClick={() => setIsMenuOpen(false)}>
+                  <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer" className="block py-2 text-sm text-gray-700" onClick={() => setMenuOpen(false)}>
                     {link.title}
                   </a>
                 ) : (
-                  <Link key={link.id} href={resolveNavHref(link)} className="block py-2 text-sm text-gray-700" onClick={() => setIsMenuOpen(false)}>
+                  <Link key={link.id} href={resolveNavHref(link)} className="block py-2 text-sm text-gray-700" onClick={() => setMenuOpen(false)}>
                     {link.title}
                   </Link>
                 )
@@ -621,22 +671,22 @@ export default function Header({ isMenuOpen, setIsMenuOpen, categories = [] }) {
             </div>
 
             <div className="border-t border-gray-100 pt-2">
-              <Link href="/wishlist" className="block py-2 text-sm text-gray-700" onClick={() => setIsMenuOpen(false)}>Wishlist</Link>
-              <Link href="/cart" className="block py-2 text-sm text-gray-700" onClick={() => setIsMenuOpen(false)}>Cart</Link>
+              <Link href="/wishlist" className="block py-2 text-sm text-gray-700" onClick={() => setMenuOpen(false)}>Wishlist</Link>
+              <Link href="/cart" className="block py-2 text-sm text-gray-700" onClick={() => setMenuOpen(false)}>Cart</Link>
               {isUserLoggedIn ? (
-                <Link href="/inquiries" className="block py-2 text-sm text-gray-700" onClick={() => setIsMenuOpen(false)}>
+                <Link href="/inquiries" className="block py-2 text-sm text-gray-700" onClick={() => setMenuOpen(false)}>
                   Messages {inquiryNotificationCount > 0 ? `(${inquiryNotificationCount})` : ''}
                 </Link>
               ) : null}
               {isUserLoggedIn ? (
                 <>
-                  <Link href={userType === 'seller' ? '/dashboard/seller' : '/dashboard/customer'} className="block py-2 text-sm text-gray-700" onClick={() => setIsMenuOpen(false)}>Dashboard</Link>
-                  <button className="block py-2 text-sm text-red-600" onClick={() => { handleLogout(); setIsMenuOpen(false); }}>Logout</button>
+                  <Link href={userType === 'seller' ? '/dashboard/seller' : '/dashboard/customer'} className="block py-2 text-sm text-gray-700" onClick={() => setMenuOpen(false)}>Dashboard</Link>
+                  <button className="block py-2 text-sm text-red-600" onClick={() => { handleLogout(); setMenuOpen(false); }}>Logout</button>
                 </>
               ) : (
                 <>
-                  <Link href="/login" className="block py-2 text-sm text-gray-700" onClick={() => setIsMenuOpen(false)}>Sign In</Link>
-                  <Link href="/signup" className="block py-2 text-sm text-gray-700" onClick={() => setIsMenuOpen(false)}>Create Account</Link>
+                  <Link href="/login" className="block py-2 text-sm text-gray-700" onClick={() => setMenuOpen(false)}>Sign In</Link>
+                  <Link href="/signup" className="block py-2 text-sm text-gray-700" onClick={() => setMenuOpen(false)}>Create Account</Link>
                 </>
               )}
             </div>

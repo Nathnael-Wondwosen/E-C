@@ -26,6 +26,11 @@ const formatMoney = (value) => {
   return `$${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
+const formatEtbCompact = (value) => {
+  const amount = Number(value || 0);
+  return `ETB ${amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+};
+
 const toText = (value, fallback = '-') => {
   if (value === null || value === undefined) return fallback;
   const text = String(value).trim();
@@ -43,6 +48,13 @@ const getProductImage = (item) => {
   return item?.image || item?.thumbnail || '';
 };
 
+const SHOWCASE_PLACEHOLDER_IMAGES = [
+  'https://images.unsplash.com/photo-1527689368864-3a821dbccc34?auto=format&fit=crop&w=1200&q=80',
+  'https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&w=1200&q=80',
+  'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80',
+  'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80',
+];
+
 export default function ProductDetails() {
   const router = useRouter();
   const { id } = router.query;
@@ -53,8 +65,12 @@ export default function ProductDetails() {
   const [wishlistItems, setWishlistItems] = useState([]);
   const [actionLoading, setActionLoading] = useState({ cart: false, wishlist: false });
   const [message, setMessage] = useState('');
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('specs');
   const [isImagePreviewOpen, setIsImagePreviewOpen] = useState(false);
+  const [isMobileMessageOpen, setIsMobileMessageOpen] = useState(false);
+  const [isMobileInquiryOpen, setIsMobileInquiryOpen] = useState(false);
+  const [inquiryImageUrl, setInquiryImageUrl] = useState('');
+  const [quickInquiryText, setQuickInquiryText] = useState('');
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [isRelatedLoading, setIsRelatedLoading] = useState(false);
   const [supplierProfile, setSupplierProfile] = useState(null);
@@ -188,9 +204,18 @@ export default function ProductDetails() {
 
   const galleryImages = useMemo(() => {
     if (!product) return [];
-    if (Array.isArray(product.images) && product.images.length > 0) return product.images;
-    if (product.image) return [product.image];
-    return [];
+    const sourceImages = Array.isArray(product.images) && product.images.length > 0
+      ? product.images
+      : (product.image ? [product.image] : []);
+
+    const normalized = sourceImages
+      .map((item) => String(item || '').trim())
+      .filter(Boolean);
+
+    if (normalized.length >= 3) return normalized;
+
+    const filler = SHOWCASE_PLACEHOLDER_IMAGES.filter((url) => !normalized.includes(url));
+    return [...normalized, ...filler].slice(0, 5);
   }, [product]);
 
   const selectedImage = galleryImages[selectedImageIndex] || '';
@@ -231,6 +256,15 @@ export default function ProductDetails() {
   const supplierWebsite = toText(supplierProfile?.website, '');
   const supplierPhone = toText(supplierProfile?.phone, '');
   const supplierContactEmail = toText(supplierProfile?.contactEmail, '');
+  const supplierAvatar = toText(
+    supplierProfile?.avatar ||
+      supplierProfile?.image ||
+      supplierProfile?.imageUrl ||
+      supplierProfile?.profileImage ||
+      product?.supplierImage ||
+      product?.sellerImage,
+    ''
+  );
   const supplierLocationAddress = toText(
     supplierProfile?.locationAddress || supplierProfile?.address || product?.locationAddress || '',
     ''
@@ -459,36 +493,90 @@ export default function ProductDetails() {
     setMessage(isWishlisted ? 'Removed from wishlist.' : 'Added to wishlist.');
   };
 
-  const handleInquirySubmit = async (e) => {
+  const handleInquirySubmit = async (e, overrideMessage = '') => {
     if (e?.preventDefault) e.preventDefault();
     const userId = ensureLoggedInUser();
     if (!userId) {
       const quantity = inquiryQuantity;
-      const base = inquiry.message.trim() || `I am interested in ${product?.name}.`;
+      const base = String(overrideMessage || inquiry.message || '').trim() || `I am interested in ${product?.name}.`;
       const text = `${base}\n\nRequested Quantity: ${quantity}\nProduct ID: ${product?.id}`;
       const encoded = encodeURIComponent(text);
       router.push(`/login?next=${encodeURIComponent(router.asPath)}&inquiry=${encoded}`);
-      return;
+      return false;
     }
 
     if (!resolvedSupplierContactId) {
       setMessage('Supplier contact is not configured for this product yet.');
-      return;
+      return false;
     }
 
     const result = await submitProductInquiry({
       productId: product?.id,
       supplierId: resolvedSupplierContactId,
       quantity: inquiryQuantity,
-      message: inquiry.message.trim() || `I am interested in ${product?.name}.`
+      message: String(overrideMessage || inquiry.message || '').trim() || `I am interested in ${product?.name}.`
     });
     if (!result?.success) {
       setMessage(result?.message || 'Failed to send inquiry.');
-      return;
+      return false;
     }
 
     setMessage('Inquiry sent to this product owner successfully.');
     setInquiry((prev) => ({ ...prev, message: '' }));
+    return true;
+  };
+
+  const handleRequestCallBack = async () => {
+    const userId = ensureLoggedInUser();
+    if (!userId) return;
+    if (!resolvedSupplierContactId) {
+      setMessage('Seller contact is not available yet for callback request.');
+      return;
+    }
+
+    const callbackMessage = `Please call me back regarding ${product?.name}.`;
+    const result = await submitProductInquiry({
+      productId: product?.id,
+      supplierId: resolvedSupplierContactId,
+      quantity: inquiryQuantity,
+      message: callbackMessage,
+    });
+
+    if (!result?.success) {
+      setMessage(result?.message || 'Failed to request callback.');
+      return;
+    }
+
+    setMessage('Callback request sent to seller.');
+  };
+
+  const handleShareProduct = async () => {
+    const shareUrl = typeof window !== 'undefined' ? window.location.href : `/products/${encodeURIComponent(String(product?.id || ''))}`;
+    const shareTitle = toText(product?.name, 'Product');
+    const shareText = `Check this product: ${shareTitle}`;
+
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: shareTitle, text: shareText, url: shareUrl });
+        return;
+      } catch (_error) {
+        // User cancelled or share failed; fallback below.
+      }
+    }
+
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        setMessage('Product link copied. Share it anywhere.');
+        return;
+      } catch (_error) {
+        // fallback to manual prompt below
+      }
+    }
+
+    if (typeof window !== 'undefined') {
+      window.prompt('Copy product link', shareUrl);
+    }
   };
 
   const handleReviewSubmit = async (event) => {
@@ -553,7 +641,10 @@ export default function ProductDetails() {
   if (loading) {
     return (
       <div className="portal-page min-h-screen">
-        <Header />
+        <Header
+          mobileTitle={productCategory}
+          mobileSeller={{ id: '', name: supplierName, imageUrl: supplierAvatar }}
+        />
         <main className="mx-auto w-full max-w-[1360px] px-2.5 py-3 sm:px-5 lg:py-6">
           <div className="mb-3 h-10 animate-pulse rounded-[0.9rem] border border-slate-200 bg-white sm:mb-4 sm:h-12" />
           <section className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-[1.12fr_1.04fr_0.84fr]">
@@ -591,7 +682,7 @@ export default function ProductDetails() {
   if (!product) {
     return (
       <div className="portal-page min-h-screen">
-        <Header />
+        <Header mobileTitle="Product" mobileSeller={{ id: '', name: 'Seller', imageUrl: '' }} />
         <main className="mx-auto max-w-4xl px-4 py-12">
           <div className="portal-card p-8 text-center">
             <h1 className="text-xl font-semibold text-slate-900">Product not found</h1>
@@ -612,10 +703,17 @@ export default function ProductDetails() {
         <meta name="description" content={product.description || `${product.name} product detail`} />
       </Head>
 
-      <Header />
+      <Header
+        mobileSeller={{
+          id: resolvedSupplierContactId || supplierOwnerUserId,
+          name: supplierName,
+          imageUrl: supplierAvatar,
+        }}
+        mobileTitle={productCategory}
+      />
 
       <main className="mx-auto w-full max-w-[1360px] px-2.5 py-3 pb-24 sm:px-5 lg:py-6 lg:pb-6">
-        <div className="mb-3 rounded-[0.9rem] border border-[var(--portal-border)] bg-[var(--portal-surface)] px-3 py-2.5 text-[10px] text-slate-500 shadow-[0_10px_24px_rgba(15,23,32,0.04)] sm:mb-4 sm:rounded-[1rem] sm:px-4 sm:py-3 sm:text-xs">
+        <div className="mb-3 hidden rounded-[0.9rem] border border-[var(--portal-border)] bg-[var(--portal-surface)] px-3 py-2.5 text-[10px] text-slate-500 shadow-[0_10px_24px_rgba(15,23,32,0.04)] sm:mb-4 sm:block sm:rounded-[1rem] sm:px-4 sm:py-3 sm:text-xs">
           <Link href="/dashboard/customer" className="hover:text-[var(--portal-accent)]">Dashboard</Link> /{' '}
           <Link href="/marketplace" className="hover:text-[var(--portal-accent)]">Marketplace</Link> /{' '}
           <span className="text-slate-700">{productCategory}</span> /{' '}
@@ -653,41 +751,18 @@ export default function ProductDetails() {
                 onTouchStart={handleImageTouchStart}
                 onTouchEnd={handleImageTouchEnd}
               >
-                <div className="absolute left-3 top-3 z-20 flex items-center gap-2 md:hidden">
-                  <button
-                    type="button"
-                    onClick={() => router.back()}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow backdrop-blur sm:h-9 sm:w-9"
-                    aria-label="Go back"
-                  >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                  </button>
-                </div>
-
-                <div className="absolute right-3 top-3 z-20 flex items-center gap-2">
+                <div className="absolute bottom-3 right-3 z-20">
                   <button
                     type="button"
                     onClick={handleToggleWishlist}
                     disabled={actionLoading.wishlist}
-                    className={`inline-flex h-8 w-8 items-center justify-center rounded-full shadow backdrop-blur sm:h-9 sm:w-9 ${
+                    className={`inline-flex h-7 w-7 items-center justify-center rounded-full shadow backdrop-blur transition hover:scale-105 active:scale-95 sm:h-8 sm:w-8 ${
                       isWishlisted ? 'bg-rose-100 text-rose-600' : 'bg-white/90 text-slate-700'
                     }`}
-                    aria-label="Toggle wishlist"
+                    aria-label={isWishlisted ? 'Remove from favorites' : 'Add to favorites'}
                   >
-                    <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                    </svg>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsImagePreviewOpen(true)}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow backdrop-blur sm:h-9 sm:w-9"
-                    aria-label="Open image preview"
-                  >
-                    <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 3h6m0 0v6m0-6l-7 7M9 21H3m0 0v-6m0 6l7-7" />
                     </svg>
                   </button>
                 </div>
@@ -699,7 +774,7 @@ export default function ProductDetails() {
                       src={selectedImage}
                       alt={product.name}
                       loading="lazy"
-                      className="h-[290px] w-full cursor-zoom-in object-contain transition duration-300 sm:h-[420px] md:h-[430px] hover:scale-[1.03] animate-[productFadeIn_280ms_ease]"
+                      className="h-[290px] w-full cursor-zoom-in object-cover transition duration-300 sm:h-[420px] md:h-[430px] md:object-contain hover:scale-[1.03] animate-[productFadeIn_280ms_ease]"
                       onClick={() => setIsImagePreviewOpen(true)}
                     />
                     {canBrowseGallery && (
@@ -758,20 +833,66 @@ export default function ProductDetails() {
           </div>
 
           <div className="portal-card p-3.5 sm:p-5">
-            <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+            <div className="-mx-3.5 rounded-none bg-[linear-gradient(135deg,#ffffff,#fdf4ff)] px-3.5 py-3.5 lg:mx-0 lg:hidden lg:rounded-xl lg:p-3.5">
+              <p className="text-[13px] font-medium tracking-[0.01em] text-slate-600">{supplierLocationAddress || supplierCountry}</p>
+              <h1 className="mt-1.5 text-[18px] font-semibold leading-snug tracking-[-0.01em] text-slate-900">{product.name}</h1>
+              <div className="mt-2 flex items-end justify-between gap-2">
+                <p className="text-[24px] font-medium leading-none tracking-[-0.01em] text-[#C026D3]">
+                  {formatEtbCompact(unitPrice)}
+                </p>
+                <div className="flex flex-col items-end gap-0.5">
+                  <span className="text-[13px] leading-none text-amber-500">
+                    {'★★★★★'.slice(0, Math.max(1, Math.min(5, Math.round(effectiveAverageRating))))}
+                  </span>
+                  <span className="text-[12px] text-slate-500">
+                    {effectiveAverageRating.toFixed(1)} ({effectiveReviewCount})
+                  </span>
+                </div>
+              </div>
+              {listingDiscountPercent > 0 ? (
+                <p className="mt-1 text-[13px] font-normal text-slate-500">
+                  <span className="line-through">{formatEtbCompact(baseUnitPrice)}</span>{' '}
+                  <span className="font-medium text-[#C026D3]">{listingDiscountPercent}% OFF</span>
+                </p>
+              ) : null}
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={handleRequestCallBack}
+                  disabled={!resolvedSupplierContactId}
+                  className="rounded-lg border border-[#F5D0FE] bg-white px-2.5 py-2 text-[12px] font-medium text-[#C026D3] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Request Call
+                </button>
+                <a
+                  href={supplierPhone ? `tel:${supplierPhone}` : '#'}
+                  onClick={(event) => {
+                    if (!supplierPhone) {
+                      event.preventDefault();
+                      setMessage('Seller phone is unverified.');
+                    }
+                  }}
+                  className="rounded-lg border border-[#C026D3] bg-[#C026D3] px-2.5 py-2 text-center text-[12px] font-medium text-white"
+                >
+                  Call
+                </a>
+              </div>
+            </div>
+
+            <div className="mb-2 hidden flex-wrap items-center gap-2 text-xs lg:flex">
               <span className="rounded-full bg-[#FDF4FF] px-2.5 py-1 font-semibold text-[#C026D3]">Verified Supplier</span>
               <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-700">{productCategory}</span>
               <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">{stock > 0 ? 'Ready Stock' : 'Build to Order'}</span>
             </div>
 
-            <h1 className="text-[18px] font-bold leading-snug text-slate-900 sm:text-[24px]">{product.name}</h1>
-            <p className="mt-1 text-xs text-slate-500 sm:text-sm">Model No.: {modelNo}</p>
-            <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+            <h1 className="hidden text-[18px] font-bold leading-snug text-slate-900 sm:text-[24px] lg:block">{product.name}</h1>
+            <p className="mt-1 hidden text-xs text-slate-500 sm:text-sm lg:block">Model No.: {modelNo}</p>
+            <div className="mt-2 hidden items-center gap-2 text-xs text-slate-500 lg:flex">
               <span>Rating {effectiveAverageRating.toFixed(1)} / 5.0</span>
               <span>{effectiveReviewCount}+ Reviews</span>
             </div>
 
-            <div className="mt-4 rounded-[1rem] border border-[#F5D0FE] bg-[linear-gradient(135deg,#FFFFFF,#FDF4FF,#FFF7ED)] p-3.5">
+            <div className="mt-4 hidden rounded-[1rem] border border-[#F5D0FE] bg-[linear-gradient(135deg,#FFFFFF,#FDF4FF,#FFF7ED)] p-3.5 lg:block">
               <p className="text-xs text-slate-600">Reference FOB Price (Port: {dispatchPort})</p>
               <div className="flex flex-wrap items-end gap-2">
                 <p className="text-[1.75rem] font-black tracking-tight text-[#C026D3] sm:text-3xl">{formatMoney(unitPrice)}</p>
@@ -787,7 +908,7 @@ export default function ProductDetails() {
               <p className="mt-1 text-xs text-slate-600">Min. Order: <span className="font-semibold">{moq} Unit(s)</span></p>
             </div>
 
-            <div className="mt-4 overflow-hidden rounded border border-[#dfe3e8]">
+            <div className="mt-4 hidden overflow-hidden rounded border border-[#dfe3e8] lg:block">
               <table className="min-w-full text-sm">
                 <thead className="bg-[#f7f9fc] text-xs text-slate-500">
                   <tr>
@@ -813,7 +934,7 @@ export default function ProductDetails() {
               </table>
             </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+            <div className="mt-4 hidden grid-cols-1 gap-2 text-sm sm:grid-cols-2 lg:grid">
               <div className="rounded border border-[#dfe3e8] bg-slate-50 px-3 py-2">
                 <p className="text-xs text-slate-500">Lead Time</p>
                 <p className="font-semibold text-slate-800">{leadTime}</p>
@@ -836,7 +957,88 @@ export default function ProductDetails() {
               </ul>
             </div>
 
-            <div className="mt-5 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+            <div className="mt-4 lg:hidden">
+              <div className="scrollbar-hide flex gap-2 overflow-x-auto border-b border-[#dfe3e8] pb-2">
+                {[
+                  ['specs', 'Specs'],
+                  ['overview', 'Desc'],
+                  ['trade', 'Trade'],
+                  ['reviews', 'Comments']
+                ].map(([key, label]) => (
+                  <button
+                    key={`mobile-${key}`}
+                    type="button"
+                    onClick={() => setActiveTab(key)}
+                    className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                      activeTab === key ? 'border-[#D946EF] bg-[#FDF4FF] text-[#C026D3]' : 'border-slate-300 bg-white text-slate-700'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-3 rounded-xl border border-[#e5e7eb] bg-white p-3 text-sm text-slate-700">
+                {activeTab === 'overview' ? (
+                  <p>{toText(product.description, 'Detailed commercial description will be provided by supplier upon inquiry.')}</p>
+                ) : null}
+
+                {activeTab === 'specs' ? (
+                  <div className="space-y-2">
+                    {specificationRows.slice(0, 8).map(([label, value]) => (
+                      <div key={`mobile-spec-${label}`} className="flex items-start justify-between gap-2 border-b border-slate-100 pb-1.5 last:border-b-0">
+                        <p className="text-xs font-semibold text-slate-600">{label}</p>
+                        <p className="text-xs text-right text-slate-800">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {activeTab === 'trade' ? (
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="rounded border border-[#dfe3e8] bg-slate-50 px-2.5 py-2">
+                      <p className="text-slate-500">MOQ</p>
+                      <p className="font-semibold text-slate-800">{moq} Unit(s)</p>
+                    </div>
+                    <div className="rounded border border-[#dfe3e8] bg-slate-50 px-2.5 py-2">
+                      <p className="text-slate-500">Lead Time</p>
+                      <p className="font-semibold text-slate-800">{leadTime}</p>
+                    </div>
+                    <div className="rounded border border-[#dfe3e8] bg-slate-50 px-2.5 py-2">
+                      <p className="text-slate-500">Payment</p>
+                      <p className="font-semibold text-slate-800">{paymentTerms}</p>
+                    </div>
+                    <div className="rounded border border-[#dfe3e8] bg-slate-50 px-2.5 py-2">
+                      <p className="text-slate-500">Supply</p>
+                      <p className="font-semibold text-slate-800">{supplyAbility}</p>
+                    </div>
+                  </div>
+                ) : null}
+
+                {activeTab === 'reviews' ? (
+                  <div className="space-y-2">
+                    <div className="rounded border border-[#dfe3e8] bg-slate-50 px-3 py-2.5">
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Rating Summary</p>
+                      <p className="mt-1 text-base font-semibold text-slate-900">{effectiveAverageRating.toFixed(1)} / 5.0</p>
+                      <p className="text-xs text-slate-600">{effectiveReviewCount} review(s)</p>
+                    </div>
+                    {reviews.slice(0, 2).map((item) => (
+                      <div key={`mobile-review-${item.id || item.createdAt}`} className="rounded border border-[#e5e7eb] bg-white p-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-semibold text-slate-900">{item.userName || 'Buyer'}</p>
+                          <p className="text-[11px] text-slate-500">{formatDateTime(item.createdAt)}</p>
+                        </div>
+                        <p className="mt-1 text-[11px] font-semibold text-amber-600">Rating: {Number(item.rating || 0)} / 5</p>
+                        <p className="mt-1 text-xs leading-5 text-slate-700">{item.comment || '-'}</p>
+                      </div>
+                    ))}
+                    {reviews.length === 0 ? <p className="text-xs text-slate-500">No comments yet.</p> : null}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="mt-5 hidden lg:flex lg:flex-wrap lg:gap-2">
               <button
                 onClick={handleAddToCart}
                 disabled={actionLoading.cart}
@@ -865,6 +1067,65 @@ export default function ProductDetails() {
           </div>
 
           <aside className="portal-card h-fit p-3.5 sm:p-5 lg:sticky lg:top-20">
+            <div className="space-y-3 lg:hidden">
+              <div className="rounded-xl border border-[#dfe3e8] bg-slate-50 px-3 py-2.5">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Seller Contact</p>
+                <p className="mt-1 text-base font-bold text-slate-900">{supplierName}</p>
+                <p className="text-xs text-slate-600">{supplierCountry}</p>
+                {supplierPhone ? (
+                  <a href={`tel:${supplierPhone}`} className="mt-2 inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700">
+                    Call: {supplierPhone}
+                  </a>
+                ) : (
+                  <p className="mt-2 text-xs text-slate-500">Phone: Unverified</p>
+                )}
+                {supplierContactEmail ? <p className="mt-1 text-xs text-slate-700">Email: <span className="font-semibold">{supplierContactEmail}</span></p> : null}
+              </div>
+
+              {(supplierLocationAddress || supplierCountry !== 'Location not specified' || supplierMapHref) ? (
+                <div className="rounded-xl border border-[#dfe3e8] bg-white p-3 text-xs text-slate-700">
+                  <p className="font-semibold text-slate-800">Seller Location</p>
+                  <p className="mt-1">{supplierLocationAddress || supplierCountry}</p>
+                  {supplierMapHref ? (
+                    <a
+                      href={supplierMapHref}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-2 inline-block font-semibold text-[#C026D3] hover:text-[#DB2777]"
+                    >
+                      Open in Google Maps
+                    </a>
+                  ) : null}
+                  {supplierMapEmbedUrl ? (
+                    <div className="mt-2 overflow-hidden rounded border border-[#e5e7eb] bg-white">
+                      <iframe
+                        title="Seller location map"
+                        src={supplierMapEmbedUrl}
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                        className="h-40 w-full border-0"
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <div className="rounded-xl border border-[#dfe3e8] bg-white p-3">
+                <p className="text-xs text-slate-600">
+                  Need details, pricing, or availability updates? Message the seller directly.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileMessageOpen(true)}
+                  disabled={!resolvedSupplierContactId}
+                  className="mt-2.5 w-full rounded bg-[linear-gradient(135deg,#D946EF,#FB7185_52%,#FB923C)] px-4 py-2 text-sm font-semibold text-white transition-transform hover:brightness-105 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {resolvedSupplierContactId ? 'Message Seller' : 'Seller Contact Unavailable'}
+                </button>
+              </div>
+            </div>
+
+            <div className="hidden lg:block">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Supplier Profile</h2>
             <p className="mt-2 text-lg font-bold text-slate-900">{supplierName}</p>
             <p className="text-sm text-slate-600">{supplierYears} experience | {supplierCountry}</p>
@@ -999,14 +1260,15 @@ export default function ProductDetails() {
                 Back to Marketplace
               </button>
             </form>
+            </div>
           </aside>
         </section>
 
-        <section className="portal-card mt-5 overflow-hidden">
+        <section className="portal-card mt-5 hidden overflow-hidden lg:block">
           <div className="scrollbar-hide flex flex-nowrap overflow-x-auto border-b border-[#dfe3e8] bg-slate-50/70">
             {[
-              ['overview', 'Product Description'],
               ['specs', 'Technical Specifications'],
+              ['overview', 'Product Description'],
               ['trade', 'Trade Information'],
               ['supplier', 'Supplier Details'],
               ['reviews', 'Customer Reviews']
@@ -1227,28 +1489,233 @@ export default function ProductDetails() {
       </main>
 
       <div
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-3 py-2 backdrop-blur lg:hidden"
-        style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden"
+        style={{ paddingBottom: 'max(0px, env(safe-area-inset-bottom))' }}
       >
-        <div className="mx-auto grid max-w-[1360px] grid-cols-2 gap-2">
+        <div className="mx-auto grid max-w-md grid-cols-5">
           <button
             type="button"
-            onClick={handleInquirySubmit}
+            onClick={() => setIsMobileMessageOpen(true)}
             disabled={!resolvedSupplierContactId}
-            className="rounded-lg border border-[#F5D0FE] bg-white px-2.5 py-2.5 text-xs font-semibold text-[#C026D3] transition-transform hover:bg-[#FDF4FF] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+            className="relative flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Inquiry
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M5 17h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            Message
           </button>
           <button
             type="button"
             onClick={handleAddToCart}
             disabled={actionLoading.cart}
-            className="rounded-lg bg-[linear-gradient(135deg,#D946EF,#FB7185_52%,#FB923C)] px-2.5 py-2.5 text-xs font-semibold text-white transition-transform hover:brightness-105 active:scale-[0.98] disabled:opacity-60"
+            className="relative flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold text-slate-700 disabled:opacity-60"
           >
-            {actionLoading.cart ? 'Adding...' : 'Add to Cart'}
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17" />
+            </svg>
+            {actionLoading.cart ? 'Adding' : 'Cart'}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!supplierPhone) {
+                setMessage('Seller phone is unverified.');
+                return;
+              }
+              window.location.href = `tel:${supplierPhone}`;
+            }}
+            className="relative flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold text-slate-700"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h2.28a2 2 0 011.9 1.37l.97 2.91a2 2 0 01-.45 2.06l-1.26 1.27a16 16 0 006.59 6.59l1.27-1.26a2 2 0 012.06-.45l2.91.97A2 2 0 0121 16.72V19a2 2 0 01-2 2h-1C9.16 21 3 14.84 3 7V5z" />
+            </svg>
+            Call
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsMobileInquiryOpen(true)}
+            disabled={!resolvedSupplierContactId}
+            className="relative flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 8h10M7 12h7m-9 8h14a2 2 0 002-2V8a2 2 0 00-2-2h-2l-2-2H9L7 6H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            Inquiry
+          </button>
+          <button
+            type="button"
+            onClick={handleShareProduct}
+            className="relative flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold text-slate-700"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342 15.316 17m-.632-10.342-6 3.316m10.816 8.026a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0ZM9 12a2.25 2.25 0 1 1-4.5 0A2.25 2.25 0 0 1 9 12Zm10.5-6a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
+            </svg>
+            Share
           </button>
         </div>
       </div>
+
+      {isMobileMessageOpen ? (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button
+            type="button"
+            aria-label="Close message composer"
+            onClick={() => setIsMobileMessageOpen(false)}
+            className="absolute inset-0 bg-[#0f172a]/45"
+          />
+          <div className="absolute inset-x-0 bottom-0 max-h-[82vh] overflow-y-auto rounded-t-2xl bg-white p-4 shadow-2xl">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-bold uppercase tracking-[0.08em] text-slate-800">Message Seller</h3>
+              <button
+                type="button"
+                onClick={() => setIsMobileMessageOpen(false)}
+                className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+              <p className="font-semibold text-slate-800">{supplierName}</p>
+              <p className="mt-0.5 text-slate-600">{supplierCountry}</p>
+            </div>
+
+            <form
+              onSubmit={async (event) => {
+                const normalizedImage = String(inquiryImageUrl || '').trim();
+                const mergedMessage = normalizedImage
+                  ? `${String(inquiry.message || '').trim() || `I am interested in ${product?.name}.`}\n\nImage reference: ${normalizedImage}`
+                  : inquiry.message;
+                const ok = await handleInquirySubmit(event, mergedMessage);
+                if (ok) setIsMobileMessageOpen(false);
+              }}
+              className="space-y-3"
+            >
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-600">Quantity (Units)</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={inquiry.quantity}
+                  onChange={(e) => setInquiry((prev) => ({ ...prev, quantity: e.target.value }))}
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                  placeholder={`Min ${moq}`}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-600">Message</label>
+                <textarea
+                  rows={4}
+                  value={inquiry.message}
+                  onChange={(e) => setInquiry((prev) => ({ ...prev, message: e.target.value }))}
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                  placeholder="Write your message to the seller..."
+                />
+              </div>
+              <div className="rounded-md border border-[#F5D0FE] bg-[#FDF4FF] px-3 py-2.5">
+                <p className="text-xs font-semibold text-[#C026D3]">Send a photo reference (optional)</p>
+                <p className="mt-0.5 text-[11px] text-slate-600">Paste an image link so the seller understands your exact requirement faster.</p>
+                <input
+                  type="url"
+                  value={inquiryImageUrl}
+                  onChange={(e) => setInquiryImageUrl(e.target.value)}
+                  className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                  placeholder="https://example.com/product-image.jpg"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={!resolvedSupplierContactId}
+                className="w-full rounded bg-[linear-gradient(135deg,#D946EF,#FB7185_52%,#FB923C)] px-4 py-2.5 text-sm font-semibold text-white transition-transform hover:brightness-105 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {resolvedSupplierContactId ? 'Send Message' : 'Seller Contact Unavailable'}
+              </button>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {isMobileInquiryOpen ? (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button
+            type="button"
+            aria-label="Close inquiry composer"
+            onClick={() => setIsMobileInquiryOpen(false)}
+            className="absolute inset-0 bg-[#0f172a]/45"
+          />
+          <div className="absolute inset-x-0 bottom-0 max-h-[78vh] overflow-y-auto rounded-t-2xl bg-white p-4 shadow-2xl">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-bold uppercase tracking-[0.08em] text-slate-800">Quick Inquiry</h3>
+              <button
+                type="button"
+                onClick={() => setIsMobileInquiryOpen(false)}
+                className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+              <p className="font-semibold text-slate-800">{supplierName}</p>
+              <p className="mt-0.5 text-slate-600">{supplierCountry}</p>
+            </div>
+
+            <div className="mb-3 flex flex-wrap gap-2">
+              {['Is it available?', 'Last price please', 'Can you call me back?', 'Send full specification'].map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setQuickInquiryText((prev) => (prev ? `${prev} ${preset}` : preset))}
+                  className="rounded-full border border-[#F5D0FE] bg-[#FDF4FF] px-3 py-1.5 text-xs font-medium text-[#C026D3]"
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+
+            <form
+              onSubmit={async (event) => {
+                const mergedMessage = String(quickInquiryText || '').trim() || `I am interested in ${product?.name}.`;
+                const ok = await handleInquirySubmit(event, mergedMessage);
+                if (ok) {
+                  setQuickInquiryText('');
+                  setIsMobileInquiryOpen(false);
+                }
+              }}
+              className="space-y-3"
+            >
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-600">Quantity (Units)</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={inquiry.quantity}
+                  onChange={(e) => setInquiry((prev) => ({ ...prev, quantity: e.target.value }))}
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                  placeholder={`Min ${moq}`}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-600">Inquiry</label>
+                <textarea
+                  rows={3}
+                  value={quickInquiryText}
+                  onChange={(e) => setQuickInquiryText(e.target.value)}
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                  placeholder="Write your inquiry..."
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={!resolvedSupplierContactId}
+                className="w-full rounded bg-[linear-gradient(135deg,#D946EF,#FB7185_52%,#FB923C)] px-4 py-2.5 text-sm font-semibold text-white transition-transform hover:brightness-105 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {resolvedSupplierContactId ? 'Send Inquiry' : 'Seller Contact Unavailable'}
+              </button>
+            </form>
+          </div>
+        </div>
+      ) : null}
 
       {isImagePreviewOpen && selectedImage && (
         <div

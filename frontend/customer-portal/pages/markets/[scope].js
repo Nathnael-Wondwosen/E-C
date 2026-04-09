@@ -26,7 +26,7 @@ export default function MarketScopePage() {
   useEffect(() => {
     if (!scope) return;
     if (!market) {
-      router.replace('/e-commerce');
+      router.replace('/marketplace');
       return;
     }
 

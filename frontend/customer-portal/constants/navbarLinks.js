@@ -1,6 +1,6 @@
 export const STATIC_NAVBAR_LINKS = [
   { id: 'home', title: 'Home', url: '/', type: 'internal', enabled: true, order: 1 },
-  { id: 'ecosystem', title: 'E-Commerce', url: '/e-commerce', type: 'internal', enabled: true, order: 2 },
+  { id: 'ecosystem', title: 'Marketplace', url: '/marketplace', type: 'internal', enabled: true, order: 2 },
   { id: 'products', title: 'Products', url: '/products', type: 'internal', enabled: true, order: 3 },
   { id: 'local-market', title: 'Local Market', url: '/localmarket', type: 'internal', enabled: true, order: 4 },
   { id: 'best-sellers', title: 'Best Sellers', url: '/best-sellers', type: 'internal', enabled: true, order: 5 },

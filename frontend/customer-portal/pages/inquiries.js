@@ -123,6 +123,7 @@ export default function InquiryCenterPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
   const [refreshError, setRefreshError] = useState('');
+  const [isMobileThreadOpen, setIsMobileThreadOpen] = useState(false);
   const chatScrollRef = useRef(null);
 
   const loadInquiries = useCallback(
@@ -446,6 +447,10 @@ export default function InquiryCenterPage() {
   );
   const accountHome = userType === 'seller' ? '/dashboard/seller' : '/dashboard/customer';
   const handleGoBack = () => {
+    if (isMobileThreadOpen) {
+      setIsMobileThreadOpen(false);
+      return;
+    }
     if (typeof window !== 'undefined' && window.history.length > 1) {
       router.back();
       return;
@@ -552,7 +557,7 @@ export default function InquiryCenterPage() {
           </section>
         ) : (
           <section className="grid h-full min-h-0 overflow-hidden rounded-none border border-[#BFD0DB] bg-[#DDE6EC] shadow-[0_10px_32px_rgba(15,23,42,0.12)] grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
-            <aside className="flex min-h-0 flex-col border-r border-[#BFD0DB] bg-[#F6F8FA]">
+            <aside className={`min-h-0 flex-col border-r border-[#BFD0DB] bg-[#F6F8FA] ${isMobileThreadOpen ? 'hidden lg:flex' : 'flex'}`}>
               <div className="border-b border-[#CAD6DF] px-3 py-1.5 sm:px-4 sm:py-2">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
@@ -641,31 +646,24 @@ export default function InquiryCenterPage() {
                       onClick={() => {
                         setActiveContactKey(thread.contactKey || '');
                         setActiveInquiryId(threadId);
+                        setIsMobileThreadOpen(true);
                       }}
                       className={`w-full border-b border-[#D4DEE6] px-2 py-1.5 text-left transition sm:px-2.5 sm:py-2 ${
-                        isActive ? 'bg-[#DDEBDD]' : 'bg-transparent hover:bg-[#EDF3F7]'
+                        isActive ? 'bg-[#E7F6ED]' : 'bg-white hover:bg-[#F4F8FB]'
                       }`}
                     >
-                      <div className="flex gap-2">
-                        {productImage ? (
-                          <img
-                            src={productImage}
-                            alt={thread?.productName || 'Product'}
-                            className="h-9 w-9 shrink-0 rounded-sm border border-[#C6D4DF] object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-[#C6D4DF] bg-[#E9F0F6] text-[9px] text-[#6E8497]">
-                            IMG
-                          </div>
-                        )}
+                      <div className="flex items-start gap-2.5">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#C6D4DF] bg-[#E9F0F6] text-[11px] font-semibold text-[#516D84]">
+                          {initials}
+                        </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-2">
-                            <p className="line-clamp-1 text-[13px] font-normal text-[#2B3D50]">{thread?.counterpartName || initials}</p>
-                            <span className="shrink-0 text-[10px] text-[#3E556A]">{formatTime(thread?.updatedAt || thread?.createdAt)}</span>
+                            <p className="line-clamp-1 text-[13px] font-semibold text-[#1E3447]">{thread?.counterpartName || initials}</p>
+                            <span className="shrink-0 pt-0.5 text-[10px] text-[#607D94]">{formatTime(thread?.updatedAt || thread?.createdAt)}</span>
                           </div>
-                          <p className="mt-0.5 line-clamp-1 text-[12px] font-semibold text-[#1C3850]">{thread?.productName || `Product ${thread?.productId || '-'}`}</p>
-                          <p className="line-clamp-1 text-[11px] text-[#5E7B93]">{lastText}</p>
-                          <div className="mt-1 flex items-center gap-2">
+                          <p className="mt-0.5 line-clamp-1 text-[11px] font-medium text-[#35536C]">{thread?.productName || `Product ${thread?.productId || '-'}`}</p>
+                          <div className="mt-0.5 flex items-center justify-between gap-2">
+                            <p className="line-clamp-1 text-[11px] text-[#6A879D]">{lastText}</p>
                             {Number(thread?.unreadCount || 0) > 0 ? (
                               <span className="inline-flex rounded-full bg-[#16A34A] px-1.5 py-0.5 text-[10px] font-semibold text-white">
                                 {Number(thread.unreadCount)}
@@ -673,6 +671,13 @@ export default function InquiryCenterPage() {
                             ) : null}
                           </div>
                         </div>
+                        {productImage ? (
+                          <img
+                            src={productImage}
+                            alt={thread?.productName || 'Product'}
+                            className="h-10 w-10 shrink-0 rounded-md border border-[#C6D4DF] object-cover"
+                          />
+                        ) : null}
                       </div>
                     </button>
                   );
@@ -684,10 +689,20 @@ export default function InquiryCenterPage() {
             </aside>
 
             {activeInquiry ? (
-              <div className="flex min-h-0 flex-col bg-[#D4DEE5]">
+              <div className={`min-h-0 flex-col bg-[#D4DEE5] ${isMobileThreadOpen ? 'flex' : 'hidden lg:flex'}`}>
                 <div className="border-b border-[#BFD0DB] bg-[#F2F4F6] px-3 py-1.5 sm:px-4 sm:py-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setIsMobileThreadOpen(false)}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#BFCFDC] bg-white text-[#40617B] lg:hidden"
+                        aria-label="Back to chats"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                      </button>
                       <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[#9FD3A4] bg-[#8DD490] text-xs font-semibold text-white">
                         {String(activeInquiry?.counterpartName || 'U')
                           .split(' ')
@@ -882,7 +897,7 @@ export default function InquiryCenterPage() {
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-center bg-[#D4DEE5] p-8">
+              <div className="hidden items-center justify-center bg-[#D4DEE5] p-8 lg:flex">
                 <div className="text-center">
                   <p className="text-base font-semibold text-[#334155]">Select a conversation</p>
                   <p className="mt-1 text-sm text-[#64748B]">Choose one chat from the left panel.</p>

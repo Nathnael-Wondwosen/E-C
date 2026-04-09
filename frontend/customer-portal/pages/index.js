@@ -101,7 +101,7 @@ const pricingPlans = [
 ];
 
 const navItems = [
-  { name: 'E-commerce', href: '/e-commerce' },
+  { name: 'Marketplace', href: '/marketplace' },
   { name: 'Tesbinn', href: 'https://tesbinn.com' },
   { name: 'Enisra', href: 'https://enisra.com' },
   { name: 'TradeX', href: 'https://tradex.com' },

@@ -1,6 +1,6 @@
 const { MongoClient } = require('mongodb');
 
-const uri = 'mongodb+srv://admin:admin123@cluster0.rcuwrqi.mongodb.net/?appName=Cluster0';
+const uri = process.env.MONGODB_URI || 'mongodb+srv://tradeethiopiaapi_db_user:123@cluster0.st4v3h7.mongodb.net/?appName=Cluster0';
 const client = new MongoClient(uri);
 
 async function run() {

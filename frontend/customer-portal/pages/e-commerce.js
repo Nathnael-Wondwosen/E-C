@@ -74,6 +74,7 @@ export default function Home() {
   const [allProducts, setAllProducts] = useState([]);
   const [selectedScope, setSelectedScope] = useState('local');
   const [banners, setBanners] = useState([]);
+  const [mobileSearchTerm, setMobileSearchTerm] = useState('');
   
   const [newsBlogPosts, setNewsBlogPosts] = useState([]);
   const [partners, setPartners] = useState([]);
@@ -399,6 +400,41 @@ export default function Home() {
     router.push(`/markets/${scope}`);
   };
 
+  const mobileCategories = useMemo(() => {
+    const names = categories.length
+      ? categories
+          .map((category) => category?.name)
+          .filter(Boolean)
+      : ['All', 'Agriculture', 'Technology', 'Home', 'Fashion', 'Beauty', 'Industrial'];
+    return names.slice(0, 8);
+  }, [categories]);
+
+  const mobileHeroSlides = useMemo(() => {
+    const source = carouselSlides.length ? carouselSlides : fallbackCarouselSlides;
+    return source.slice(0, 4);
+  }, [carouselSlides, fallbackCarouselSlides]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    if (!window.matchMedia('(max-width: 767px)').matches) return undefined;
+    if (mobileHeroSlides.length <= 1) return undefined;
+
+    const timer = window.setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % mobileHeroSlides.length);
+    }, 5200);
+
+    return () => window.clearInterval(timer);
+  }, [mobileHeroSlides.length]);
+
+  const handleMobileSearch = (event) => {
+    event.preventDefault();
+    const params = new URLSearchParams();
+    if (mobileSearchTerm.trim()) {
+      params.set('search', mobileSearchTerm.trim());
+    }
+    router.push(`/marketplace${params.toString() ? `?${params.toString()}` : ''}`);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Head>
@@ -514,75 +550,241 @@ export default function Home() {
       </Head>
 
       <main>
-        <Header 
-          isMenuOpen={isMenuOpen}
-          setIsMenuOpen={setIsMenuOpen}
-          categories={categories}
-        />
-        
-        <HeroCarousel 
-          carouselSlides={carouselSlides}
-          globalBackgroundImage={globalBackgroundImage}
-          currentSlide={currentSlide}
-          setCurrentSlide={setCurrentSlide}
-        />
+        <div className="hidden md:block">
+          <Header 
+            isMenuOpen={isMenuOpen}
+            setIsMenuOpen={setIsMenuOpen}
+            categories={categories}
+          />
+        </div>
 
-        <MarketScopeSwitcher
-          selectedScope={selectedScope}
-          onChange={handleScopeChange}
-          counts={scopeCounts}
-          productsByScope={scopeProducts}
-        />
+        <section className="md:hidden min-h-screen bg-[#eef1f6] pb-24">
+          <div className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 px-4 pb-3 pt-3 backdrop-blur">
+            <div className="flex items-center justify-between">
+              <Link href="/" className="flex items-center gap-2">
+                <Image src="/TE-logo.png" alt="TradeEthiopia Logo" width={34} height={34} className="h-9 w-9 rounded-xl border border-slate-200 bg-white p-1" />
+                <span className="text-[1.75rem] leading-none font-semibold text-slate-900">TradeEthiopia</span>
+              </Link>
+              <Link href="/cart" className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17" />
+                </svg>
+              </Link>
+            </div>
 
-        <EcosystemRoutingTiles />
+            <form onSubmit={handleMobileSearch} className="mt-3">
+              <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-100 px-3">
+                <svg className="h-5 w-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-4.35-4.35m1.85-5.65a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z" />
+                </svg>
+                <input
+                  type="text"
+                  value={mobileSearchTerm}
+                  onChange={(e) => setMobileSearchTerm(e.target.value)}
+                  placeholder="Search products..."
+                  className="h-11 w-full bg-transparent text-base text-slate-700 placeholder:text-slate-400 focus:outline-none"
+                />
+              </div>
+            </form>
+          </div>
 
-        <HotDealsSection 
-          displayedHotDeals={displayedHotDeals}
-          currentDealIndex={currentDealIndex}
-          setCurrentDealIndex={setCurrentDealIndex}
-        />
+          <div className="px-4 pt-3">
+            <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+              <div className="grid grid-cols-[1.08fr_0.92fr] gap-2 px-4 pt-4">
+                <div>
+                  <h2 className="text-[2rem] leading-tight font-bold text-slate-900">
+                    {mobileHeroSlides[currentSlide % mobileHeroSlides.length]?.title || 'Export Quality Coffee'}
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    {mobileHeroSlides[currentSlide % mobileHeroSlides.length]?.subtitle || 'Discover trusted products sourced directly from Ethiopia.'}
+                  </p>
+                  <div className="mt-4 flex items-center gap-2">
+                    <Link href="/marketplace" className="rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-sm font-semibold text-white">
+                      Shop Now
+                    </Link>
+                    <Link href="/localmarket" className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
+                      Explore
+                    </Link>
+                  </div>
+                </div>
+                <div className="flex items-end justify-end">
+                  <img
+                    src={mobileHeroSlides[currentSlide % mobileHeroSlides.length]?.image || '/placeholder-product.jpg'}
+                    alt="Hero"
+                    className="h-44 w-full rounded-2xl object-cover"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-center gap-2 pb-4 pt-3">
+                {mobileHeroSlides.map((slide, index) => (
+                  <button
+                    key={`mobile-hero-dot-${slide?.id || index}`}
+                    type="button"
+                    onClick={() => setCurrentSlide(index)}
+                    className={`h-2 rounded-full transition-all ${
+                      index === (currentSlide % mobileHeroSlides.length) ? 'w-6 bg-blue-600' : 'w-2 bg-slate-300'
+                    }`}
+                  />
+                ))}
+              </div>
+            </article>
+          </div>
 
-        <FeaturedProductsSection 
-          loadingProducts={loadingProducts}
-          fallbackFeaturedProducts={fallbackFeaturedProducts}
-          premiumProducts={premiumProducts}
-        />
+          <div className="scrollbar-hide mt-4 flex gap-2 overflow-x-auto px-4 pb-1">
+            {mobileCategories.map((name, index) => (
+              <button
+                key={`mobile-category-${name}`}
+                type="button"
+                onClick={() => {
+                  if (name === 'All') {
+                    router.push('/marketplace');
+                    return;
+                  }
+                  router.push(`/marketplace?category=${encodeURIComponent(name)}`);
+                }}
+                className={`shrink-0 rounded-2xl border px-3 py-2 text-sm font-semibold ${
+                  index === 0
+                    ? 'border-blue-200 bg-blue-50 text-blue-700'
+                    : 'border-slate-200 bg-white text-slate-700'
+                }`}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
 
-        <PromotionalSection 
-          promoBanners={promoBanners}
-          currentPromoIndex={currentPromoIndex}
-          setCurrentPromoIndex={setCurrentPromoIndex}
-        />
+          <section className="mt-5 px-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-[1.7rem] font-bold text-slate-900">Top Deals</h3>
+              <Link href="/marketplace" className="text-base font-semibold text-blue-700">View All</Link>
+            </div>
+            <div className="scrollbar-hide flex gap-3 overflow-x-auto pb-1">
+              {displayedHotDeals.slice(0, 8).map((item, index) => (
+                <article
+                  key={`mobile-deal-${item.id || item.name || index}`}
+                  className="w-[196px] shrink-0 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm"
+                >
+                  <img src={item.image || '/placeholder-product.jpg'} alt={item.name} className="h-36 w-full rounded-xl object-cover" />
+                  <p className="mt-2 line-clamp-1 text-[1.6rem] font-bold text-slate-900">{item.name}</p>
+                  <p className="line-clamp-1 text-sm text-slate-500">TradeEthiopia Verified Seller</p>
+                  <div className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+                    <span className="text-amber-500">★</span>
+                    <span>{item.rating ? item.rating.toFixed(1) : '4.2'}</span>
+                    <span>|</span>
+                    <span>{item.soldCount || 80}+ sold</span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <p className="text-[1.8rem] font-extrabold text-slate-900">{item.discountedPrice || item.price}</p>
+                    <Link href={`/products/${encodeURIComponent(String(item.id || item._id || ''))}`} className="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700">
+                      View
+                    </Link>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
 
-        <TrendingProductsSection 
-          loadingProducts={loadingProducts}
-          fallbackRandomProducts={fallbackRandomProducts}
-          randomProducts={randomProducts}
-        />
+          <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur">
+            <div className="mx-auto grid max-w-md grid-cols-5">
+              <Link href="/" className="flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-semibold text-blue-700">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10l9-7 9 7v10a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1V10z" />
+                </svg>
+                Home
+              </Link>
+              <Link href="/marketplace" className="flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-semibold text-slate-700">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-4.35-4.35m1.85-5.65a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z" />
+                </svg>
+                Search
+              </Link>
+              <Link href="/cart" className="flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-semibold text-slate-700">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17" />
+                </svg>
+                Cart
+              </Link>
+              <Link href="/inquiries" className="flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-semibold text-slate-700">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h8m-8 4h5m7 5l-3-3H6a2 2 0 01-2-2V6a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2h-1l3 3z" />
+                </svg>
+                Messages
+              </Link>
+              <Link href="/profile" className="flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-semibold text-slate-700">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5.121 17.804A9 9 0 1118.88 17.8M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Profile
+              </Link>
+            </div>
+          </nav>
+        </section>
 
-        <FullWidthBannerSection 
-          bannerSlides={bannerSlides}
-          currentBannerIndex={currentBannerIndex}
-          setCurrentBannerIndex={setCurrentBannerIndex}
-        />
+        <div className="hidden md:block">
+          <HeroCarousel 
+            carouselSlides={carouselSlides}
+            globalBackgroundImage={globalBackgroundImage}
+            currentSlide={currentSlide}
+            setCurrentSlide={setCurrentSlide}
+          />
 
-        <RandomProductsSection 
-          loadingProducts={loadingProducts}
-          fallbackRandomProducts={fallbackRandomProducts}
-          randomProducts={randomProducts}
-        />
+          <MarketScopeSwitcher
+            selectedScope={selectedScope}
+            onChange={handleScopeChange}
+            counts={scopeCounts}
+            productsByScope={scopeProducts}
+          />
 
-        <NewsBlogSection 
-          industryNews={industryNews}
-          businessInsights={businessInsights}
-          partners={partners}
-        />
+          <EcosystemRoutingTiles />
 
-        <TradexTVSection />
+          <HotDealsSection 
+            displayedHotDeals={displayedHotDeals}
+            currentDealIndex={currentDealIndex}
+            setCurrentDealIndex={setCurrentDealIndex}
+          />
+
+          <FeaturedProductsSection 
+            loadingProducts={loadingProducts}
+            fallbackFeaturedProducts={fallbackFeaturedProducts}
+            premiumProducts={premiumProducts}
+          />
+
+          <PromotionalSection 
+            promoBanners={promoBanners}
+            currentPromoIndex={currentPromoIndex}
+            setCurrentPromoIndex={setCurrentPromoIndex}
+          />
+
+          <TrendingProductsSection 
+            loadingProducts={loadingProducts}
+            fallbackRandomProducts={fallbackRandomProducts}
+            randomProducts={randomProducts}
+          />
+
+          <FullWidthBannerSection 
+            bannerSlides={bannerSlides}
+            currentBannerIndex={currentBannerIndex}
+            setCurrentBannerIndex={setCurrentBannerIndex}
+          />
+
+          <RandomProductsSection 
+            loadingProducts={loadingProducts}
+            fallbackRandomProducts={fallbackRandomProducts}
+            randomProducts={randomProducts}
+          />
+
+          <NewsBlogSection 
+            industryNews={industryNews}
+            businessInsights={businessInsights}
+            partners={partners}
+          />
+
+          <TradexTVSection />
+        </div>
       </main>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white">
+      <footer className="hidden bg-gray-900 text-white md:block">
         <div className="container mx-auto px-4 py-12">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
             <div className="md:col-span-2">
@@ -659,5 +861,14 @@ export default function Home() {
       </footer>
     </div>
   );
+}
+
+export async function getServerSideProps() {
+  return {
+    redirect: {
+      destination: '/marketplace',
+      permanent: false,
+    },
+  };
 }
 

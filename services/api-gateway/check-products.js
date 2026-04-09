@@ -1,7 +1,7 @@
 const { MongoClient } = require('mongodb');
 
 // Use the same MongoDB URI as in server.js
-const MONGO_URI = "mongodb+srv://admin:admin123@cluster0.rcuwrqi.mongodb.net/?appName=Cluster0";
+const MONGO_URI = process.env.MONGODB_URI || "mongodb+srv://tradeethiopiaapi_db_user:123@cluster0.st4v3h7.mongodb.net/?appName=Cluster0";
 const DB_NAME = "ecommerce_platform";
 
 async function checkProducts() {

@@ -18,7 +18,7 @@ const tiles = [
   {
     title: 'Supplier Services',
     description: 'Onboarding, quality checks, and logistics support tools.',
-    href: '/e-commerce',
+    href: '/marketplace',
     badge: 'Services',
     external: false,
   },
