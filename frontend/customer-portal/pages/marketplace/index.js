@@ -322,7 +322,9 @@ export default function Home({ initialIsLocalMarketView = false }) {
   const [showMobileSearchBar, setShowMobileSearchBar] = useState(false);
   const [showMobileFilterChips, setShowMobileFilterChips] = useState(false);
   const [showMobileBottomNav, setShowMobileBottomNav] = useState(true);
+  const [activeGlobalHeroSlide, setActiveGlobalHeroSlide] = useState(0);
   const listingSectionRef = useRef(null);
+  const globalHeroRailRef = useRef(null);
   const lastScrollYRef = useRef(0);
 
   useEffect(() => {
@@ -646,6 +648,22 @@ export default function Home({ initialIsLocalMarketView = false }) {
   const handleOpenInquiries = () => {
     // UX-first: clear badge immediately when user opens the chat page.
     setInquiryUnreadCount(0);
+  };
+
+  const handleGlobalHeroScroll = (e) => {
+    const container = e.currentTarget;
+    const width = Math.max(container.clientWidth, 1);
+    const index = Math.round(container.scrollLeft / width);
+    const clamped = Math.max(0, Math.min(spotlightCards.length - 1, index));
+    if (clamped !== activeGlobalHeroSlide) setActiveGlobalHeroSlide(clamped);
+  };
+
+  const goToGlobalHeroSlide = (index) => {
+    const rail = globalHeroRailRef.current;
+    if (!rail) return;
+    const clamped = Math.max(0, Math.min(spotlightCards.length - 1, index));
+    rail.scrollTo({ left: rail.clientWidth * clamped, behavior: 'smooth' });
+    setActiveGlobalHeroSlide(clamped);
   };
 
   const hotProducts = useMemo(
@@ -1146,18 +1164,56 @@ export default function Home({ initialIsLocalMarketView = false }) {
                 </ul>
               </aside>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div
+                ref={globalHeroRailRef}
+                onScroll={handleGlobalHeroScroll}
+                className="scrollbar-hide grid snap-x snap-mandatory grid-flow-col auto-cols-[100%] gap-3 overflow-x-auto pb-1 md:grid-flow-row md:auto-cols-auto md:grid-cols-3 md:overflow-visible md:pb-0"
+              >
                 {spotlightCards.map((card) => (
                   <article key={card.title} className="relative min-h-[240px] md:min-h-[300px] overflow-hidden bg-slate-900">
                     <img src={card.image} alt={card.title} className="absolute inset-0 h-full w-full object-cover" />
-                    <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/30 to-transparent" />
-                    <div className="relative p-5 text-white">
+                    <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/30 to-transparent md:from-black/70 md:via-black/30 md:to-transparent" />
+
+                    <div className="relative p-5 text-white md:hidden">
+                      <p className="text-[10px] uppercase tracking-[0.16em] text-cyan-300">Feature of the Week</p>
+                      <h3 className="mt-1.5 text-[1.9rem] font-bold leading-[1.02]">{card.title}</h3>
+                      <p className="mt-2 max-w-[24ch] text-[13px] leading-5 text-slate-200">{card.subtitle}</p>
+                      <div className="mt-4 flex items-end justify-between gap-2">
+                        <Link
+                          href={card.ctaLink || '/e-commerce'}
+                          className="inline-flex items-center rounded-xl border border-cyan-300/45 bg-cyan-500/20 px-3 py-1.5 text-xs font-semibold text-cyan-100 backdrop-blur-sm"
+                        >
+                          Shop Now
+                        </Link>
+                        <img
+                          src="/TE-logo.png"
+                          alt=""
+                          aria-hidden="true"
+                          className="h-11 w-11 rounded-full border border-amber-200/45 bg-slate-900/70 p-1.5 shadow-[0_8px_22px_rgba(15,23,42,0.5)]"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="relative hidden p-5 text-white md:block">
                       <p className="text-xs uppercase tracking-[0.16em] text-cyan-300">Market Focus</p>
                       <h3 className="mt-2 text-2xl font-bold leading-tight">{card.title}</h3>
                       <p className="mt-2 text-sm text-slate-200">{card.subtitle}</p>
                       <Link href={card.ctaLink || '/e-commerce'} className="mt-4 inline-block text-sm font-semibold text-cyan-300">Shop Now</Link>
                     </div>
                   </article>
+                ))}
+              </div>
+              <div className="mt-2 flex items-center justify-center gap-2 md:hidden">
+                {spotlightCards.map((card, index) => (
+                  <button
+                    key={`${card.title}-dot`}
+                    type="button"
+                    onClick={() => goToGlobalHeroSlide(index)}
+                    aria-label={`Go to card ${index + 1}`}
+                    className={`h-2 rounded-full transition-all ${
+                      activeGlobalHeroSlide === index ? 'w-5 bg-cyan-500' : 'w-2 bg-slate-300'
+                    }`}
+                  />
                 ))}
               </div>
             </div>
@@ -1197,19 +1253,21 @@ export default function Home({ initialIsLocalMarketView = false }) {
             )}
 
             {!isLocalMarketView && (
-              <ProductRailSection
-                title="Made in Ethiopia"
-                subtitle="Local products, factories, and export-ready suppliers"
-                products={madeInEthiopiaProducts.length ? madeInEthiopiaProducts : getTop(productCatalog)}
-                variant="china"
-                sourceLabel="Made in Ethiopia"
-                isWishlisted={isWishlisted}
-                onToggleWishlist={handleToggleWishlist}
-                onAddToCart={handleAddToCart}
-                getProductHref={getProductHref}
-                loadingWishlist={wishlistLoading}
-                loadingCart={cartLoading}
-              />
+              <div className="hidden md:block">
+                <ProductRailSection
+                  title="Made in Ethiopia"
+                  subtitle="Local products, factories, and export-ready suppliers"
+                  products={madeInEthiopiaProducts.length ? madeInEthiopiaProducts : getTop(productCatalog)}
+                  variant="china"
+                  sourceLabel="Made in Ethiopia"
+                  isWishlisted={isWishlisted}
+                  onToggleWishlist={handleToggleWishlist}
+                  onAddToCart={handleAddToCart}
+                  getProductHref={getProductHref}
+                  loadingWishlist={wishlistLoading}
+                  loadingCart={cartLoading}
+                />
+              </div>
             )}
 
             <div ref={listingSectionRef} className="grid gap-3 lg:grid-cols-[220px_1fr]">
