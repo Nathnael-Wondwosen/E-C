@@ -6,6 +6,9 @@ import Header from '../components/header/Header';
 import {
   getPreviewCart,
   getUserCart,
+  getUserInquiryInbox,
+  getUserInquirySent,
+  getUserWishlist,
   removeFromCart,
   removePreviewFromCart,
   updateCartItemQuantity,
@@ -17,6 +20,18 @@ const formatMoney = (value) => {
   return `${amount.toLocaleString()} birr`;
 };
 
+const resolveFallbackImage = (value) => {
+  const src = String(value || '').trim();
+  if (!src) return '/placeholder-carousel.jpg';
+  const lowered = src.toLowerCase();
+  if (lowered.includes('/placeholder-product.jpg') || lowered.includes('/placeholder-news-blog')) {
+    return '/placeholder-carousel.jpg';
+  }
+  return src;
+};
+
+const getItemImage = (item) => resolveFallbackImage(item?.image || item?.images?.[0] || '/placeholder-carousel.jpg');
+
 const getHistoryKey = (userId) => `cartHistory:${String(userId || 'guest')}`;
 const getDemoCartKey = (userId) => `cartDemo:${String(userId || 'guest')}`;
 
@@ -24,7 +39,7 @@ const DEMO_CART_ITEMS = [
   {
     id: 'demo-cart-1',
     name: 'Sidama Reserve Coffee Beans',
-    image: '/placeholder-product.jpg',
+    image: '/placeholder-carousel.jpg',
     price: 1500,
     quantity: 1,
     isDemo: true,
@@ -32,7 +47,7 @@ const DEMO_CART_ITEMS = [
   {
     id: 'demo-cart-2',
     name: 'Portable Blender Pro',
-    image: '/placeholder-product.jpg',
+    image: '/placeholder-carousel.jpg',
     price: 3200,
     quantity: 1,
     isDemo: true,
@@ -40,7 +55,7 @@ const DEMO_CART_ITEMS = [
   {
     id: 'demo-cart-3',
     name: 'Premium Ceramic Mug Set',
-    image: '/placeholder-product.jpg',
+    image: '/placeholder-carousel.jpg',
     price: 980,
     quantity: 2,
     isDemo: true,
@@ -54,6 +69,8 @@ export default function Cart() {
   const [usingDemoCart, setUsingDemoCart] = useState(false);
   const [view, setView] = useState('cart');
   const [mobileProfile, setMobileProfile] = useState({ id: '', name: 'User', imageUrl: '' });
+  const [wishlistCount, setWishlistCount] = useState(0);
+  const [inquiryUnreadCount, setInquiryUnreadCount] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
@@ -71,6 +88,68 @@ export default function Cart() {
     loadCart();
     loadHistory(userId);
   }, [router]);
+
+  useEffect(() => {
+    const loadWishlistCount = async () => {
+      try {
+        const isLoggedIn = localStorage.getItem('userLoggedIn');
+        const userId = localStorage.getItem('userId');
+        if (!isLoggedIn || !userId) {
+          setWishlistCount(0);
+          return;
+        }
+        const result = await getUserWishlist(userId);
+        const items = Array.isArray(result?.items) ? result.items : [];
+        setWishlistCount(items.length);
+      } catch {
+        setWishlistCount(0);
+      }
+    };
+
+    loadWishlistCount();
+    const intervalId = window.setInterval(loadWishlistCount, 20000);
+    window.addEventListener('loginStatusChanged', loadWishlistCount);
+    window.addEventListener('focus', loadWishlistCount);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('loginStatusChanged', loadWishlistCount);
+      window.removeEventListener('focus', loadWishlistCount);
+    };
+  }, []);
+
+  useEffect(() => {
+    const loadInquiryUnreadCount = async () => {
+      try {
+        const isLoggedIn = localStorage.getItem('userLoggedIn');
+        const userId = localStorage.getItem('userId');
+        const userType = localStorage.getItem('userType') || 'buyer';
+        if (!isLoggedIn || !userId) {
+          setInquiryUnreadCount(0);
+          return;
+        }
+
+        const result =
+          userType === 'seller' ? await getUserInquiryInbox(userId) : await getUserInquirySent(userId);
+        const inquiries = Array.isArray(result?.inquiries) ? result.inquiries : [];
+        const computed = Number(
+          result?.unreadTotal ?? inquiries.reduce((sum, row) => sum + Number(row?.unreadCount || 0), 0)
+        );
+        setInquiryUnreadCount(Number.isFinite(computed) ? computed : 0);
+      } catch {
+        setInquiryUnreadCount(0);
+      }
+    };
+
+    loadInquiryUnreadCount();
+    const intervalId = window.setInterval(loadInquiryUnreadCount, 20000);
+    window.addEventListener('loginStatusChanged', loadInquiryUnreadCount);
+    window.addEventListener('focus', loadInquiryUnreadCount);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('loginStatusChanged', loadInquiryUnreadCount);
+      window.removeEventListener('focus', loadInquiryUnreadCount);
+    };
+  }, []);
 
   const loadHistory = (userId) => {
     try {
@@ -99,7 +178,7 @@ export default function Cart() {
       const normalized = demoItems.map((item, index) => ({
         id: item?.id || `demo-cart-${index + 1}`,
         name: item?.name || 'Sample Product',
-        image: item?.image || '/placeholder-product.jpg',
+        image: resolveFallbackImage(item?.image || '/placeholder-carousel.jpg'),
         price: Number(item?.price || 0),
         quantity: Math.max(1, Number(item?.quantity || 1)),
         isDemo: true,
@@ -262,7 +341,7 @@ export default function Cart() {
       </Head>
       <Header mobileTitle="My Cart" mobileSeller={mobileProfile} mobileProfileHref="/profile" />
 
-      <main className="mx-auto max-w-4xl px-3 py-3 sm:px-4 sm:py-4">
+      <main className="mx-auto max-w-4xl px-3 py-3 pb-28 sm:px-4 sm:py-4 sm:pb-6">
         <div className="mb-3 flex items-center justify-between gap-2">
           <div className="inline-flex overflow-hidden rounded-xl border border-slate-200 bg-white">
             <button
@@ -303,7 +382,15 @@ export default function Cart() {
                 {cartItems.map((item) => (
                   <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
                     <div className="flex items-start gap-3">
-                      <img src={item.image} alt={item.name} className="h-16 w-16 rounded-xl object-cover" />
+                      <img
+                        src={getItemImage(item)}
+                        alt={item.name}
+                        className="h-16 w-16 rounded-xl object-cover"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = '/placeholder-carousel.jpg';
+                        }}
+                      />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
                           <h3 className="line-clamp-2 text-sm font-semibold text-slate-900">{item.name}</h3>
@@ -358,7 +445,15 @@ export default function Cart() {
               cartHistory.map((entry) => (
                 <article key={entry.id} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
                   <div className="flex items-start gap-3">
-                    <img src={entry.item?.image} alt={entry.item?.name} className="h-14 w-14 rounded-xl object-cover" />
+                    <img
+                      src={getItemImage(entry.item)}
+                      alt={entry.item?.name}
+                      className="h-14 w-14 rounded-xl object-cover"
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = '/placeholder-carousel.jpg';
+                      }}
+                    />
                     <div className="min-w-0 flex-1">
                       <p className="line-clamp-2 text-sm font-semibold text-slate-900">{entry.item?.name}</p>
                       <p className="mt-1 text-xs text-slate-500">
@@ -373,6 +468,63 @@ export default function Cart() {
           </section>
         )}
       </main>
+
+      <nav
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur sm:hidden"
+        style={{ paddingBottom: 'max(0px, env(safe-area-inset-bottom))' }}
+      >
+        <div className="mx-auto grid max-w-md grid-cols-5">
+          <Link href="/localmarket" className="flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold text-slate-700">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4h18M6 12h12m-9 8h6" />
+            </svg>
+            Filter
+          </Link>
+          <Link href="/localmarket" className="flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold text-slate-700">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10l9-7 9 7v10a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1V10z" />
+            </svg>
+            Home
+          </Link>
+          <Link href="/cart" className="relative flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold text-slate-900">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m0 0h8" />
+            </svg>
+            Cart
+            {cartItems.length > 0 ? (
+              <span className="absolute right-5 top-1 inline-flex min-w-[16px] items-center justify-center rounded-full bg-slate-900 px-1 text-[9px] text-white">
+                {cartItems.length > 99 ? '99+' : cartItems.length}
+              </span>
+            ) : null}
+          </Link>
+          <Link
+            href="/inquiries"
+            onClick={() => setInquiryUnreadCount(0)}
+            className="relative flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold text-slate-700"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h8m-8 4h5m7 5l-3-3H6a2 2 0 01-2-2V6a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2h-1l3 3z" />
+            </svg>
+            Message
+            {inquiryUnreadCount > 0 ? (
+              <span className="absolute right-3 top-1 inline-flex min-w-[16px] items-center justify-center rounded-full bg-emerald-600 px-1 text-[9px] text-white">
+                {inquiryUnreadCount > 99 ? '99+' : inquiryUnreadCount}
+              </span>
+            ) : null}
+          </Link>
+          <Link href="/wishlist" className="relative flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold text-slate-700">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+            Favorite
+            {wishlistCount > 0 ? (
+              <span className="absolute right-3 top-1 inline-flex min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[9px] text-white">
+                {wishlistCount > 99 ? '99+' : wishlistCount}
+              </span>
+            ) : null}
+          </Link>
+        </div>
+      </nav>
     </div>
   );
 }
