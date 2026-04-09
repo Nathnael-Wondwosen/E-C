@@ -55,6 +55,49 @@ const SHOWCASE_PLACEHOLDER_IMAGES = [
   'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80',
 ];
 
+const SIMILAR_PLACEHOLDER_ITEMS = [
+  {
+    id: 'similar-placeholder-1',
+    name: 'Premium Coffee Grinder',
+    category: 'Kitchen Appliances',
+    price: 125,
+    image: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=900&q=80',
+    placeholder: true,
+  },
+  {
+    id: 'similar-placeholder-2',
+    name: 'Commercial Blender Set',
+    category: 'Food Equipment',
+    price: 239,
+    image: 'https://images.unsplash.com/photo-1570222094114-d054a817e56b?auto=format&fit=crop&w=900&q=80',
+    placeholder: true,
+  },
+  {
+    id: 'similar-placeholder-3',
+    name: 'Smart Kettle Pro',
+    category: 'Home Appliances',
+    price: 98,
+    image: 'https://images.unsplash.com/photo-1544636331-e26879cd4d9b?auto=format&fit=crop&w=900&q=80',
+    placeholder: true,
+  },
+  {
+    id: 'similar-placeholder-4',
+    name: 'Espresso Machine',
+    category: 'Coffee Equipment',
+    price: 410,
+    image: 'https://images.unsplash.com/photo-1517668808822-9ebb02f2a0e6?auto=format&fit=crop&w=900&q=80',
+    placeholder: true,
+  },
+  {
+    id: 'similar-placeholder-5',
+    name: 'Multi-Tool Kitchen Pack',
+    category: 'Kitchen Tools',
+    price: 74,
+    image: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=900&q=80',
+    placeholder: true,
+  },
+];
+
 export default function ProductDetails() {
   const router = useRouter();
   const { id } = router.query;
@@ -394,6 +437,12 @@ export default function ProductDetails() {
   const quantityBasedTotal = Number((quantityLevelPrice * inquiryQuantity).toFixed(2));
   const savingsPercent = unitPrice > 0 ? Math.max(0, Math.round(((unitPrice - quantityLevelPrice) / unitPrice) * 100)) : 0;
   const canBrowseGallery = galleryImages.length > 1;
+  const similarItemsForMobile = useMemo(() => {
+    const normalizedReal = (Array.isArray(relatedProducts) ? relatedProducts : []).slice(0, 8);
+    if (normalizedReal.length >= 6) return normalizedReal;
+    const needed = Math.max(0, 6 - normalizedReal.length);
+    return [...normalizedReal, ...SIMILAR_PLACEHOLDER_ITEMS.slice(0, needed)];
+  }, [relatedProducts]);
 
   const goToPrevImage = () => {
     if (!galleryImages.length) return;
@@ -1440,8 +1489,8 @@ export default function ProductDetails() {
           )}
         </section>
 
-        <section className="portal-card mt-5 p-4">
-          <div className="mb-3 flex items-center justify-between">
+        <section className="portal-card -mx-2.5 mt-5 overflow-hidden rounded-none border-x-0 p-0 sm:mx-0 sm:rounded-[1rem] sm:border sm:p-4">
+          <div className="mb-2 flex items-center justify-between px-3 pt-3 sm:mb-3 sm:px-0 sm:pt-0">
             <h2 className="text-base font-semibold text-slate-900">Similar Products</h2>
             <Link href="/products" className="text-sm font-semibold text-[#C026D3] hover:text-[#DB2777]">
               View all
@@ -1449,7 +1498,7 @@ export default function ProductDetails() {
           </div>
 
           {isRelatedLoading ? (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="hidden grid-cols-1 gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-4">
               {[1, 2, 3, 4].map((slot) => (
                 <div key={slot} className="animate-pulse rounded border border-[#e9edf2] p-3">
                   <div className="h-32 rounded bg-slate-200" />
@@ -1460,7 +1509,7 @@ export default function ProductDetails() {
               ))}
             </div>
           ) : relatedProducts.length > 0 ? (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="hidden grid-cols-1 gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-4">
               {relatedProducts.map((item) => (
                 <Link
                   key={item.id}
@@ -1481,10 +1530,48 @@ export default function ProductDetails() {
               ))}
             </div>
           ) : (
-            <div className="rounded border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+            <div className="hidden rounded border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500 sm:block">
               No similar products found yet.
             </div>
           )}
+
+          <div className="pb-3 sm:hidden">
+            <div className="scrollbar-hidden flex gap-3 overflow-x-auto px-3">
+              {similarItemsForMobile.map((item) => {
+                const isPlaceholder = Boolean(item?.placeholder);
+                const cardContent = (
+                  <>
+                    <div className="aspect-[4/3] w-full overflow-hidden bg-slate-100">
+                      {getProductImage(item) ? (
+                        <img src={getProductImage(item)} alt={toText(item.name, 'Product')} className="h-full w-full object-cover" loading="lazy" />
+                      ) : (
+                        <span className="flex h-full items-center justify-center text-xs text-slate-400">No image</span>
+                      )}
+                    </div>
+                    <div className="p-2.5">
+                      <p className="line-clamp-2 text-[13px] font-semibold text-slate-800">{toText(item.name, 'Unnamed product')}</p>
+                      <p className="mt-1 text-[11px] text-slate-500">{toText(item?.category?.name || item?.category, 'General')}</p>
+                      <p className="mt-1.5 text-[13px] font-semibold text-[#C026D3]">{formatMoney(item.price || 0)}</p>
+                    </div>
+                  </>
+                );
+
+                if (isPlaceholder) {
+                  return (
+                    <div key={item.id} className="min-w-[165px] max-w-[165px] overflow-hidden border border-[#e9edf2] bg-white">
+                      {cardContent}
+                    </div>
+                  );
+                }
+
+                return (
+                  <Link key={item.id} href={`/products/${item.id}`} className="min-w-[165px] max-w-[165px] overflow-hidden border border-[#e9edf2] bg-white">
+                    {cardContent}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
         </section>
       </main>
 

@@ -39,7 +39,7 @@ const protectRoute = (route) => {
   window.location.href = route;
 };
 
-export default function Header({ isMenuOpen, setIsMenuOpen, categories = [], mobileSeller = null, mobileTitle = '' }) {
+export default function Header({ isMenuOpen, setIsMenuOpen, categories = [], mobileSeller = null, mobileTitle = '', mobileProfileHref = '' }) {
   const router = useRouter();
   const [internalMenuOpen, setInternalMenuOpen] = useState(false);
   const menuOpen = typeof isMenuOpen === 'boolean' ? isMenuOpen : internalMenuOpen;
@@ -332,7 +332,7 @@ export default function Header({ isMenuOpen, setIsMenuOpen, categories = [], mob
   }, [topLevelCategories, activeCategoryId]);
 
   const hasMobileSellerSlot = mobileSeller && typeof mobileSeller === 'object';
-  const canOpenSellerShop = Boolean(hasMobileSellerSlot && mobileSeller?.id);
+  const canOpenMobileProfile = Boolean(mobileProfileHref || (hasMobileSellerSlot && mobileSeller?.id));
 
   return (
     <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur-sm">
@@ -602,12 +602,16 @@ export default function Header({ isMenuOpen, setIsMenuOpen, categories = [], mob
             <button
               type="button"
               onClick={() => {
-                if (!canOpenSellerShop) return;
+                if (!canOpenMobileProfile) return;
+                if (mobileProfileHref) {
+                  router.push(mobileProfileHref);
+                  return;
+                }
                 router.push(`/seller/${encodeURIComponent(String(mobileSeller.id))}`);
               }}
               className="relative h-9 w-9 overflow-hidden rounded-full border border-slate-200 bg-slate-100"
-              aria-label={`Open ${mobileSeller?.name || 'seller'} shop`}
-              title={`Open ${mobileSeller?.name || 'seller'} shop`}
+              aria-label={mobileProfileHref ? 'Open profile' : `Open ${mobileSeller?.name || 'seller'} shop`}
+              title={mobileProfileHref ? 'Open profile' : `Open ${mobileSeller?.name || 'seller'} shop`}
             >
               {mobileSeller?.imageUrl ? (
                 <img src={mobileSeller.imageUrl} alt={mobileSeller?.name || 'Seller'} className="h-full w-full object-cover" />

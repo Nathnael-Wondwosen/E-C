@@ -78,6 +78,7 @@ export default function AuthShell({
   panelDescription = 'Authentication should feel connected to the flagship experience, not like a detached utility screen.',
   highlights = defaultHighlights,
   metrics = defaultMetrics,
+  hidePanelOnMobile = false,
 }) {
   const [isDarkMode, setIsDarkMode] = useState(false);
 
@@ -141,7 +142,7 @@ export default function AuthShell({
           ) : null}
 
           <div className="grid gap-4 lg:grid-cols-[1.05fr_minmax(0,0.95fr)]">
-            <aside className={`relative overflow-hidden rounded-[1.35rem] border p-6 sm:p-8 ${theme.panel}`}>
+            <aside className={`relative overflow-hidden rounded-[1.35rem] border p-6 sm:p-8 ${theme.panel} ${hidePanelOnMobile ? 'hidden lg:block' : ''}`}>
               <div className={`pointer-events-none absolute -left-10 top-0 h-44 w-44 rounded-full blur-3xl ${theme.panelGlow}`} />
               {!isDarkMode ? (
                 <>

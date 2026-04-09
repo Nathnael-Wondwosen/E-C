@@ -6,7 +6,7 @@ import Script from 'next/script';
 import { authenticateUser, authenticateWithGoogle, getGoogleAuthConfig } from '../utils/userService';
 import { hydrateCustomerSessionFromToken, setCustomerSession } from '../utils/session';
 import AuthShell from '../components/auth/AuthShell';
-import { AuthAlert, AuthDivider, AuthField, AuthInput } from '../components/auth/AuthPrimitives';
+import { AuthAlert, AuthDivider } from '../components/auth/AuthPrimitives';
 
 export default function CustomerLogin() {
   const [email, setEmail] = useState('');
@@ -222,7 +222,8 @@ export default function CustomerLogin() {
           { label: 'Access Mode', value: 'Secure' },
           { label: 'Brand Tone', value: 'Premium' }
         ]}
-        size="wide"
+        centered
+        hidePanelOnMobile
         footer={(
           <>
             Don&apos;t have an account?{' '}
@@ -232,48 +233,62 @@ export default function CustomerLogin() {
           </>
         )}
       >
-        <form className="space-y-4" onSubmit={handleSubmit}>
+        <form className="space-y-5" onSubmit={handleSubmit}>
           {notice ? <AuthAlert tone="success">{notice}</AuthAlert> : null}
 
-          <AuthField label="Email Address" htmlFor="email">
-            <AuthInput
-              id="email"
-              type="email"
-              autoComplete="email"
-              required
-              placeholder="Enter your email address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              icon={(
+          <div>
+            <label htmlFor="email" className="mb-2 block text-sm font-semibold text-[#1E293B] dark:text-[#F2E7CC]">
+              Email Address
+            </label>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-[var(--auth-icon)]">
                 <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" stroke="currentColor" strokeWidth="2">
                   <path d="M4 6h16v12H4z" />
                   <path d="m4 7 8 6 8-6" />
                 </svg>
-              )}
-            />
-          </AuthField>
+              </div>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                placeholder="Enter your email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="auth-input h-[50px] rounded-[1.1rem] pl-10 text-[15px]"
+              />
+            </div>
+          </div>
 
-          <AuthField label="Password" htmlFor="password">
-            <AuthInput
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              icon={(
+          <div>
+            <label htmlFor="password" className="mb-2 block text-sm font-semibold text-[#1E293B] dark:text-[#F2E7CC]">
+              Password
+            </label>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-[var(--auth-icon)]">
                 <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" stroke="currentColor" strokeWidth="2">
                   <rect x="4" y="10" width="16" height="10" rx="2" />
                   <path d="M8 10V7a4 4 0 1 1 8 0v3" />
                 </svg>
-              )}
-            />
-          </AuthField>
+              </div>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="auth-input h-[50px] rounded-[1.1rem] pl-10 text-[15px]"
+              />
+            </div>
+          </div>
 
           {error ? <AuthAlert>{error}</AuthAlert> : null}
 
-          <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center justify-between gap-3 text-sm">
             <label htmlFor="remember-me" className="flex items-center gap-2 text-[var(--auth-muted)]">
               <input
                 id="remember-me"
@@ -284,12 +299,12 @@ export default function CustomerLogin() {
               Remember me
             </label>
 
-            <Link href="/forgot-password" className="font-medium text-[#8E6A2F] hover:text-[#A8823E]">
+            <Link href="/forgot-password" className="font-semibold text-[#8E6A2F] hover:text-[#A8823E]">
               Forgot password?
             </Link>
           </div>
 
-          <button type="submit" disabled={loading} className="auth-primary-button">
+          <button type="submit" disabled={loading} className="auth-primary-button h-[50px] rounded-[1.15rem] text-[1.05rem]">
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
 
