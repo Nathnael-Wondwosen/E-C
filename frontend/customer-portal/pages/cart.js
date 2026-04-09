@@ -3,7 +3,14 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
 import Header from '../components/header/Header';
-import { getUserCart, updateCartItemQuantity, removeFromCart, getProductsByIds } from '../utils/userService';
+import {
+  getPreviewCart,
+  getUserCart,
+  removeFromCart,
+  removePreviewFromCart,
+  updateCartItemQuantity,
+  updatePreviewCartItemQuantity,
+} from '../utils/userService';
 
 export default function Cart() {
   const [cartItems, setCartItems] = useState([]);
@@ -11,12 +18,9 @@ export default function Cart() {
   const router = useRouter();
 
   useEffect(() => {
-    // Check if user is logged in
     const isLoggedIn = localStorage.getItem('userLoggedIn');
     if (!isLoggedIn) {
-      // Store the current page as the redirect destination
       localStorage.setItem('redirectAfterLogin', '/cart');
-      // Dispatch login status change event to update header
       window.dispatchEvent(new CustomEvent('loginStatusChanged'));
       router.push('/login');
       return;
@@ -31,39 +35,14 @@ export default function Cart() {
       if (!userId) {
         throw new Error('User ID not found in localStorage');
       }
-      
+
       setLoading(true);
       const cartData = await getUserCart(userId);
-      
-      // Transform cart data to match the expected format
-      if (cartData.items && Array.isArray(cartData.items)) {
-        // Get product IDs to fetch details
-        const productIds = cartData.items.map(item => item.productId);
-        
-        // Fetch product details
-        const products = await getProductsByIds(productIds);
-        
-        // Map products with cart quantities
-        const cartItemsWithDetails = cartData.items.map((cartItem, index) => {
-          const product = products.find(p => String(p.id) === String(cartItem.productId));
-          return {
-            id: String(cartItem.productId),
-            productId: String(cartItem.productId),
-            name: product?.name || `Product ${cartItem.productId}`,
-            price: product?.price || 0,
-            quantity: cartItem.quantity || 1,
-            image: (product?.images && product?.images.length > 0) ? product.images[0] : 'https://via.placeholder.com/100x100',
-            seller: product?.seller || 'Seller Name'
-          };
-        });
-        
-        setCartItems(cartItemsWithDetails);
-      } else {
-        setCartItems([]);
-      }
+      const liveItems = Array.isArray(cartData?.items) ? cartData.items : [];
+      const previewItems = getPreviewCart(userId);
+      setCartItems([...liveItems, ...previewItems]);
     } catch (error) {
       console.error('Error loading cart:', error);
-      // Fallback to empty cart
       setCartItems([]);
     } finally {
       setLoading(false);
@@ -75,211 +54,223 @@ export default function Cart() {
       await removeItem(itemId);
       return;
     }
-    
+
     const userId = localStorage.getItem('userId');
-    if (!userId) {
-      console.error('User ID not found in localStorage');
-      return;
-    }
-    
+    if (!userId) return;
+
     try {
-      // Set exact quantity in backend
-      await updateCartItemQuantity(userId, itemId, newQuantity);
-      
-      // Update local state
-      setCartItems(prevItems =>
-        prevItems.map(item =>
-          item.id === itemId ? { ...item, quantity: newQuantity } : item
-        )
+      const targetItem = cartItems.find((item) => String(item.id) === String(itemId));
+      const result = targetItem?.isPreview
+        ? updatePreviewCartItemQuantity(userId, itemId, newQuantity)
+        : await updateCartItemQuantity(userId, itemId, newQuantity);
+      if (Array.isArray(result?.items)) {
+        const liveItems = cartItems.filter((item) => !item.isPreview && String(item.id) !== String(itemId));
+        if (targetItem?.isPreview) {
+          setCartItems([...liveItems, ...result.items]);
+        } else {
+          const previewItems = getPreviewCart(userId);
+          setCartItems([...(Array.isArray(result.items) ? result.items : []), ...previewItems]);
+        }
+        return;
+      }
+
+      setCartItems((prevItems) =>
+        prevItems.map((item) => (item.id === itemId ? { ...item, quantity: newQuantity } : item))
       );
     } catch (error) {
       console.error('Error updating quantity:', error);
-      // Reload cart to ensure consistency
       loadCart();
     }
   };
 
   const removeItem = async (itemId) => {
     const userId = localStorage.getItem('userId');
-    if (!userId) {
-      console.error('User ID not found in localStorage');
-      return;
-    }
-    
+    if (!userId) return;
+
     try {
-      // Remove item from backend
-      await removeFromCart(userId, itemId);
-      
-      // Update local state
-      setCartItems(prevItems => prevItems.filter(item => item.id !== itemId));
+      const targetItem = cartItems.find((item) => String(item.id) === String(itemId));
+      const result = targetItem?.isPreview
+        ? removePreviewFromCart(userId, itemId)
+        : await removeFromCart(userId, itemId);
+      if (Array.isArray(result?.items)) {
+        if (targetItem?.isPreview) {
+          const liveItems = cartItems.filter((item) => !item.isPreview);
+          setCartItems([...liveItems, ...result.items]);
+        } else {
+          const previewItems = getPreviewCart(userId);
+          setCartItems([...(Array.isArray(result.items) ? result.items : []), ...previewItems]);
+        }
+        return;
+      }
+
+      setCartItems((prevItems) => prevItems.filter((item) => item.id !== itemId));
     } catch (error) {
       console.error('Error removing item from cart:', error);
     }
   };
 
-  const calculateTotal = () => {
-    return cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
-  };
-
-  const handleCheckout = () => {
-    // In a real implementation, this would redirect to checkout
-    router.push('/checkout');
-  };
+  const calculateTotal = () => cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="portal-page flex min-h-screen items-center justify-center">
+        <div className="flex items-center gap-3 rounded-full border border-[var(--portal-border)] bg-[var(--portal-surface)] px-5 py-3 text-sm font-medium portal-heading shadow-[0_16px_36px_rgba(160,96,18,0.08)]">
+          <span className="h-3 w-3 animate-pulse rounded-full bg-[#D7932D]" />
+          Loading cart...
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="portal-page min-h-screen">
       <Head>
         <title>Shopping Cart | B2B E-Commerce Platform</title>
         <meta name="description" content="Your shopping cart" />
       </Head>
       <Header />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Shopping Cart</h1>
-          <p className="mt-2 text-gray-600">Review and manage items in your cart</p>
-        </div>
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <section className="portal-hero mb-8">
+          <div className="bg-[linear-gradient(180deg,rgba(240,177,76,0.22),transparent)] px-5 py-6 sm:px-6 lg:px-8">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div className="max-w-2xl">
+                <p className="portal-badge">Cart</p>
+                <h1 className="portal-heading mt-3 text-[2rem] font-semibold tracking-[-0.03em] sm:text-[2.4rem]">Shopping Cart</h1>
+                <p className="portal-text mt-2 text-sm leading-6 sm:text-[15px]">
+                  Review your selections, adjust quantities quickly, and move to checkout with a clearer responsive layout.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <span className="portal-pill">{cartItems.length} items</span>
+                <Link href="/dashboard/customer" className="portal-secondary-button">
+                  Back to Dashboard
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
 
         {cartItems.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="mx-auto w-24 h-24 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-none flex items-center justify-center mb-6">
-              <svg className="w-12 h-12 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <section className="portal-empty-state">
+            <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-[1.4rem] border border-[var(--portal-border)] bg-[var(--portal-surface-muted)]">
+              <svg className="h-12 w-12 text-[#B5A88B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m0 0h8M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
             </div>
-            <h3 className="text-xl font-medium text-gray-900 mb-2">Your cart is empty</h3>
-            <p className="text-gray-600 max-w-md mx-auto mb-6">Looks like you haven't added anything to your cart yet. Start shopping to begin your collection.</p>
-            <Link href="/marketplace" className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-none shadow-sm text-white bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 transition-all duration-300">
+            <h3 className="portal-heading mb-2 text-xl font-medium">Your cart is empty</h3>
+            <p className="portal-text mx-auto mb-6 max-w-md">
+              Looks like you haven&apos;t added anything to your cart yet. Start browsing to build your next order.
+            </p>
+            <Link href="/marketplace" className="portal-primary-button inline-flex items-center px-6 py-3 text-base font-medium">
               Browse Products
             </Link>
-          </div>
+          </section>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Cart Items Section */}
-            <div className="lg:col-span-2">
-              <div className="bg-white bg-opacity-80 backdrop-blur-sm rounded-none shadow-lg overflow-hidden border border-gray-200">
-                <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
-                  <h2 className="text-lg font-semibold text-gray-800">Cart Items ({cartItems.length})</h2>
-                </div>
-                <ul className="divide-y divide-gray-200">
-                  {cartItems.map((item) => (
-                    <li key={item.id} className="p-6 hover:bg-gray-50 transition-colors duration-200">
-                      <div className="flex">
-                        <div className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden border border-gray-200">
-                          <img
-                            className="w-full h-full object-cover"
-                            src={item.image}
-                            alt={item.name}
-                          />
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+            <section className="portal-card lg:col-span-1">
+              <div className="border-b border-[var(--portal-border)] px-6 py-4">
+                <h2 className="portal-heading text-lg font-semibold">Cart Items ({cartItems.length})</h2>
+              </div>
+              <ul className="divide-y divide-[var(--portal-border)]">
+                {cartItems.map((item) => (
+                  <li key={item.id} className="p-5 transition hover:bg-white/70">
+                    <div className="flex flex-col gap-4 sm:flex-row">
+                      <div className="h-28 w-full overflow-hidden rounded-[1rem] border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] sm:w-28">
+                        <img className="h-full w-full object-cover" src={item.image} alt={item.name} />
+                      </div>
+
+                      <div className="flex-1">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <h3 className="portal-heading text-lg font-semibold">{item.name}</h3>
+                            <p className="portal-muted mt-1 text-sm">Sold by: {item.seller || 'Marketplace seller'}</p>
+                            <p className="portal-heading mt-3 text-lg font-semibold">${Number(item.price || 0).toFixed(2)} each</p>
+                          </div>
+                          <p className="portal-heading text-lg font-bold">${Number((item.price || 0) * (item.quantity || 0)).toFixed(2)}</p>
                         </div>
-                        <div className="ml-6 flex-1 flex flex-col">
-                          <div className="flex-1">
-                            <h3 className="text-lg font-medium text-gray-900">{item.name}</h3>
-                            <p className="text-sm text-gray-500 mt-1">Sold by: {item.seller}</p>
-                            <p className="mt-2 text-lg font-semibold text-gray-900">${item.price.toFixed(2)} each</p>
+
+                        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex items-center gap-3">
+                            <span className="portal-muted text-sm font-medium">Quantity</span>
+                            <div className="flex items-center rounded-[0.95rem] border border-[var(--portal-border)] bg-[var(--portal-surface-muted)]">
+                              <button
+                                onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                className="h-10 w-10 text-lg text-[var(--portal-accent-strong)] transition hover:bg-white/70 disabled:cursor-not-allowed disabled:opacity-40"
+                                disabled={item.quantity <= 1}
+                              >
+                                -
+                              </button>
+                              <span className="portal-heading flex h-10 min-w-[2.75rem] items-center justify-center text-sm font-semibold">
+                                {item.quantity}
+                              </span>
+                              <button
+                                onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                className="h-10 w-10 text-lg text-[var(--portal-accent-strong)] transition hover:bg-white/70"
+                              >
+                                +
+                              </button>
+                            </div>
                           </div>
-                          <div className="ml-4 text-right">
-                            <p className="text-lg font-bold text-gray-900">
-                              ${(item.price * item.quantity).toFixed(2)}
-                            </p>
-                          </div>
+
+                          <button
+                            onClick={() => removeItem(item.id)}
+                            className="inline-flex items-center gap-2 text-sm font-semibold text-red-600 transition hover:text-red-700"
+                          >
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Remove
+                          </button>
                         </div>
                       </div>
-                      
-                      <div className="mt-4 flex items-center justify-between">
-                            <div className="flex items-center space-x-4">
-                              <span className="text-gray-700 font-medium">Quantity:</span>
-                              <div className="flex items-center border border-gray-300 rounded-lg">
-                                <button
-                                  onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                  className="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-l-lg transition-colors duration-200"
-                                  disabled={item.quantity <= 1}
-                                >
-                                  <span className="text-lg">-</span>
-                                </button>
-                                <span className="w-12 h-10 flex items-center justify-center text-gray-900 font-medium">
-                                  {item.quantity}
-                                </span>
-                                <button
-                                  onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                  className="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-r-lg transition-colors duration-200"
-                                >
-                                  <span className="text-lg">+</span>
-                                </button>
-                              </div>
-                            </div>
-                            
-                            <button
-                              onClick={() => removeItem(item.id)}
-                              className="flex items-center text-red-600 hover:text-red-800 transition-colors duration-200"
-                            >
-                              <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                              </svg>
-                              Remove
-                            </button>
-                          </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-            
-            {/* Order Summary Section */}
-            <div className="lg:col-span-1">
-              <div className="bg-white bg-opacity-80 backdrop-blur-sm rounded-none shadow-lg p-6 sticky top-8 border border-gray-200">
-                <div className="px-4 py-3 border-b border-gray-200 mb-6">
-                  <h2 className="text-lg font-semibold text-gray-800">Order Summary</h2>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+
+            <aside className="lg:col-span-1">
+              <div className="portal-card sticky top-8 p-6">
+                <div className="border-b border-[var(--portal-border)] pb-4">
+                  <h2 className="portal-heading text-lg font-semibold">Order Summary</h2>
+                  <p className="portal-muted mt-1 text-sm">A quick cost snapshot before you move to checkout.</p>
                 </div>
-                
-                <div className="space-y-4">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Subtotal</span>
-                    <span className="font-medium">${calculateTotal().toFixed(2)}</span>
+
+                <div className="mt-6 space-y-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="portal-muted">Subtotal</span>
+                    <span className="portal-heading font-semibold">${calculateTotal().toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Shipping</span>
-                    <span className="font-medium">$0.00</span>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="portal-muted">Shipping</span>
+                    <span className="portal-heading font-semibold">$0.00</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Tax</span>
-                    <span className="font-medium">$0.00</span>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="portal-muted">Tax</span>
+                    <span className="portal-heading font-semibold">$0.00</span>
                   </div>
-                  
-                  <div className="border-t border-gray-200 pt-4 mt-4">
-                    <div className="flex justify-between text-lg font-bold">
-                      <span>Total</span>
-                      <span>${calculateTotal().toFixed(2)}</span>
+                  <div className="border-t border-[var(--portal-border)] pt-4">
+                    <div className="flex items-center justify-between">
+                      <span className="portal-heading text-base font-semibold">Total</span>
+                      <span className="portal-heading text-xl font-bold">${calculateTotal().toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
-                
-                <div className="mt-8">
-                  <button
-                    onClick={handleCheckout}
-                    className="w-full flex justify-center items-center px-6 py-3 border border-transparent rounded-none shadow-sm text-base font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 transition-all duration-300"
-                  >
-                    Proceed to Checkout
-                  </button>
-                </div>
-                
-                <div className="mt-6 pt-6 border-t border-gray-200">
-                  <p className="text-center text-gray-600 text-sm">
+
+                <button onClick={() => router.push('/checkout')} className="portal-primary-button mt-8 flex w-full justify-center px-6 py-3 text-base font-medium">
+                  Proceed to Checkout
+                </button>
+
+                <div className="mt-6 border-t border-[var(--portal-border)] pt-6 text-center">
+                  <p className="portal-muted text-sm">
                     or{' '}
-                    <Link href="/marketplace" className="text-blue-600 font-medium hover:text-blue-700">
+                    <Link href="/marketplace" className="font-semibold text-[var(--portal-accent)] hover:text-[#c87918]">
                       Continue Shopping
                     </Link>
                   </p>
                 </div>
               </div>
-            </div>
+            </aside>
           </div>
         )}
       </main>

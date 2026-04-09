@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import AdminLayout from '../components/AdminLayout';
 import ImageUploader from '../components/ImageUploader';
 import { withAdminScopeUrl } from '../utils/scopeApi';
+import { requestJson } from '../utils/httpClient';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
 
@@ -22,21 +24,28 @@ export default function BannersManagement() {
     link: '',
     isActive: true
   });
+  const router = useRouter();
 
-  // Fetch banners from API
   useEffect(() => {
+    const loggedIn = localStorage.getItem('adminLoggedIn');
+    if (!loggedIn) {
+      router.push('/login');
+      return;
+    }
     fetchBanners();
-  }, []);
+  }, [router]);
 
   const fetchBanners = async () => {
     try {
       setLoading(true);
-      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/banners`));
-      if (!response.ok) {
-        throw new Error('Failed to fetch banners');
+      setError('');
+      const { ok, payload, message } = await requestJson(withAdminScopeUrl(`${API_BASE_URL}/api/banners`), {
+        retries: 1
+      });
+      if (!ok) {
+        throw new Error(message || 'Failed to fetch banners');
       }
-      const data = await response.json();
-      setBanners(data);
+      setBanners(Array.isArray(payload) ? payload : payload?.items || []);
     } catch (err) {
       setError('Failed to load banners: ' + err.message);
     } finally {
@@ -83,19 +92,18 @@ export default function BannersManagement() {
   const handleAddBanner = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/banners`), {
+      setError('');
+      const { ok, payload, message } = await requestJson(withAdminScopeUrl(`${API_BASE_URL}/api/banners`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(newBanner),
       });
-      
-      if (!response.ok) {
-        throw new Error('Failed to add banner');
+      if (!ok) {
+        throw new Error(message || 'Failed to add banner');
       }
-      
-      const addedBanner = await response.json();
+      const addedBanner = payload;
       setBanners([...banners, addedBanner]);
       setSuccess('Banner added successfully!');
       setNewBanner({
@@ -119,19 +127,18 @@ export default function BannersManagement() {
   const handleUpdateBanner = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/banners/${editingBanner}`), {
+      setError('');
+      const { ok, payload, message } = await requestJson(withAdminScopeUrl(`${API_BASE_URL}/api/banners/${editingBanner}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(newBanner),
       });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update banner');
+      if (!ok) {
+        throw new Error(message || 'Failed to update banner');
       }
-      
-      const updatedBanner = await response.json();
+      const updatedBanner = payload;
       setBanners(banners.map(banner => 
         banner._id === editingBanner ? updatedBanner : banner
       ));
@@ -155,17 +162,16 @@ export default function BannersManagement() {
   };
 
   // Update banner status
-  const toggleBannerStatus = async (id, currentStatus) => {
+  const toggleBannerStatus = async (id) => {
     try {
-      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/banners/${id}/toggle`), {
+      setError('');
+      const { ok, payload, message } = await requestJson(withAdminScopeUrl(`${API_BASE_URL}/api/banners/${id}/toggle`), {
         method: 'PATCH',
       });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update banner');
+      if (!ok) {
+        throw new Error(message || 'Failed to update banner');
       }
-      
-      const updatedBanner = await response.json();
+      const updatedBanner = payload;
       setBanners(banners.map(banner => 
         banner._id === id ? updatedBanner : banner
       ));
@@ -185,14 +191,13 @@ export default function BannersManagement() {
     }
     
     try {
-      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/banners/${id}`), {
+      setError('');
+      const { ok, message } = await requestJson(withAdminScopeUrl(`${API_BASE_URL}/api/banners/${id}`), {
         method: 'DELETE',
       });
-      
-      if (!response.ok) {
-        throw new Error('Failed to delete banner');
+      if (!ok) {
+        throw new Error(message || 'Failed to delete banner');
       }
-      
       setBanners(banners.filter(banner => banner._id !== id));
       setSuccess('Banner deleted successfully!');
       

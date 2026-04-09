@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
 const DEFAULT_TIMEOUT_MS = Number(process.env.NEXT_PUBLIC_HTTP_TIMEOUT_MS || 7000);
 const DEFAULT_RETRIES = Number(process.env.NEXT_PUBLIC_HTTP_RETRIES || 1);
 
@@ -51,10 +51,14 @@ export const requestJson = async (
         await sleep(200 * attempt);
         continue;
       }
-      return { ok: false, payload: {}, message: 'Network error', status: 0 };
+      return {
+        ok: false,
+        payload: {},
+        message: `Network error. API gateway unavailable at ${API_BASE_URL}`,
+        status: 0
+      };
     }
   }
 
   return { ok: false, payload: {}, message: 'Request failed', status: 0 };
 };
-

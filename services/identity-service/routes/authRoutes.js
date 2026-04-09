@@ -15,6 +15,51 @@ const registerAuthRoutes = ({
   const shouldExposeResetToken = ['1', 'true', 'yes', 'on'].includes(
     `${process.env.EXPOSE_PASSWORD_RESET_TOKEN || 'true'}`.toLowerCase()
   );
+  const LOGIN_MAX_ATTEMPTS = Number(process.env.LOGIN_MAX_ATTEMPTS || 5);
+  const LOGIN_LOCK_MS = Number(process.env.LOGIN_LOCK_MS || 3 * 60 * 1000);
+  const loginThrottleStore = new Map();
+
+  const normalizeLoginKey = (value = '') => String(value || '').trim().toLowerCase();
+  const getThrottleKey = (scope, loginKey) => `${scope}:${normalizeLoginKey(loginKey)}`;
+  const clearThrottle = (throttleKey) => {
+    loginThrottleStore.delete(throttleKey);
+  };
+  const getThrottleState = (throttleKey) => {
+    const entry = loginThrottleStore.get(throttleKey);
+    if (!entry) return { locked: false, retryAfterSec: 0 };
+    const now = Date.now();
+    if (entry.lockUntil && entry.lockUntil > now) {
+      return {
+        locked: true,
+        retryAfterSec: Math.max(1, Math.ceil((entry.lockUntil - now) / 1000))
+      };
+    }
+    if (entry.lockUntil && entry.lockUntil <= now) {
+      loginThrottleStore.delete(throttleKey);
+    }
+    return { locked: false, retryAfterSec: 0 };
+  };
+  const registerFailure = (throttleKey) => {
+    const now = Date.now();
+    const entry = loginThrottleStore.get(throttleKey) || { count: 0, lockUntil: 0 };
+    if (entry.lockUntil && entry.lockUntil <= now) {
+      entry.count = 0;
+      entry.lockUntil = 0;
+    }
+    entry.count += 1;
+    if (entry.count >= LOGIN_MAX_ATTEMPTS) {
+      entry.lockUntil = now + LOGIN_LOCK_MS;
+      entry.count = 0;
+    }
+    loginThrottleStore.set(throttleKey, entry);
+  };
+  const respondLocked = (res, retryAfterSec) => {
+    res.set('Retry-After', String(retryAfterSec));
+    return res.status(429).json({
+      success: false,
+      message: `Too many failed login attempts. Try again in ${retryAfterSec} seconds.`
+    });
+  };
 
   app.post('/api/auth/register', async (req, res) => {
     try {
@@ -56,27 +101,62 @@ const registerAuthRoutes = ({
 
   app.post('/api/auth/login', async (req, res) => {
     try {
-      const { email, username, password } = req.body;
+      const { email, username, password, userType, role } = req.body;
       const loginKey = email || username;
+      const throttleKey = getThrottleKey('user', loginKey);
+      const rawRequestedRole = String(userType || role || '').trim();
+      const requestedRole = rawRequestedRole ? normalizeRole(rawRequestedRole) : '';
 
       if (!loginKey || !password) {
         return res.status(400).json({ success: false, message: 'email/username and password are required' });
       }
+      const throttleState = getThrottleState(throttleKey);
+      if (throttleState.locked) {
+        return respondLocked(res, throttleState.retryAfterSec);
+      }
 
       const user = await User.findOne(email ? { email } : { username });
       if (!user) {
-        return res.status(401).json({ success: false, message: 'Invalid credentials' });
+        registerFailure(throttleKey);
+        return res.status(404).json({
+          success: false,
+          message: 'Account does not exist. Please sign up first.'
+        });
       }
 
       if (user.status !== 'active') {
+        registerFailure(throttleKey);
         return res.status(403).json({ success: false, message: 'Account is inactive' });
       }
 
       const ok = await bcrypt.compare(password, user.passwordHash);
       if (!ok) {
+        registerFailure(throttleKey);
         return res.status(401).json({ success: false, message: 'Invalid credentials' });
       }
 
+      if (requestedRole) {
+        const userRoles = Array.isArray(user.roles) ? user.roles : [];
+        const hasRequestedRole = user.role === requestedRole || userRoles.includes(requestedRole);
+
+        if (!hasRequestedRole) {
+          registerFailure(throttleKey);
+          return res.status(403).json({
+            success: false,
+            message: `This account does not have ${requestedRole} access`
+          });
+        }
+
+        if (user.role !== 'admin' && user.role !== requestedRole) {
+          user.role = requestedRole;
+          user.roles = userRoles.includes(requestedRole)
+            ? userRoles
+            : [...userRoles, requestedRole];
+          await user.save();
+        }
+      }
+
+      clearThrottle(throttleKey);
       const token = createToken(user);
       return res.json({ success: true, token, user: toResponseUser(user) });
     } catch (error) {
@@ -92,15 +172,22 @@ const registerAuthRoutes = ({
         return res.status(400).json({ success: false, message: 'email and googleId are required' });
       }
 
-      const normalizedRole = normalizeRole(userType || 'buyer');
+      const requestedRoleRaw = String(userType || '').trim();
+      const hasExplicitRole = Boolean(requestedRoleRaw);
+      const normalizedRole = hasExplicitRole ? normalizeRole(requestedRoleRaw) : '';
       let user = await User.findOne({ email: email.toLowerCase() });
 
       if (user) {
-        const updatedRoles = user.roles.includes(normalizedRole)
-          ? user.roles
-          : [...user.roles, normalizedRole];
+        const effectiveRole = normalizedRole || user.role || 'buyer';
+        const existingRoles = Array.isArray(user.roles) ? user.roles : [];
+        const updatedRoles = existingRoles.includes(effectiveRole)
+          ? existingRoles
+          : [...existingRoles, effectiveRole];
 
-        user.role = user.role || normalizedRole;
+        // Honor explicit role selection for Google access flow, but never demote admin.
+        if (hasExplicitRole && user.role !== 'admin') {
+          user.role = effectiveRole;
+        }
         user.roles = updatedRoles;
         user.authProvider = 'google';
         user.googleId = googleId;
@@ -109,12 +196,13 @@ const registerAuthRoutes = ({
         await user.save();
       } else {
         const generatedUsername = email.toLowerCase();
+        const roleForNewUser = normalizedRole || 'buyer';
         user = await User.create({
           email: email.toLowerCase(),
           username: generatedUsername,
           passwordHash: await bcrypt.hash(`google:${googleId}`, 10),
-          role: normalizedRole,
-          roles: [normalizedRole],
+          role: roleForNewUser,
+          roles: [roleForNewUser],
           displayName: name || generatedUsername.split('@')[0],
           status: 'active',
           authProvider: 'google',
@@ -264,27 +352,62 @@ const registerAuthRoutes = ({
 
   app.post('/api/users/login', async (req, res) => {
     try {
-      const { email, username, password } = req.body;
+      const { email, username, password, userType, role } = req.body;
       const loginKey = email || username;
+      const throttleKey = getThrottleKey('user', loginKey);
+      const rawRequestedRole = String(userType || role || '').trim();
+      const requestedRole = rawRequestedRole ? normalizeRole(rawRequestedRole) : '';
 
       if (!loginKey || !password) {
         return res.status(400).json({ success: false, message: 'email/username and password are required' });
       }
+      const throttleState = getThrottleState(throttleKey);
+      if (throttleState.locked) {
+        return respondLocked(res, throttleState.retryAfterSec);
+      }
 
       const user = await User.findOne(email ? { email } : { username });
       if (!user) {
-        return res.status(401).json({ success: false, message: 'Invalid credentials' });
+        registerFailure(throttleKey);
+        return res.status(404).json({
+          success: false,
+          message: 'Account does not exist. Please sign up first.'
+        });
       }
 
       if (user.status !== 'active') {
+        registerFailure(throttleKey);
         return res.status(403).json({ success: false, message: 'Account is inactive' });
       }
 
       const ok = await bcrypt.compare(password, user.passwordHash);
       if (!ok) {
+        registerFailure(throttleKey);
         return res.status(401).json({ success: false, message: 'Invalid credentials' });
       }
 
+      if (requestedRole) {
+        const userRoles = Array.isArray(user.roles) ? user.roles : [];
+        const hasRequestedRole = user.role === requestedRole || userRoles.includes(requestedRole);
+
+        if (!hasRequestedRole) {
+          registerFailure(throttleKey);
+          return res.status(403).json({
+            success: false,
+            message: `This account does not have ${requestedRole} access`
+          });
+        }
+
+        if (user.role !== 'admin' && user.role !== requestedRole) {
+          user.role = requestedRole;
+          user.roles = userRoles.includes(requestedRole)
+            ? userRoles
+            : [...userRoles, requestedRole];
+          await user.save();
+        }
+      }
+
+      clearThrottle(throttleKey);
       const token = createToken(user);
       return res.json({
         success: true,
@@ -301,29 +424,39 @@ const registerAuthRoutes = ({
   app.post('/api/auth/admin/login', async (req, res) => {
     try {
       const { username, password } = req.body;
+      const throttleKey = getThrottleKey('admin', username);
       if (!username || !password) {
         return res.status(400).json({ success: false, message: 'username and password are required' });
+      }
+      const throttleState = getThrottleState(throttleKey);
+      if (throttleState.locked) {
+        return respondLocked(res, throttleState.retryAfterSec);
       }
 
       const user = await User.findOne({ username });
       if (!user) {
+        registerFailure(throttleKey);
         return res.status(401).json({ success: false, message: 'Invalid credentials' });
       }
 
       const ok = await bcrypt.compare(password, user.passwordHash);
       if (!ok) {
+        registerFailure(throttleKey);
         return res.status(401).json({ success: false, message: 'Invalid credentials' });
       }
 
       const hasAdminRole = user.roles.includes('admin') || user.role === 'admin';
       if (!hasAdminRole) {
+        registerFailure(throttleKey);
         return res.status(403).json({ success: false, message: 'Admin access required' });
       }
 
       if (user.status !== 'active') {
+        registerFailure(throttleKey);
         return res.status(403).json({ success: false, message: 'Account is inactive' });
       }
 
+      clearThrottle(throttleKey);
       const token = createToken(user);
       return res.json({ success: true, token, user: toResponseUser(user) });
     } catch (error) {

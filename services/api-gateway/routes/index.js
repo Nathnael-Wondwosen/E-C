@@ -1,5 +1,5 @@
 const registerAuthRoutes = require('./authRoutes');
-const registerUserCommerceRoutes = require('./userCommerceRoutes');
+const registerUserCommerceRoutes = require('./userCommerceRoutes.REFACTORED');
 const registerContentRoutes = require('./contentRoutes');
 const registerCatalogRoutes = require('./catalogRoutes');
 const registerServicesPartnersRoutes = require('./servicesPartnersRoutes');
@@ -12,6 +12,7 @@ const registerGatewayRoutes = ({
   helpers,
   authDeps,
   userCommerceDeps,
+  services, // NEW: Services from service factory
   upload,
   objectId,
   serviceUrls
@@ -19,14 +20,16 @@ const registerGatewayRoutes = ({
   const {
     authenticateToken,
     requireSelfOrAdmin,
-    requireAdmin
+    requireAdmin,
+    requireSellerOrAdmin
   } = middleware;
 
   registerUploadRoutes({
     app,
     middleware: {
       authenticateToken,
-      requireAdmin
+      requireAdmin,
+      requireSellerOrAdmin
     },
     upload
   });
@@ -61,7 +64,8 @@ const registerGatewayRoutes = ({
     getDb,
     middleware: {
       authenticateToken,
-      requireAdmin
+      requireAdmin,
+      requireSellerOrAdmin
     },
     helpers,
     ObjectId: objectId
@@ -76,14 +80,12 @@ const registerGatewayRoutes = ({
 
   registerUserCommerceRoutes({
     app,
-    getDb,
     middleware: {
       authenticateToken,
       requireSelfOrAdmin,
       requireAdmin
     },
-    deps: userCommerceDeps,
-    ObjectId: objectId
+    services
   });
 
   registerServicesPartnersRoutes({

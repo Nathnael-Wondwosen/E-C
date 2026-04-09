@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "build": "node --check server.js"
+    "build": "node --check server.js",
+    "test": "node ../../scripts/run-smoke-check.js identity-service"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

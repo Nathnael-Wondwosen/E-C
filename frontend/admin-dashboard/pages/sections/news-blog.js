@@ -1,6 +1,13 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '../../components/AdminLayout';
-import { withAdminScopeUrl } from '../../utils/scopeApi';
+import {
+  createNewsBlogPost,
+  deleteNewsBlogPost,
+  getNewsBlogPosts,
+  toggleNewsBlogPostStatus,
+  updateNewsBlogPost,
+  uploadAdminImage
+} from '../../utils/mongoService';
 
 export default function NewsBlogManagement() {
   const [activeTab, setActiveTab] = useState('blog');
@@ -40,29 +47,13 @@ export default function NewsBlogManagement() {
     newsletter: null
   });
 
-  // Define API base URL for client-side requests
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
-
   // Fetch posts from API
   const fetchPosts = async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      // Log the API URL for debugging
-      console.log('Fetching posts from:', withAdminScopeUrl(`${API_BASE_URL}/api/news-blog-posts`));
-      
-      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/news-blog-posts`));
-      
-      // Log response status for debugging
-      console.log('Response status:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-      }
-      
-      const posts = await response.json();
+
+      const posts = await getNewsBlogPosts();
       console.log('Fetched posts:', posts);
       
       // Separate blog posts and newsletters
@@ -130,18 +121,8 @@ export default function NewsBlogManagement() {
       
       const formData = new FormData();
       formData.append('file', file);
-      
-      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/upload`), {
-        method: 'POST',
-        body: formData
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      return data.url;
+
+      return await uploadAdminImage(file);
     } catch (error) {
       console.error('Error uploading image:', error);
       throw error;
@@ -204,17 +185,7 @@ export default function NewsBlogManagement() {
         author: "Admin"
       };
       
-      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/news-blog-posts`), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(postData)
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      await createNewsBlogPost(postData);
       
       // Reset form
       setNewBlogPost({
@@ -260,22 +231,7 @@ export default function NewsBlogManagement() {
         updatedAt: new Date().toISOString()
       };
       
-      // Remove immutable fields
-      delete postData._id;
-      delete postData.id;
-      delete postData.createdAt;
-      
-      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/news-blog-posts/${editingBlogPost._id || editingBlogPost.id}`), {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(postData)
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      await updateNewsBlogPost(editingBlogPost._id || editingBlogPost.id, postData);
       
       // Reset editing state
       setEditingBlogPost(null);
@@ -316,17 +272,7 @@ export default function NewsBlogManagement() {
         author: "Admin"
       };
       
-      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/news-blog-posts`), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(postData)
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      await createNewsBlogPost(postData);
       
       // Reset form
       setNewNewsletter({
@@ -370,22 +316,7 @@ export default function NewsBlogManagement() {
         updatedAt: new Date().toISOString()
       };
       
-      // Remove immutable fields
-      delete postData._id;
-      delete postData.id;
-      delete postData.createdAt;
-      
-      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/news-blog-posts/${editingNewsletter._id || editingNewsletter.id}`), {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(postData)
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      await updateNewsBlogPost(editingNewsletter._id || editingNewsletter.id, postData);
       
       // Reset editing state
       setEditingNewsletter(null);
@@ -408,13 +339,7 @@ export default function NewsBlogManagement() {
     }
 
     try {
-      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/news-blog-posts/${id}`), {
-        method: 'DELETE'
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      await deleteNewsBlogPost(id);
       
       // Refresh posts
       fetchPosts();
@@ -428,13 +353,7 @@ export default function NewsBlogManagement() {
 
   const togglePostStatus = async (id) => {
     try {
-      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/news-blog-posts/${id}/toggle`), {
-        method: 'PATCH'
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      await toggleNewsBlogPostStatus(id);
       
       // Refresh posts
       fetchPosts();
@@ -450,17 +369,7 @@ export default function NewsBlogManagement() {
     try {
       // In a real implementation, this would trigger an email sending process
       // For now, we'll just update the sent status
-      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/news-blog-posts/${id}`), {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ sent: true })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      await updateNewsBlogPost(id, { sent: true });
       
       // Refresh posts
       fetchPosts();

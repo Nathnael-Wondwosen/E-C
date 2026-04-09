@@ -18,7 +18,7 @@ const tiles = [
   {
     title: 'Supplier Services',
     description: 'Onboarding, quality checks, and logistics support tools.',
-    href: '/services',
+    href: '/e-commerce',
     badge: 'Services',
     external: false,
   },
@@ -32,7 +32,7 @@ const tiles = [
   {
     title: 'Trade Events',
     description: 'Showcases, fairs, and regional business networking events.',
-    href: '/localmarket',
+    href: '/expo',
     badge: 'Events',
     external: false,
   },

@@ -1,6 +1,7 @@
 # AWS EC2 Monolith Quick Deploy (Fast + Minimal)
 
 This deploys your current repo on one EC2 machine as a single-host setup:
+- `identity-service` on `:3015`
 - `api-gateway` on `:3000` (internal behind Nginx)
 - `customer-portal` on `:3005` (public via Nginx on `:80`)
 - `admin-dashboard` on `:3006` (optional direct port)
@@ -36,6 +37,7 @@ cd /home/ubuntu
 git clone <YOUR_REPO_URL> E-C
 cd E-C
 npm ci
+npm run build --workspace=services/identity-service
 npm run build --workspace=frontend/customer-portal
 npm run build --workspace=frontend/admin-dashboard
 npm run build --workspace=services/api-gateway
@@ -54,6 +56,7 @@ Update these values:
 - `ADMIN_PASSWORD`
 - `CORS_ORIGIN`
 - `NEXT_PUBLIC_API_BASE_URL`
+- `IDENTITY_SERVICE_URL`
 - Replace `REPLACE_WITH_EC2_PUBLIC_IP_OR_DOMAIN` with your EC2 IP or domain
 
 ## 5) Start services with PM2

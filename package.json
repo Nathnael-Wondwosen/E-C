@@ -8,25 +8,35 @@
     "shared"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev --workspace=frontend/admin-dashboard\" \"npm run dev --workspace=frontend/customer-portal\" \"npm run dev --workspace=services/api-gateway\" \"npm run dev --workspace=services/identity-service\" \"npm run dev --workspace=services/user-service\"",
-    "dev:current": "concurrently \"npm run dev --workspace=frontend/admin-dashboard\" \"npm run dev --workspace=frontend/customer-portal\" \"npm run dev --workspace=services/api-gateway\" \"npm run dev --workspace=services/user-service\" \"npm run dev --workspace=services/identity-service\"",
+    "dev": "concurrently \"npm run dev --workspace=services/api-gateway\" \"npm run dev --workspace=services/identity-service\" \"npm run dev --workspace=frontend/customer-portal\" \"npm run dev --workspace=frontend/admin-dashboard\"",
+    "dev:current": "npm run dev",
     "dev:identity": "npm run dev --workspace=services/identity-service",
+    "dev:gateway": "npm run dev --workspace=services/api-gateway",
+    "dev:frontend": "concurrently \"npm run dev --workspace=frontend/customer-portal\" \"npm run dev --workspace=frontend/admin-dashboard\"",
     "build": "npm run build --workspaces",
-    "test": "npm run test --workspaces",
-    "dev:backend": "concurrently \"npm run dev --workspace=services/api-gateway\" \"npm run dev --workspace=services/identity-service\" \"npm run dev --workspace=services/user-service\"",
+    "test": "npm run test --workspaces --if-present",
+    "test:watch": "npm run test:watch --workspaces",
+    "test:coverage": "npm run test:coverage --workspaces",
+    "lint": "npm run lint --workspaces",
+    "lint:fix": "npm run lint:fix --workspaces",
+    "format": "npm run format --workspaces",
+    "dev:backend": "concurrently \"npm run dev --workspace=services/api-gateway\" \"npm run dev --workspace=services/identity-service\"",
     "start": "echo 'Use npm run start:services and npm run start:frontend'",
-    "start:services": "concurrently \"npm run start --workspace=services/api-gateway\" \"npm run start --workspace=services/identity-service\" \"npm run start --workspace=services/user-service\"",
-    "start:frontend": "concurrently \"PORT=3005 npm run start --workspace=frontend/customer-portal\" \"npm run start --workspace=frontend/admin-dashboard\"",
+    "start:services": "concurrently \"npm run start --workspace=services/api-gateway\" \"npm run start --workspace=services/identity-service\"",
+    "start:frontend": "concurrently \"npm run start --workspace=frontend/customer-portal\" \"npm run start --workspace=frontend/admin-dashboard\"",
     "build:services": "npm run build --workspace=services/api-gateway && npm run build --workspace=services/identity-service && npm run build --workspace=services/user-service",
-    "build:frontend": "npm run build --workspace=frontend/customer-portal && npm run build --workspace=frontend/admin-dashboard"
+    "build:frontend": "npm run build --workspace=frontend/customer-portal && npm run build --workspace=frontend/admin-dashboard",
+    "ci:smoke": "npm run build:services && npm run build:frontend && npm test"
   },
   "devDependencies": {
-    "concurrently": "^7.6.0"
+    "concurrently": "^7.6.0",
+    "eslint": "^8.57.0"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",
     "form-data": "^4.0.5",
+    "mongodb": "^7.1.1",
     "node-fetch": "^3.3.2",
     "three": "^0.183.2"
   }

@@ -3,10 +3,13 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { resetPasswordWithToken, validatePasswordResetToken } from '../utils/userService';
+import AuthShell from '../components/auth/AuthShell';
+import { AuthAlert, AuthField, AuthInput } from '../components/auth/AuthPrimitives';
 
 export default function ResetPasswordPage() {
   const router = useRouter();
   const token = useMemo(() => (typeof router.query.token === 'string' ? router.query.token : ''), [router.query.token]);
+  const email = useMemo(() => (typeof router.query.email === 'string' ? router.query.email : ''), [router.query.email]);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -63,69 +66,114 @@ export default function ResetPasswordPage() {
     }
 
     setSuccessMessage(result.message || 'Password reset successful.');
+    setPassword('');
+    setConfirmPassword('');
     setLoading(false);
+
+    setTimeout(() => {
+      router.push({
+        pathname: '/login',
+        query: {
+          reset: '1',
+          ...(email ? { email } : {}),
+        },
+      });
+    }, 1200);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <>
       <Head>
         <title>Reset Password | Customer Portal</title>
       </Head>
 
-      <div className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-bold text-slate-900">Reset Password</h1>
-        <p className="mt-2 text-sm text-slate-600">Set a new password for your account.</p>
-
+      <AuthShell
+        badge="Credential Reset"
+        title="Reset Password"
+        description="Create a new password inside the same polished access experience used across sign-in and registration."
+        panelBadge="Secure Recovery"
+        panelTitle="Restore access without leaving the platform's premium visual world."
+        panelDescription="Resetting credentials is a sensitive step, so the interface should feel calm, trustworthy, and clearly connected to the rest of the product."
+        highlights={[
+          'Security-focused reset experience with a stronger visual hierarchy.',
+          'Consistent recovery language across login, signup, and password flows.',
+          'Cleaner responsive composition for desktop and mobile reset screens.'
+        ]}
+        metrics={[
+          { label: 'Security Step', value: 'Trusted' },
+          { label: 'Flow Tone', value: 'Consistent' }
+        ]}
+        size="wide"
+        footer={(
+          <>
+            Need another reset link?{' '}
+            <Link href="/forgot-password" className="font-semibold text-[#8E6A2F] hover:text-[#A8823E]">
+              Request a new one
+            </Link>
+            {' '}or{' '}
+            <Link href="/login" className="font-semibold text-[#8E6A2F] hover:text-[#A8823E]">
+              Sign in
+            </Link>
+          </>
+        )}
+      >
         {validating ? (
-          <p className="mt-4 text-sm text-slate-600">Validating reset token...</p>
+          <div className="rounded-[0.9rem] border border-[#D8C39A] bg-[#FBF6EC] px-4 py-3 text-sm text-[#8E6A2F] dark:border-[#C8A96B]/25 dark:bg-[#C8A96B]/10 dark:text-[#E7D3A5]">
+            Validating reset token...
+          </div>
         ) : (
-          <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
-            <div>
-              <label htmlFor="password" className="mb-1 block text-sm font-medium text-slate-700">
-                New Password
-              </label>
-              <input
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            {!tokenValid ? (
+              <AuthAlert tone="warning">
+                This reset link is missing, invalid, or expired. Request a fresh password reset link to continue.
+              </AuthAlert>
+            ) : null}
+
+            <AuthField label="New Password" htmlFor="password" hint="At least 6 characters">
+              <AuthInput
                 id="password"
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-md border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-500"
-                placeholder="At least 6 characters"
+                placeholder="Create your new password"
               />
-            </div>
+            </AuthField>
 
-            <div>
-              <label htmlFor="confirmPassword" className="mb-1 block text-sm font-medium text-slate-700">
-                Confirm Password
-              </label>
-              <input
+            <AuthField label="Confirm Password" htmlFor="confirmPassword">
+              <AuthInput
                 id="confirmPassword"
                 type="password"
                 required
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full rounded-md border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+                placeholder="Confirm your new password"
               />
-            </div>
+            </AuthField>
 
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            {successMessage && (
-              <p className="text-sm text-emerald-700">
-                {successMessage} <Link href="/login" className="font-semibold underline">Go to Login</Link>
-              </p>
-            )}
+            {error ? <AuthAlert>{error}</AuthAlert> : null}
+            {successMessage ? (
+              <AuthAlert tone="success">
+                {successMessage}{' '}
+                <Link
+                  href="/login"
+                  className="font-semibold text-[#8E6A2F] underline decoration-[#C8A96B] underline-offset-4 hover:text-[#A8823E]"
+                >
+                  Go to sign in
+                </Link>
+              </AuthAlert>
+            ) : null}
 
             <button
               type="submit"
-              disabled={loading || !tokenValid}
-              className="w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+              disabled={loading || !tokenValid || !password || !confirmPassword}
+              className="auth-primary-button"
             >
               {loading ? 'Resetting...' : 'Reset Password'}
             </button>
           </form>
         )}
-      </div>
-    </div>
+      </AuthShell>
+    </>
   );
 }

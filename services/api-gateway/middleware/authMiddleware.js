@@ -64,9 +64,28 @@ const requireAdmin = (req, res, next) => {
   return res.status(403).json({ error: 'Forbidden: admin access required' });
 };
 
+const requireSellerOrAdmin = (req, res, next) => {
+  if (isAdminFromClaims(req.auth)) {
+    return next();
+  }
+
+  const userType = String(req.auth?.userType || '').toLowerCase();
+  const role = String(req.auth?.role || '').toLowerCase();
+  const roles = Array.isArray(req.auth?.roles)
+    ? req.auth.roles.map((value) => String(value || '').toLowerCase())
+    : [];
+
+  if (userType === 'seller' || role === 'seller' || roles.includes('seller')) {
+    return next();
+  }
+
+  return res.status(403).json({ error: 'Forbidden: seller access required' });
+};
+
 module.exports = {
   createAuthTokenFactory,
   authenticateTokenFactory,
   requireSelfOrAdmin,
-  requireAdmin
+  requireAdmin,
+  requireSellerOrAdmin
 };

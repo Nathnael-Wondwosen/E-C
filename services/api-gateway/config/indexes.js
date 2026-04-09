@@ -24,6 +24,12 @@ const ensureGatewayIndexes = async (db) => {
     db.collection('product_inquiries').createIndex({ toUserId: 1, createdAt: -1 }),
     db.collection('product_inquiries').createIndex({ fromUserId: 1, createdAt: -1 }),
     db.collection('product_inquiries').createIndex({ productId: 1, createdAt: -1 }),
+    db.collection('product_inquiries').createIndex(
+      { threadKey: 1 },
+      { unique: true, sparse: true, partialFilterExpression: { threadKey: { $type: 'string' } } }
+    ),
+    db.collection('product_reviews').createIndex({ productId: 1, createdAt: -1 }),
+    db.collection('product_reviews').createIndex({ productId: 1, userId: 1 }, { unique: true }),
     db.collection('carts').createIndex({ userId: 1 }, { unique: true }),
     db.collection('wishlists').createIndex({ userId: 1 }, { unique: true }),
 

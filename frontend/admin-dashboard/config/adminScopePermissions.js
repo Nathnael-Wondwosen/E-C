@@ -10,7 +10,6 @@ const SCOPE_ALLOWED_PREFIXES = Object.freeze({
     '/sections',
     '/services',
     '/partners',
-    '/analytics',
     '/logs'
   ],
   global: [
@@ -22,7 +21,6 @@ const SCOPE_ALLOWED_PREFIXES = Object.freeze({
     '/sections',
     '/services',
     '/partners',
-    '/analytics',
     '/logs'
   ],
   africa: [
@@ -34,7 +32,6 @@ const SCOPE_ALLOWED_PREFIXES = Object.freeze({
     '/sections',
     '/services',
     '/partners',
-    '/analytics',
     '/logs'
   ],
   china: [
@@ -46,7 +43,6 @@ const SCOPE_ALLOWED_PREFIXES = Object.freeze({
     '/sections',
     '/services',
     '/partners',
-    '/analytics',
     '/logs'
   ],
   b2b: [
@@ -57,7 +53,6 @@ const SCOPE_ALLOWED_PREFIXES = Object.freeze({
     '/b2b',
     '/services',
     '/partners',
-    '/analytics',
     '/logs'
   ],
   system: [
@@ -69,10 +64,7 @@ const SCOPE_ALLOWED_PREFIXES = Object.freeze({
     '/sections',
     '/services',
     '/partners',
-    '/analytics',
     '/logs',
-    '/auto-categorize',
-    '/product-variants',
     '/b2b'
   ]
 });

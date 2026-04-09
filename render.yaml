@@ -1,44 +1,79 @@
 services:
-  # API Gateway
   - type: web
-    name: ecommerce-api-gateway
-    runtime: docker
+    name: ecommerce-identity-service
+    runtime: node
     plan: free
-    rootDir: services/api-gateway
+    rootDir: .
+    buildCommand: npm install && npm run build --workspace=services/identity-service
+    startCommand: npm run start --workspace=services/identity-service
     envVars:
       - key: NODE_ENV
         value: production
+      - key: IDENTITY_SERVICE_PORT
+        value: 3015
       - key: MONGODB_URI
         sync: false
+      - key: MONGODB_DB_NAME
+        value: ecommerce_platform
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: EXPOSE_PASSWORD_RESET_TOKEN
+        value: false
+    healthCheckPath: /health
+    autoDeploy: true
+
+  - type: web
+    name: ecommerce-api-gateway
+    runtime: node
+    plan: free
+    rootDir: .
+    buildCommand: npm install && npm run build --workspace=services/api-gateway
+    startCommand: npm run start --workspace=services/api-gateway
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DB_NAME
+        value: ecommerce_platform
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: EXPOSE_PASSWORD_RESET_TOKEN
+        value: false
+      - key: ENFORCE_IDENTITY_BOUNDARY
+        value: true
+      - key: IDENTITY_SERVICE_URL
+        fromService:
+          name: ecommerce-identity-service
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: CLOUDINARY_API_KEY
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
-      - key: USER_SERVICE_URL
-        fromService:
-          name: ecommerce-user-service
-          type: web
-          envVarKey: RENDER_EXTERNAL_URL
     healthCheckPath: /health
     autoDeploy: true
 
-  # User Service
-  - type: web
-    name: ecommerce-user-service
-    runtime: docker
-    plan: free
-    rootDir: services/user-service
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: MONGODB_URI
-        sync: false
-    healthCheckPath: /health
-    autoDeploy: true
-
-  # Admin Dashboard
   - type: web
     name: ecommerce-admin-dashboard
     runtime: node
@@ -54,9 +89,10 @@ services:
           name: ecommerce-api-gateway
           type: web
           envVarKey: RENDER_EXTERNAL_URL
+      - key: NEXT_PUBLIC_ALLOW_MOCK_FALLBACKS
+        value: false
     autoDeploy: true
 
-  # Customer Portal
   - type: web
     name: ecommerce-customer-portal
     runtime: node
@@ -72,4 +108,8 @@ services:
           name: ecommerce-api-gateway
           type: web
           envVarKey: RENDER_EXTERNAL_URL
+      - key: NEXT_PUBLIC_GOOGLE_CLIENT_ID
+        sync: false
+      - key: NEXT_PUBLIC_ALLOW_MOCK_FALLBACKS
+        value: false
     autoDeploy: true

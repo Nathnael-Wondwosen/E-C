@@ -1,9 +1,17 @@
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getCategories, getProducts } from '../../utils/heroDataService';
-import { addToCart, addToWishlist, getUserCart, getUserWishlist, removeFromWishlist } from '../../utils/userService';
+import {
+  addToCart,
+  addToWishlist,
+  getUserCart,
+  getUserInquiryInbox,
+  getUserInquirySent,
+  getUserWishlist,
+  removeFromWishlist
+} from '../../utils/userService';
 import AccountDropdown from '../../components/header/AccountDropdown';
 
 const fallbackCategories = [
@@ -16,6 +24,17 @@ const fallbackCategories = [
   'Baby',
   'Industrial',
 ];
+
+const fallbackCategoryImages = {
+  Electronics: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=420&q=80',
+  Fashion: 'https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=420&q=80',
+  'Home & Kitchen': 'https://images.unsplash.com/photo-1556911220-bff31c812dba?auto=format&fit=crop&w=420&q=80',
+  Beauty: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=420&q=80',
+  Sports: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=420&q=80',
+  Automotive: 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=420&q=80',
+  Baby: 'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=420&q=80',
+  Industrial: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=420&q=80',
+};
 
 const spotlightCards = [
   {
@@ -223,7 +242,7 @@ function ProductRailSection({
 
               <div className={`${isTopDiscounts ? 'mt-1' : 'mt-2'} flex items-center justify-between`}>
                 <div className={`flex items-center gap-1 ${isTopDiscounts ? 'text-[8px] sm:text-[9px] md:text-[10px]' : 'text-[11px]'} text-slate-500`}>
-                  <span className="text-amber-500">★</span>
+                  <span className="text-amber-500">*</span>
                   <span>{item.rating ? item.rating.toFixed(1) : '4.2'}</span>
                   <span className="text-slate-300">|</span>
                   <span>{item.soldCount || 80}+ sold</span>
@@ -286,6 +305,7 @@ export default function Home({ initialIsLocalMarketView = false }) {
   const [listingLocationFilter, setListingLocationFilter] = useState('All');
   const [listingPriceFilter, setListingPriceFilter] = useState('All');
   const [listingSort, setListingSort] = useState('featured');
+  const [listingView, setListingView] = useState('grid');
   const [listingMinRatingFilter, setListingMinRatingFilter] = useState('All');
   const [listingSupplierTypeFilter, setListingSupplierTypeFilter] = useState('All');
   const [listingDeliveryFilter, setListingDeliveryFilter] = useState('All');
@@ -297,6 +317,13 @@ export default function Home({ initialIsLocalMarketView = false }) {
   const [actionMessage, setActionMessage] = useState('');
   const [wishlistCount, setWishlistCount] = useState(0);
   const [cartCount, setCartCount] = useState(0);
+  const [inquiryUnreadCount, setInquiryUnreadCount] = useState(0);
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+  const [showMobileSearchBar, setShowMobileSearchBar] = useState(false);
+  const [showMobileFilterChips, setShowMobileFilterChips] = useState(false);
+  const [showMobileBottomNav, setShowMobileBottomNav] = useState(true);
+  const listingSectionRef = useRef(null);
+  const lastScrollYRef = useRef(0);
 
   useEffect(() => {
     const loadData = async () => {
@@ -336,20 +363,64 @@ export default function Home({ initialIsLocalMarketView = false }) {
 
   useEffect(() => {
     const loadCartCount = async () => {
-      const isLoggedIn = localStorage.getItem('userLoggedIn');
-      const userId = localStorage.getItem('userId');
-      if (!isLoggedIn || !userId) {
-        setCartCount(0);
-        return;
-      }
+      try {
+        const isLoggedIn = localStorage.getItem('userLoggedIn');
+        const userId = localStorage.getItem('userId');
+        if (!isLoggedIn || !userId) {
+          setCartCount(0);
+          return;
+        }
 
-      const result = await getUserCart(userId);
-      setCartCount(Number(result?.count || 0));
+        const result = await getUserCart(userId);
+        setCartCount(Number(result?.count || 0));
+      } catch {
+        setCartCount(0);
+      }
     };
 
     loadCartCount();
+    const intervalId = window.setInterval(loadCartCount, 20000);
     window.addEventListener('loginStatusChanged', loadCartCount);
-    return () => window.removeEventListener('loginStatusChanged', loadCartCount);
+    window.addEventListener('focus', loadCartCount);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('loginStatusChanged', loadCartCount);
+      window.removeEventListener('focus', loadCartCount);
+    };
+  }, []);
+
+  useEffect(() => {
+    const loadInquiryUnreadCount = async () => {
+      try {
+        const isLoggedIn = localStorage.getItem('userLoggedIn');
+        const userId = localStorage.getItem('userId');
+        const userType = localStorage.getItem('userType') || 'buyer';
+        if (!isLoggedIn || !userId) {
+          setInquiryUnreadCount(0);
+          return;
+        }
+
+        const result =
+          userType === 'seller' ? await getUserInquiryInbox(userId) : await getUserInquirySent(userId);
+        const inquiries = Array.isArray(result?.inquiries) ? result.inquiries : [];
+        const computed = Number(
+          result?.unreadTotal ?? inquiries.reduce((sum, row) => sum + Number(row?.unreadCount || 0), 0)
+        );
+        setInquiryUnreadCount(Number.isFinite(computed) ? computed : 0);
+      } catch {
+        setInquiryUnreadCount(0);
+      }
+    };
+
+    loadInquiryUnreadCount();
+    const intervalId = window.setInterval(loadInquiryUnreadCount, 20000);
+    window.addEventListener('loginStatusChanged', loadInquiryUnreadCount);
+    window.addEventListener('focus', loadInquiryUnreadCount);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('loginStatusChanged', loadInquiryUnreadCount);
+      window.removeEventListener('focus', loadInquiryUnreadCount);
+    };
   }, []);
 
   const quickCategories = useMemo(() => {
@@ -360,6 +431,27 @@ export default function Home({ initialIsLocalMarketView = false }) {
       .slice(0, 12);
     return names.length ? names : fallbackCategories;
   }, [categories]);
+
+  const localMobileCategories = useMemo(() => {
+    const source = Array.isArray(categories) && categories.length ? categories : quickCategories;
+    return source
+      .slice(0, 10)
+      .map((entry, index) => {
+        if (typeof entry === 'string') {
+          return {
+            name: entry,
+            image: fallbackCategoryImages[entry] || '/placeholder-product.jpg',
+            key: `fallback-${entry}-${index}`,
+          };
+        }
+        return {
+          name: entry?.name || entry?.title || `Category ${index + 1}`,
+          image: entry?.image || entry?.icon || entry?.thumbnail || '',
+          key: String(entry?._id || entry?.id || entry?.slug || `category-${index + 1}`),
+        };
+      })
+      .filter((item) => item.name);
+  }, [categories, quickCategories]);
 
   const productCatalog = useMemo(() => {
     const regularProducts = products.filter((product) => product?.productType !== 'B2B').slice(0, 24);
@@ -551,6 +643,11 @@ export default function Home({ initialIsLocalMarketView = false }) {
     window.dispatchEvent(new CustomEvent('loginStatusChanged'));
   };
 
+  const handleOpenInquiries = () => {
+    // UX-first: clear badge immediately when user opens the chat page.
+    setInquiryUnreadCount(0);
+  };
+
   const hotProducts = useMemo(
     () => getTop([...productCatalog].filter((p) => p.isHot || p.rating >= 4.5).sort((a, b) => b.rating - a.rating)),
     [productCatalog]
@@ -713,6 +810,50 @@ export default function Home({ initialIsLocalMarketView = false }) {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i);
   }, [listingPage, totalListingPages]);
 
+  useEffect(() => {
+    if (!isLocalMarketView) return undefined;
+    if (typeof window === 'undefined') return undefined;
+
+    const onScroll = () => {
+      const currentY = window.scrollY || 0;
+      const direction = currentY > lastScrollYRef.current ? 'down' : 'up';
+      lastScrollYRef.current = currentY;
+
+      const listingTop = listingSectionRef.current
+        ? listingSectionRef.current.getBoundingClientRect().top + currentY
+        : 420;
+
+      setShowMobileSearchBar(direction === 'up' && currentY > 56);
+      setShowMobileFilterChips(direction === 'down' && currentY > Math.max(120, listingTop - 160));
+      setShowMobileBottomNav(direction === 'up' || currentY < 72);
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [isLocalMarketView]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const onResize = () => {
+      if (window.innerWidth >= 1024) setIsMobileFilterOpen(false);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    if (isMobileFilterOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMobileFilterOpen]);
+
   return (
     <>
       <Head>
@@ -727,8 +868,8 @@ export default function Home({ initialIsLocalMarketView = false }) {
         />
       </Head>
 
-      <main className="min-h-screen bg-[#f5f6f8] text-slate-900" style={{ fontFamily: 'Poppins, Segoe UI, sans-serif' }}>
-        <div className="bg-[#0f172a] text-slate-100 text-xs">
+      <main className="min-h-screen overflow-x-hidden bg-[#f5f6f8] pb-24 text-slate-900 md:pb-0" style={{ fontFamily: 'Poppins, Segoe UI, sans-serif' }}>
+        <div className="hidden bg-[#0f172a] text-slate-100 text-xs md:block">
           <div className="max-w-[1440px] mx-auto px-4 h-9 flex items-center justify-between">
             <p>Shop Ethiopia, Africa, and Worldwide</p>
             <div className="flex items-center gap-4">
@@ -739,9 +880,25 @@ export default function Home({ initialIsLocalMarketView = false }) {
           </div>
         </div>
 
-        <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
-          <div className="max-w-[1440px] mx-auto px-4 py-3 flex items-center gap-4">
-            <Link href="/e-commerce" className="text-2xl font-bold text-[#0f172a] shrink-0">TradeEthiopia</Link>
+        <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+          <div className="max-w-[1440px] mx-auto px-2 py-2 sm:px-4 sm:py-3 flex items-center gap-2 sm:gap-4">
+            <Link href="/e-commerce" className="shrink-0">
+              <img src="/TE-logo.png" alt="TradeEthiopia" className="h-7 w-7 object-contain md:hidden" />
+              <span className="hidden md:inline text-2xl font-bold text-[#0f172a]">TradeEthiopia</span>
+            </Link>
+
+            <div className="relative flex-1 md:hidden">
+              <input
+                type="text"
+                value={listingSearchTerm}
+                onChange={(e) => setListingSearchTerm(e.target.value)}
+                placeholder="Search products"
+                className="h-8 w-full rounded-full border border-slate-300 bg-white pl-8 pr-3 text-[13px] outline-none focus:border-blue-500"
+              />
+              <svg className="pointer-events-none absolute left-2.5 top-2 h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z" />
+              </svg>
+            </div>
 
             <div className="flex-1 hidden md:flex items-center border-2 border-[#1d4ed8] rounded-sm overflow-hidden">
               <select className="h-11 px-3 text-sm bg-slate-100 border-r border-slate-200 outline-none">
@@ -758,39 +915,39 @@ export default function Home({ initialIsLocalMarketView = false }) {
               <button className="h-11 px-5 bg-[#1d4ed8] text-white font-semibold">Search</button>
             </div>
 
-            <div className="flex items-center gap-3 text-sm">
+            <div className="flex items-center gap-1.5 text-sm md:gap-3">
               <div>
                 <AccountDropdown
-                  buttonClassName="h-9 px-3 inline-flex items-center rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:text-blue-700 transition-colors"
+                  buttonClassName="h-8 w-8 md:h-9 md:w-9 inline-flex items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50 hover:text-blue-700 transition-colors"
                   menuClassName="absolute right-0 top-full mt-1 w-56 bg-white border border-gray-200 shadow-xl z-40"
-                  buttonContent={<span>Account</span>}
+                  buttonContent={
+                    <svg className="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A8.965 8.965 0 0112 15c2.5 0 4.76 1.02 6.379 2.664M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  }
                 />
               </div>
-              <Link href="/wishlist" className="relative inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50">
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              <Link
+                href="/inquiries"
+                onClick={handleOpenInquiries}
+                className="relative inline-flex h-8 w-8 md:h-9 md:w-9 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50 hover:text-blue-700"
+              >
+                <svg className="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0a3 3 0 11-6 0h6z" />
                 </svg>
-                {wishlistCount > 0 && (
-                  <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
-                    {wishlistCount > 99 ? '99+' : wishlistCount}
+                {inquiryUnreadCount > 0 ? (
+                  <span className="absolute -right-1 -top-1 inline-flex min-w-[16px] items-center justify-center rounded-full bg-emerald-600 px-1 text-[9px] font-semibold text-white">
+                    {inquiryUnreadCount > 99 ? '99+' : inquiryUnreadCount}
                   </span>
-                )}
-              </Link>
-              <Link href="/cart" className="relative inline-flex h-9 w-9 items-center justify-center rounded-md bg-slate-900 text-white hover:bg-slate-800">
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m0 0h8" />
-                </svg>
-                {cartCount > 0 && (
-                  <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-cyan-500 px-1 text-[10px] font-semibold text-white">
-                    {cartCount > 99 ? '99+' : cartCount}
-                  </span>
+                ) : (
+                  <span className="absolute right-1.5 top-1.5 inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
                 )}
               </Link>
             </div>
           </div>
 
           <nav className="bg-white border-t border-slate-100">
-            <div className="max-w-[1700px] mx-auto px-2 lg:px-3 h-11 flex items-center gap-5 overflow-x-auto scrollbar-hide text-sm whitespace-nowrap">
+            <div className="max-w-[1700px] mx-auto px-2 lg:px-3 h-10 md:h-11 flex items-center gap-3 md:gap-5 overflow-x-auto scrollbar-hide text-[13px] md:text-sm whitespace-nowrap">
               <Link href={`${marketBasePath}?sort=discount`} className="font-semibold text-[#1d4ed8]">Today Deals</Link>
               <Link href={`${marketBasePath}?sort=rating`}>Best Sellers</Link>
               {!isLocalMarketView && <Link href="/localmarket">Local Market</Link>}
@@ -802,6 +959,180 @@ export default function Home({ initialIsLocalMarketView = false }) {
             </div>
           </nav>
         </header>
+
+        {isLocalMarketView ? (
+          <>
+            <div
+              className={`fixed inset-x-0 top-0 z-40 bg-white/95 px-3 py-2 shadow-md backdrop-blur md:hidden transition-transform duration-200 ${
+                showMobileSearchBar ? 'translate-y-0' : '-translate-y-full'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={listingSearchTerm}
+                  onChange={(e) => setListingSearchTerm(e.target.value)}
+                  placeholder="Search local products..."
+                  className="h-9 flex-1 rounded-full border border-slate-300 bg-white px-3 text-sm outline-none focus:border-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setListingView((prev) => (prev === 'grid' ? 'list' : 'grid'))}
+                  className="inline-flex h-9 min-w-[72px] items-center justify-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 text-[11px] font-semibold text-blue-700"
+                  aria-label="Toggle view"
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {listingView === 'grid' ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 7v-7h7v7h-7z" />
+                    )}
+                  </svg>
+                  {listingView === 'grid' ? 'List' : 'Grid'}
+                </button>
+              </div>
+            </div>
+
+            <div
+              className={`fixed inset-x-0 top-0 z-40 border-b border-blue-100/70 bg-white/96 px-2 py-1.5 shadow-sm backdrop-blur md:hidden transition-all duration-200 ${
+                showMobileFilterChips ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
+              }`}
+              style={{ paddingTop: 'max(4px, env(safe-area-inset-top))' }}
+            >
+              <div className="flex items-center gap-2">
+                <div className="scrollbar-hide flex min-w-0 flex-1 gap-2 overflow-x-auto pr-1">
+                  <button
+                    type="button"
+                    onClick={() => setListingSort('featured')}
+                    className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold ${
+                      listingSort === 'featured' ? 'border-blue-600 bg-blue-600 text-white shadow-sm' : 'border-slate-300 bg-white text-slate-700'
+                    }`}
+                  >
+                    Featured
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setListingSort('newest')}
+                    className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold ${
+                      listingSort === 'newest' ? 'border-blue-600 bg-blue-600 text-white shadow-sm' : 'border-slate-300 bg-white text-slate-700'
+                    }`}
+                  >
+                    Newest
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setListingSort('discount')}
+                    className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold ${
+                      listingSort === 'discount' ? 'border-blue-600 bg-blue-600 text-white shadow-sm' : 'border-slate-300 bg-white text-slate-700'
+                    }`}
+                  >
+                    Discounts
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setListingInStockOnly((prev) => !prev)}
+                    className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold ${
+                      listingInStockOnly ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300 bg-white text-slate-700'
+                    }`}
+                  >
+                    In Stock
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsMobileFilterOpen(true)}
+                    className="shrink-0 rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700"
+                  >
+                    More
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setListingView((prev) => (prev === 'grid' ? 'list' : 'grid'))}
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-blue-200 bg-blue-600 text-white shadow-sm"
+                  aria-label={listingView === 'grid' ? 'Switch to list view' : 'Switch to grid view'}
+                  title={listingView === 'grid' ? 'List view' : 'Grid view'}
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {listingView === 'grid' ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 7v-7h7v7h-7z" />
+                    )}
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="mx-auto block w-full max-w-[1700px] px-2 pt-2 md:hidden">
+              <div className="scrollbar-hide -mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
+                <button
+                  type="button"
+                  onClick={() => setListingCategoryFilter('All')}
+                  className="shrink-0 text-center"
+                >
+                  <span
+                    className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full border text-[10px] font-bold ${
+                      listingCategoryFilter === 'All'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-slate-200 bg-white text-slate-500'
+                    }`}
+                  >
+                    All
+                  </span>
+                  <span className={`mt-1 block max-w-[62px] truncate text-[10px] ${listingCategoryFilter === 'All' ? 'text-blue-700' : 'text-slate-600'}`}>
+                    All
+                  </span>
+                </button>
+                {localMobileCategories.map((category) => {
+                  const isActive = listingCategoryFilter === category.name;
+                  const initials = String(category.name)
+                    .split(' ')
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((piece) => piece[0]?.toUpperCase())
+                    .join('');
+
+                  return (
+                    <button
+                      key={category.key}
+                      type="button"
+                      onClick={() => setListingCategoryFilter(category.name)}
+                      className="shrink-0 text-center"
+                    >
+                      {category.image ? (
+                        <img
+                          src={category.image}
+                          alt={category.name}
+                          onError={(event) => {
+                            event.currentTarget.onerror = null;
+                            event.currentTarget.src = '/placeholder-product.jpg';
+                          }}
+                          className={`mx-auto h-14 w-14 rounded-full border object-cover ${
+                            isActive ? 'border-blue-500 ring-2 ring-blue-100' : 'border-slate-200'
+                          }`}
+                        />
+                      ) : (
+                        <span
+                          className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full border text-[12px] font-bold ${
+                            isActive
+                              ? 'border-blue-500 bg-blue-50 text-blue-700'
+                              : 'border-slate-200 bg-gradient-to-br from-amber-100 to-slate-100 text-slate-700'
+                          }`}
+                        >
+                          {initials || 'C'}
+                        </span>
+                      )}
+                      <span className={`mt-1 block max-w-[62px] truncate text-[10px] ${isActive ? 'text-blue-700' : 'text-slate-600'}`}>
+                        {category.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        ) : null}
 
         {!isLocalMarketView && (
           <section className="max-w-[1700px] mx-auto px-2 lg:px-3 py-4">
@@ -881,9 +1212,9 @@ export default function Home({ initialIsLocalMarketView = false }) {
               />
             )}
 
-            <div className="grid gap-3 lg:grid-cols-[220px_1fr]">
+            <div ref={listingSectionRef} className="grid gap-3 lg:grid-cols-[220px_1fr]">
               <aside
-                className={`h-max rounded-xl border ${
+                className={`hidden h-max rounded-xl border lg:block ${
                   isLocalMarketView
                     ? 'sticky top-24 border-blue-200 bg-gradient-to-b from-blue-50 to-white p-3 shadow-sm'
                     : 'border-slate-200 bg-white p-3'
@@ -895,7 +1226,7 @@ export default function Home({ initialIsLocalMarketView = false }) {
                       {isLocalMarketView ? 'Advanced Filters' : 'Filters'}
                     </p>
                     <p className="mt-0.5 text-[11px] text-slate-500">
-                      {activeFilterCount} active • {filteredListingProducts.length} items
+                      {activeFilterCount} active - {filteredListingProducts.length} items
                     </p>
                   </div>
                   <button
@@ -1095,82 +1426,82 @@ export default function Home({ initialIsLocalMarketView = false }) {
                     {actionMessage}
                   </div>
                 )}
-                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+                {listingView === 'grid' ? (
+                  <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4">
                   {paginatedListingProducts.map((item, index) => (
                     <article
                       key={`listing-${item.name}-${index}`}
-                      className="group rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                      className="group rounded-lg border border-slate-200 bg-white p-2 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                     >
-                      <div className="relative aspect-[4/3] rounded-md bg-slate-100 overflow-hidden">
+                      <div className="relative aspect-[4/3] overflow-hidden rounded-md bg-slate-100">
                         <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
                         {item.discount > 0 && (
                           <span className="absolute top-1.5 left-1.5 rounded bg-red-600 text-white text-[10px] px-1.5 py-0.5 font-semibold">
                             -{item.discount}%
                           </span>
                         )}
-                        <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 opacity-0 transition group-hover:opacity-100 z-10">
+                        <div className="absolute bottom-1 right-1 flex items-center gap-1 opacity-0 transition group-hover:opacity-100 z-10">
                           <button
                             type="button"
                             onClick={() => handleToggleWishlist(item)}
                             disabled={Boolean(wishlistLoading[String(item.id)])}
-                            className={`rounded-full bg-white/90 p-1 shadow-sm hover:bg-white ${
+                            className={`rounded-full bg-white/90 p-0.5 shadow-sm hover:bg-white ${
                               isWishlisted(item) ? 'text-red-600' : 'text-slate-600'
                             } ${wishlistLoading[String(item.id)] ? 'opacity-60 cursor-not-allowed' : ''}`}
                             aria-label="Add to favorites"
                             title="Add to favorites"
                           >
-                            <svg viewBox="0 0 24 24" fill="none" className="h-3.5 w-3.5" stroke="currentColor" strokeWidth="2">
+                            <svg viewBox="0 0 24 24" fill="none" className="h-3 w-3" stroke="currentColor" strokeWidth="2">
                               <path d="M12 21s-6.7-4.35-9.33-8.14C.98 10.37 2.2 6.75 5.7 5.6A5.31 5.31 0 0 1 12 7.09 5.31 5.31 0 0 1 18.3 5.6c3.5 1.15 4.72 4.77 3.03 7.26C18.7 16.65 12 21 12 21z" />
                             </svg>
                           </button>
                           <button
                             type="button"
-                            className="rounded-full bg-white/90 p-1 text-slate-600 shadow-sm hover:bg-white"
+                            className="rounded-full bg-white/90 p-0.5 text-slate-600 shadow-sm hover:bg-white"
                             aria-label="Share product"
                             title="Share product"
                           >
-                            <svg viewBox="0 0 24 24" fill="none" className="h-3.5 w-3.5" stroke="currentColor" strokeWidth="2">
+                            <svg viewBox="0 0 24 24" fill="none" className="h-3 w-3" stroke="currentColor" strokeWidth="2">
                               <path d="M16 8a3 3 0 1 0-2.82-4H13a3 3 0 0 0 .18 1L8.91 7.2A3 3 0 0 0 6 6a3 3 0 1 0 2.91 3.8l4.27 2.2A3 3 0 1 0 14 14.9l-4.27-2.2A3 3 0 0 0 9 10c0-.34.06-.66.18-.95l4.27-2.2c.53.7 1.36 1.15 2.32 1.15z" />
                             </svg>
                           </button>
                         </div>
                       </div>
 
-                      <p className="mt-2 text-xs font-bold text-slate-800 line-clamp-2">{item.name}</p>
-                      <p className="mt-1 text-[11px] text-slate-500 line-clamp-1">
-                        {item.supplier || 'TradeEthiopia Seller'} • {item.locationLabel || 'Ethiopia'}
+                      <p className="mt-1.5 line-clamp-2 text-[11px] font-bold text-slate-800">{item.name}</p>
+                      <p className="mt-0.5 line-clamp-1 text-[10px] text-slate-500">
+                        {item.supplier || 'TradeEthiopia Seller'} - {item.locationLabel || 'Ethiopia'}
                       </p>
-
-                      <div className="mt-1.5 flex items-center justify-between text-[11px]">
+                      <div className="mt-1 flex items-center justify-between text-[10px]">
                         <div className="flex items-center gap-1 text-slate-500">
-                          <span className="text-amber-500">★</span>
+                          <span className="text-amber-500">*</span>
                           <span>{item.rating ? item.rating.toFixed(1) : '4.2'}</span>
                           <span className="text-slate-300">|</span>
                           <span>{item.soldCount || 80}+ sold</span>
                         </div>
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                        <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-slate-600">
                           {item.shipLabel || '3-7 Days'}
                         </span>
                       </div>
 
-                      <div className="mt-1.5 flex items-baseline gap-1">
-                        <span className={`text-sm font-extrabold ${item.oldPrice ? 'text-red-600' : 'text-slate-900'}`}>{item.price}</span>
-                        {item.oldPrice && <span className="text-[11px] text-slate-400 line-through">{item.oldPrice}</span>}
-                        {item.discount > 0 && <span className="text-[11px] font-bold text-red-600">-{item.discount}%</span>}
+                      <div className="mt-1 flex items-baseline gap-1">
+                        <span className={`text-[13px] font-extrabold ${item.oldPrice ? 'text-red-600' : 'text-slate-900'}`}>{item.price}</span>
+                        {item.oldPrice && <span className="text-[10px] text-slate-400 line-through">{item.oldPrice}</span>}
+                        {item.discount > 0 && <span className="text-[10px] font-bold text-red-600">-{item.discount}%</span>}
                       </div>
 
                       {item.oldPriceValue && (
-                        <p className="mt-1 text-[11px] font-semibold text-emerald-700">
+                        <p className="mt-0.5 text-[10px] font-semibold text-emerald-700">
                           Save ${(item.oldPriceValue - item.priceValue).toFixed(2)}
                         </p>
                       )}
 
-                      <div className="mt-2.5 flex gap-1.5">
+                      <div className="mt-2 flex gap-1">
                         <button
                           type="button"
                           onClick={() => handleAddToCart(item)}
                           disabled={Boolean(cartLoading[String(item.id)])}
-                          className={`flex-1 rounded-md bg-slate-900 px-2 py-1.5 text-[11px] font-semibold text-white hover:bg-slate-800 ${
+                          className={`flex-1 rounded-md bg-slate-900 px-2 py-1 text-[10px] font-semibold text-white hover:bg-slate-800 ${
                             cartLoading[String(item.id)] ? 'opacity-60 cursor-not-allowed' : ''
                           }`}
                         >
@@ -1178,14 +1509,96 @@ export default function Home({ initialIsLocalMarketView = false }) {
                         </button>
                         <Link
                           href={getProductHref(item)}
-                          className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                          className="rounded-md border border-slate-300 bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-50"
                         >
                           View
                         </Link>
                       </div>
                     </article>
                   ))}
-                </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {paginatedListingProducts.map((item, index) => (
+                      <article
+                        key={`listing-list-${item.name}-${index}`}
+                        className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm transition hover:border-blue-200 hover:shadow-md"
+                      >
+                        <div className="grid grid-cols-[76px_1fr] gap-2.5 sm:grid-cols-[92px_1fr]">
+                          <div className="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                            <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
+                            {item.discount > 0 ? (
+                              <span className="absolute left-1.5 top-1.5 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                                -{item.discount}%
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="line-clamp-2 text-[13px] font-semibold leading-tight text-slate-900 sm:text-[14px]">{item.name}</p>
+                            <p className="mt-0.5 line-clamp-1 text-xs text-slate-500">
+                              {item.supplier || 'TradeEthiopia Seller'} - {item.locationLabel || 'Ethiopia'}
+                            </p>
+                            <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px] text-slate-600">
+                              <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5">
+                                <span className="text-amber-500">*</span>
+                                {item.rating ? item.rating.toFixed(1) : '4.2'}
+                              </span>
+                              <span>{item.soldCount || 80}+ sold</span>
+                              <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">{item.shipLabel || '3-7 Days'}</span>
+                            </div>
+                            <div className="mt-1 flex items-end justify-between gap-1.5">
+                              <div className="flex min-w-0 flex-wrap items-baseline gap-1.5">
+                                <span className="text-[15px] font-extrabold text-slate-900">{item.price}</span>
+                                {item.oldPrice ? (
+                                  <span className="text-[10px] text-slate-400 line-through">{item.oldPrice}</span>
+                                ) : null}
+                                {item.discount > 0 ? (
+                                  <span className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-bold text-red-700">
+                                    -{item.discount}%
+                                  </span>
+                                ) : null}
+                              </div>
+                              <div className="flex shrink-0 items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleWishlist(item)}
+                                  disabled={Boolean(wishlistLoading[String(item.id)])}
+                                  className={`inline-flex h-7 w-7 items-center justify-center rounded-md border ${
+                                    isWishlisted(item)
+                                      ? 'border-red-200 bg-red-50 text-red-600'
+                                      : 'border-slate-300 bg-white text-slate-600'
+                                  } ${wishlistLoading[String(item.id)] ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                  aria-label="Add to favorites"
+                                  title="Add to favorites"
+                                >
+                                  <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" stroke="currentColor" strokeWidth="2">
+                                    <path d="M12 21s-6.7-4.35-9.33-8.14C.98 10.37 2.2 6.75 5.7 5.6A5.31 5.31 0 0 1 12 7.09 5.31 5.31 0 0 1 18.3 5.6c3.5 1.15 4.72 4.77 3.03 7.26C18.7 16.65 12 21 12 21z" />
+                                  </svg>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddToCart(item)}
+                                  disabled={Boolean(cartLoading[String(item.id)])}
+                                  className={`rounded-md bg-slate-900 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-slate-800 ${
+                                    cartLoading[String(item.id)] ? 'opacity-60 cursor-not-allowed' : ''
+                                  }`}
+                                >
+                                  {cartLoading[String(item.id)] ? 'Adding...' : 'Add'}
+                                </button>
+                                <Link
+                                  href={getProductHref(item)}
+                                  className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                                >
+                                  View
+                                </Link>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
 
                 <div className="flex items-center justify-end gap-1.5">
                   <button
@@ -1220,6 +1633,186 @@ export default function Home({ initialIsLocalMarketView = false }) {
             </div>
           </div>
         </section>
+
+        {isLocalMarketView && isMobileFilterOpen ? (
+          <div className="fixed inset-0 z-50 md:hidden">
+            <button
+              type="button"
+              aria-label="Close filters"
+              onClick={() => setIsMobileFilterOpen(false)}
+              className="absolute inset-0 bg-[#0f172a]/45"
+            />
+            <div className="absolute inset-x-0 bottom-0 max-h-[82vh] overflow-y-auto rounded-t-2xl bg-white p-4 shadow-2xl">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-bold uppercase tracking-[0.08em] text-slate-800">Filters</h3>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileFilterOpen(false)}
+                  className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <select value={listingCategoryFilter} onChange={(e) => setListingCategoryFilter(e.target.value)} className="rounded-md border border-slate-300 bg-white px-2 py-2 text-xs">
+                    {listingCategories.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+                  <select value={listingLocationFilter} onChange={(e) => setListingLocationFilter(e.target.value)} className="rounded-md border border-slate-300 bg-white px-2 py-2 text-xs">
+                    {listingLocations.map((location) => (
+                      <option key={location} value={location}>
+                        {location}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <select value={listingPriceFilter} onChange={(e) => setListingPriceFilter(e.target.value)} className="rounded-md border border-slate-300 bg-white px-2 py-2 text-xs">
+                    <option value="All">All Prices</option>
+                    <option value="0-50">$0 - $50</option>
+                    <option value="50-100">$50 - $100</option>
+                    <option value="100-250">$100 - $250</option>
+                    <option value="250+">$250+</option>
+                  </select>
+                  <select value={listingSort} onChange={(e) => setListingSort(e.target.value)} className="rounded-md border border-slate-300 bg-white px-2 py-2 text-xs">
+                    <option value="featured">Featured</option>
+                    <option value="discount">Best Discount</option>
+                    <option value="rating">Top Rated</option>
+                    <option value="newest">Newest</option>
+                    <option value="price-asc">Price Low-High</option>
+                    <option value="price-desc">Price High-Low</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <select value={listingMinRatingFilter} onChange={(e) => setListingMinRatingFilter(e.target.value)} className="rounded-md border border-slate-300 bg-white px-2 py-2 text-xs">
+                    <option value="All">Any Rating</option>
+                    <option value="4.5">4.5+</option>
+                    <option value="4">4.0+</option>
+                    <option value="3.5">3.5+</option>
+                  </select>
+                  <select value={listingDeliveryFilter} onChange={(e) => setListingDeliveryFilter(e.target.value)} className="rounded-md border border-slate-300 bg-white px-2 py-2 text-xs">
+                    <option value="All">All Delivery</option>
+                    <option value="Express">Express</option>
+                    <option value="Standard">Standard</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2">
+                  <select value={listingSupplierTypeFilter} onChange={(e) => setListingSupplierTypeFilter(e.target.value)} className="rounded-md border border-slate-300 bg-white px-2 py-2 text-xs">
+                    <option value="All">All Suppliers</option>
+                    <option value="Local">Local</option>
+                    <option value="International">International</option>
+                  </select>
+                </div>
+
+                <label className="flex items-center gap-2 rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                  <input type="checkbox" checked={listingInStockOnly} onChange={(e) => setListingInStockOnly(e.target.checked)} />
+                  In-stock only
+                </label>
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setListingSearchTerm('');
+                      setListingCategoryFilter('All');
+                      setListingLocationFilter('All');
+                      setListingPriceFilter('All');
+                      setListingMinRatingFilter('All');
+                      setListingSupplierTypeFilter('All');
+                      setListingDeliveryFilter('All');
+                      setListingInStockOnly(false);
+                      setListingSort('featured');
+                    }}
+                    className="rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+                  >
+                    Reset
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsMobileFilterOpen(false)}
+                    className="rounded-md bg-slate-900 px-3 py-2 text-xs font-semibold text-white"
+                  >
+                    Apply Filters
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {isLocalMarketView ? (
+          <nav
+            className={`fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur md:hidden transition-transform duration-200 ${
+              showMobileBottomNav ? 'translate-y-0' : 'translate-y-full'
+            }`}
+            style={{ paddingBottom: 'max(0px, env(safe-area-inset-bottom))' }}
+          >
+            <div className="mx-auto grid max-w-md grid-cols-5">
+              <button
+                type="button"
+                onClick={() => setIsMobileFilterOpen(true)}
+                className="flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold text-slate-700"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4h18M6 12h12m-9 8h6" />
+                </svg>
+                Filter
+              </button>
+              <Link href="/localmarket" className="flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold text-slate-700">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10l9-7 9 7v10a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1V10z" />
+                </svg>
+                Home
+              </Link>
+              <Link href="/cart" className="relative flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold text-slate-700">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m0 0h8" />
+                </svg>
+                Cart
+                {cartCount > 0 ? (
+                  <span className="absolute right-5 top-1 inline-flex min-w-[16px] items-center justify-center rounded-full bg-slate-900 px-1 text-[9px] text-white">
+                    {cartCount > 99 ? '99+' : cartCount}
+                  </span>
+                ) : null}
+              </Link>
+              <Link
+                href="/inquiries"
+                onClick={handleOpenInquiries}
+                className="relative flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold text-slate-700"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h8m-8 4h5m7 5l-3-3H6a2 2 0 01-2-2V6a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2h-1l3 3z" />
+                </svg>
+                Message
+                {inquiryUnreadCount > 0 ? (
+                  <span className="absolute right-3 top-1 inline-flex min-w-[16px] items-center justify-center rounded-full bg-emerald-600 px-1 text-[9px] text-white">
+                    {inquiryUnreadCount > 99 ? '99+' : inquiryUnreadCount}
+                  </span>
+                ) : null}
+              </Link>
+              <Link href="/wishlist" className="relative flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold text-slate-700">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+                Favorite
+                {wishlistCount > 0 ? (
+                  <span className="absolute right-3 top-1 inline-flex min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[9px] text-white">
+                    {wishlistCount > 99 ? '99+' : wishlistCount}
+                  </span>
+                ) : null}
+              </Link>
+            </div>
+          </nav>
+        ) : null}
+
         <style jsx global>{`
           .scrollbar-hide {
             -ms-overflow-style: none;

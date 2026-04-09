@@ -1,0 +1,121 @@
+// frontend/next.config.js
+// OPTIMIZED Next.js configuration for production performance
+
+module.exports = {
+  // Enable image optimization
+  images: {
+    domains: ['res.cloudinary.com', 'yourcdn.com'],
+    formats: ['image/avif', 'image/webp'],
+    // Auto-optimize images
+    minimumCacheTTL: 60 * 60 * 24 * 365, // 1 year for versioned images
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384]
+  },
+
+  // Enable compression
+  compress: true,
+
+  // Response headers for caching
+  async headers() {
+    return [
+      {
+        source: '/static/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable'
+          }
+        ]
+      },
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=3600, stale-while-revalidate=86400'
+          }
+        ]
+      }
+    ];
+  },
+
+  // Route redirects
+  async redirects() {
+    return [
+      // Legacy URL redirects
+      {
+        source: '/localmarket',
+        destination: '/markets/local',
+        permanent: true
+      },
+      {
+        source: '/b2bmarket',
+        destination: '/markets/b2b',
+        permanent: true
+      },
+      {
+        source: '/globalmarket',
+        destination: '/markets/global',
+        permanent: true
+      }
+    ];
+  },
+
+  // Bundle analysis
+  webpack: (config, { dev, isServer }) => {
+    // Production optimizations
+    if (!dev && !isServer) {
+      config.optimization.splitChunks.cacheGroups = {
+        // React vendor chunk
+        react: {
+          test: /[\\/]node_modules[\\/](react|react-dom|react-router)[\\/]/,
+          name: 'vendor-react',
+          priority: 10,
+          reuseExistingChunk: true
+        },
+        // Next.js vendor chunk
+        next: {
+          test: /[\\/]node_modules[\\/](next)[\\/]/,
+          name: 'vendor-next',
+          priority: 9,
+          reuseExistingChunk: true
+        },
+        // Other vendors
+        vendors: {
+          test: /[\\/]node_modules[\\/]/,
+          name: 'vendor-other',
+          priority: 8,
+          reuseExistingChunk: true
+        },
+        // Common chunks
+        common: {
+          minChunks: 2,
+          priority: 7,
+          reuseExistingChunk: true
+        }
+      };
+    }
+
+    return config;
+  },
+
+  // Enable SWR caching
+  swcMinify: true,
+
+  // Experimental features for better performance
+  experimental: {
+    optimizePackageImports: [
+      '@mui/material',
+      '@mui/icons-material',
+      'react-hot-toast'
+    ]
+  },
+
+  // Environment variables
+  env: {
+    NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000'
+  },
+
+  // Trailing slash for consistency
+  trailingSlash: false
+};

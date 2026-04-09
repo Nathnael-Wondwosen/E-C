@@ -1,3 +1,5 @@
+const path = require('path');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -5,6 +7,9 @@ const nextConfig = {
   i18n: {
     locales: ['en', 'es', 'fr', 'de'],
     defaultLocale: 'en',
+  },
+  turbopack: {
+    root: path.join(__dirname, '..', '..'),
   },
   // Enable static exports for Vercel
   output: 'standalone',

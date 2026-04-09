@@ -4,7 +4,9 @@ const loadIdentityEnv = () => {
     jwtSecret: process.env.JWT_SECRET,
     jwtExpiresIn: process.env.JWT_EXPIRES_IN || '1h',
     mongoUri: process.env.MONGODB_URI || process.env.MONGO_URI,
-    dbName: process.env.MONGODB_DB_NAME || 'ecommerce_platform'
+    dbName: process.env.MONGODB_DB_NAME || 'ecommerce_platform',
+    adminUsername: process.env.ADMIN_USERNAME || '',
+    adminPassword: process.env.ADMIN_PASSWORD || ''
   };
 
   if (!env.jwtSecret) {

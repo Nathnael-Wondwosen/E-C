@@ -1,20 +1,24 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const path = require('path');
 require('dotenv').config();
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
 const app = express();
 const PORT = process.env.USER_SERVICE_PORT || process.env.PORT || 3007;
+const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI || '';
 
 // Middleware
 app.use(express.json());
 
-// MongoDB Connection
-// Use MongoDB Atlas connection string from environment variables
-const mongoUri = process.env.MONGODB_URI || 'mongodb+srv://admin:admin123@cluster0.rcuwrqi.mongodb.net/user-service?retryWrites=true&w=majority';
-mongoose.connect(mongoUri, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+if (mongoUri) {
+  mongoose.connect(mongoUri, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  });
+} else {
+  console.warn('user-service: MONGODB_URI not set, starting without a MongoDB connection');
+}
 
 // Routes
 app.get('/', (req, res) => {

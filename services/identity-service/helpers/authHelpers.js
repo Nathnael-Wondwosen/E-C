@@ -21,6 +21,7 @@ const toResponseUser = (user) => ({
   username: user.username,
   displayName: user.displayName,
   status: user.status,
+  userType: user.role || (Array.isArray(user.roles) && user.roles.length ? user.roles[0] : 'buyer'),
   role: user.role,
   roles: user.roles,
   profile: user.profile,

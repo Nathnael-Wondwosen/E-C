@@ -2,6 +2,236 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    --auth-surface: rgba(255, 255, 255, 0.92);
+    --auth-surface-strong: #ffffff;
+    --auth-border: rgba(224, 229, 239, 0.95);
+    --auth-label: #1b2a38;
+    --auth-muted: #6b7280;
+    --auth-icon: #7b8794;
+    --auth-text: #0f1720;
+    --auth-placeholder: #8b93a1;
+    --auth-divider-bg: rgba(255, 255, 255, 0.96);
+    --auth-divider-line: rgba(224, 229, 239, 0.95);
+    --portal-bg-start: #ffffff;
+    --portal-bg-mid: #fdf4ff;
+    --portal-bg-end: #eef6ff;
+    --portal-surface: rgba(255, 255, 255, 0.88);
+    --portal-surface-muted: rgba(255, 255, 255, 0.72);
+    --portal-border: rgba(226, 232, 240, 0.9);
+    --portal-border-strong: rgba(244, 114, 182, 0.18);
+    --portal-heading: #0f1720;
+    --portal-body: #475569;
+    --portal-muted: #64748b;
+    --portal-accent: #c026d3;
+    --portal-accent-strong: #db2777;
+    --portal-accent-soft: rgba(250, 232, 255, 0.8);
+  }
+
+  .dark {
+    --auth-surface: rgba(19, 28, 38, 0.92);
+    --auth-surface-strong: rgba(15, 23, 32, 0.98);
+    --auth-border: rgba(54, 67, 82, 0.95);
+    --auth-label: #f2e7cc;
+    --auth-muted: #9ba4b0;
+    --auth-icon: #9ba4b0;
+    --auth-text: #f8f4ea;
+    --auth-placeholder: #8f99a6;
+    --auth-divider-bg: rgba(16, 25, 34, 0.96);
+    --auth-divider-line: rgba(54, 67, 82, 0.95);
+    --portal-bg-start: #081018;
+    --portal-bg-mid: #101a25;
+    --portal-bg-end: #162230;
+    --portal-surface: rgba(16, 25, 34, 0.94);
+    --portal-surface-muted: rgba(24, 36, 48, 0.94);
+    --portal-border: rgba(54, 67, 82, 0.95);
+    --portal-border-strong: rgba(200, 169, 107, 0.25);
+    --portal-heading: #f8f4ea;
+    --portal-body: #c4ccd6;
+    --portal-muted: #9ba4b0;
+    --portal-accent: #d4b06a;
+    --portal-accent-strong: #e7d3a5;
+    --portal-accent-soft: rgba(200, 169, 107, 0.12);
+  }
+
+  body {
+    color: var(--auth-text);
+  }
+}
+
+@layer components {
+  .auth-input {
+    @apply block w-full rounded-[0.95rem] border px-3 py-2.5 text-sm outline-none transition;
+    border-color: var(--auth-border);
+    background: var(--auth-surface);
+    color: var(--auth-text);
+  }
+
+  .auth-input::placeholder {
+    color: var(--auth-placeholder);
+  }
+
+  .auth-input:hover {
+    border-color: rgba(192, 38, 211, 0.22);
+  }
+
+  .auth-input:focus {
+    border-color: rgba(192, 38, 211, 0.46);
+    background: var(--auth-surface-strong);
+    box-shadow: 0 0 0 4px rgba(192, 38, 211, 0.1);
+  }
+
+  .auth-primary-button {
+    @apply w-full rounded-[0.95rem] px-4 py-2.5 text-sm font-semibold text-white transition;
+    background-image: linear-gradient(135deg, #d946ef, #fb7185 52%, #fb923c);
+    box-shadow: 0 14px 30px rgba(217, 70, 239, 0.2);
+  }
+
+  .auth-primary-button:hover {
+    filter: brightness(1.04);
+    transform: translateY(-1px);
+  }
+
+  .auth-primary-button:disabled {
+    @apply cursor-not-allowed;
+    background: rgb(148 163 184);
+    box-shadow: none;
+  }
+
+  .portal-page {
+    background-image:
+      radial-gradient(circle at top left, rgba(236, 72, 153, 0.12), transparent 28%),
+      radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 28%),
+      linear-gradient(135deg, var(--portal-bg-start) 0%, var(--portal-bg-mid) 45%, var(--portal-bg-end) 100%);
+    color: var(--portal-heading);
+  }
+
+  .portal-surface {
+    @apply rounded-[1.35rem] border;
+    border-color: var(--portal-border);
+    background: var(--portal-surface);
+    backdrop-filter: blur(18px);
+    box-shadow: 0 22px 56px rgba(15, 23, 32, 0.07);
+  }
+
+  .portal-surface-muted {
+    @apply rounded-[1rem] border;
+    border-color: var(--portal-border);
+    background: var(--portal-surface-muted);
+  }
+
+  .portal-badge {
+    @apply inline-flex rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em];
+    border-color: var(--portal-border-strong);
+    background: var(--portal-accent-soft);
+    color: var(--portal-accent-strong);
+  }
+
+  .portal-heading {
+    color: var(--portal-heading);
+  }
+
+  .portal-text {
+    color: var(--portal-body);
+  }
+
+  .portal-muted {
+    color: var(--portal-muted);
+  }
+
+  .portal-outline-button {
+    @apply rounded-[0.95rem] border bg-white/90 px-4 py-2.5 text-sm font-semibold transition;
+    border-color: var(--portal-border);
+    color: #1b2a38;
+  }
+
+  .portal-outline-button:hover {
+    border-color: rgba(192, 38, 211, 0.38);
+    color: var(--portal-accent-strong);
+  }
+
+  .dark .portal-outline-button {
+    background: rgba(16, 25, 34, 0.94);
+    color: var(--portal-heading);
+  }
+
+  .portal-primary-button {
+    @apply rounded-[0.95rem] px-4 py-2.5 text-sm font-semibold text-white transition;
+    background-image: linear-gradient(135deg, #d946ef, #fb7185 52%, #fb923c);
+    box-shadow: 0 14px 30px rgba(217, 70, 239, 0.18);
+  }
+
+  .portal-primary-button:hover {
+    filter: brightness(1.05);
+  }
+
+  .portal-primary-button:disabled {
+    @apply cursor-not-allowed;
+    background: rgb(148 163 184);
+    box-shadow: none;
+  }
+
+  .portal-input {
+    @apply w-full rounded-[0.95rem] border px-3 py-2.5 text-sm outline-none transition;
+    border-color: var(--auth-border);
+    background: var(--auth-surface-strong);
+    color: var(--auth-text);
+  }
+
+  .portal-input:hover {
+    border-color: rgba(192, 38, 211, 0.22);
+  }
+
+  .portal-input:focus {
+    border-color: rgba(192, 38, 211, 0.46);
+    box-shadow: 0 0 0 4px rgba(192, 38, 211, 0.1);
+  }
+
+  .portal-hero {
+    @apply overflow-hidden rounded-[1.6rem] border;
+    border-color: var(--portal-border-strong);
+    background: var(--portal-surface);
+    box-shadow: 0 28px 70px rgba(15, 23, 32, 0.08);
+  }
+
+  .portal-card {
+    @apply overflow-hidden rounded-[1.25rem] border;
+    border-color: var(--portal-border);
+    background: var(--portal-surface);
+    box-shadow: 0 18px 46px rgba(15, 23, 32, 0.06);
+  }
+
+  .portal-soft-card {
+    @apply rounded-[1rem] border;
+    border-color: var(--portal-border);
+    background: var(--portal-surface-muted);
+  }
+
+  .portal-secondary-button {
+    @apply inline-flex items-center justify-center rounded-[0.95rem] border px-4 py-2.5 text-sm font-semibold transition;
+    border-color: var(--portal-border);
+    background: var(--portal-surface);
+    color: var(--portal-accent-strong);
+  }
+
+  .portal-secondary-button:hover {
+    border-color: var(--portal-border-strong);
+    color: #c87918;
+  }
+
+  .portal-pill {
+    @apply inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em];
+    border-color: var(--portal-border-strong);
+    background: var(--portal-accent-soft);
+    color: var(--portal-accent);
+  }
+
+  .portal-empty-state {
+    @apply portal-card px-6 py-12 text-center sm:px-10;
+  }
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
     Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;

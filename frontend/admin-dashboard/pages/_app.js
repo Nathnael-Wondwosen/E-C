@@ -8,9 +8,17 @@ function MyApp({ Component, pageProps }) {
   const router = useRouter();
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
 
+  const clearAdminSession = () => {
+    localStorage.removeItem('adminLoggedIn');
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminScope');
+    localStorage.removeItem('adminUser');
+  };
+
   useEffect(() => {
-    const publicRoutes = ['/login', '/tailwind-test', '/simple-login-test', '/test-login', '/minimal-test'];
+    const publicRoutes = ['/login'];
     const isLoggedIn = localStorage.getItem('adminLoggedIn');
+    const adminToken = localStorage.getItem('adminToken');
     const storedScope = localStorage.getItem('adminScope') || DEFAULT_ADMIN_SCOPE;
 
     const isScopedRoute =
@@ -24,8 +32,9 @@ function MyApp({ Component, pageProps }) {
       return;
     }
     
-    if (!isLoggedIn) {
-      router.push('/login');
+    if (!isLoggedIn || !adminToken) {
+      clearAdminSession();
+      router.replace('/login');
       return;
     }
 
@@ -50,15 +59,29 @@ function MyApp({ Component, pageProps }) {
         request.startsWith('/api/') ||
         request.startsWith(`${API_BASE_URL}/api/`) ||
         request.startsWith('http://localhost:3000/api/');
+      const isAuthApiCall = request.includes('/api/auth/');
 
       try {
         if (!isApiCall) {
           return await originalFetch(input, init);
         }
+        if (isAuthApiCall) {
+          return await originalFetch(input, init);
+        }
 
         const token = localStorage.getItem('adminToken');
         if (!token) {
-          return await originalFetch(input, init);
+          clearAdminSession();
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
+          return new Response(
+            JSON.stringify({ error: 'Session expired. Please log in again.' }),
+            {
+              status: 401,
+              headers: { 'Content-Type': 'application/json' }
+            }
+          );
         }
 
         const headers = new Headers(init.headers || (typeof input !== 'string' ? input.headers : undefined));
@@ -66,7 +89,14 @@ function MyApp({ Component, pageProps }) {
           headers.set('Authorization', `Bearer ${token}`);
         }
 
-        return await originalFetch(input, { ...init, headers });
+        const response = await originalFetch(input, { ...init, headers });
+        if (response.status === 401 || response.status === 403) {
+          clearAdminSession();
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
+        }
+        return response;
       } catch (error) {
         if (!isApiCall) {
           throw error;

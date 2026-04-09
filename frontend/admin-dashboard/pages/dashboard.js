@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import AdminLayout from '../components/AdminLayout';
-import { getProducts, getCategories, getOrders } from '../utils/mongoService';
+import { getDashboardSummary, getRequestMetrics } from '../utils/mongoService';
 import AdminScopeSwitcher from '../components/AdminScopeSwitcher';
 import { DEFAULT_ADMIN_SCOPE, getAdminScopeById } from '../config/adminScopes';
 import { getStoredAdminScope, setStoredAdminScope } from '../utils/adminScopeService';
@@ -21,7 +21,6 @@ export default function AdminDashboard() {
   const [metricsLoading, setMetricsLoading] = useState(false);
   const [activeScope, setActiveScope] = useState(DEFAULT_ADMIN_SCOPE);
   const router = useRouter();
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
 
   useEffect(() => {
     // Check if user is logged in
@@ -45,32 +44,9 @@ export default function AdminDashboard() {
   const loadData = async () => {
     try {
       setLoading(true);
-      
-      // Load data from our service
-      const [products, categories, orders] = await Promise.all([
-        getProducts(),
-        getCategories(),
-        getOrders()
-      ]);
-      
-      // Update stats
-      setStats({
-        products: products.length,
-        categories: categories.length,
-        ordersToday: orders.filter(order => order.date === '2025-12-09').length,
-        activeUsers: 2841 // Mock data
-      });
-      
-      // Create mock recent activity
-      const activity = products.slice(0, 5).map((product, index) => ({
-        id: index + 1,
-        title: `Product #${product.id} updated`,
-        description: `New stock level: ${product.stock} units`,
-        user: 'Admin User',
-        time: '2 hours ago'
-      }));
-      
-      setRecentActivity(activity);
+      const summary = await getDashboardSummary();
+      setStats(summary.stats);
+      setRecentActivity(summary.recentActivity);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
@@ -81,11 +57,7 @@ export default function AdminDashboard() {
   const loadMetrics = async () => {
     try {
       setMetricsLoading(true);
-      const response = await fetch(`${API_BASE_URL}/metrics`);
-      if (!response.ok) {
-        throw new Error(`Failed to load metrics (${response.status})`);
-      }
-      const payload = await response.json();
+      const payload = await getRequestMetrics();
       setMetrics(payload || { routes: [] });
     } catch (error) {
       setMetrics({ routes: [] });
@@ -255,18 +227,18 @@ export default function AdminDashboard() {
                           </div>
                           <div className="min-w-0 flex-1 px-4 md:grid md:grid-cols-2 md:gap-4">
                             <div>
-                              <p className="text-sm font-medium text-blue-600 dark:text-blue-400 truncate">{activity.title}</p>
-                              <p className="mt-2 flex items-center text-sm text-gray-500 dark:text-gray-400">
-                                <span>{activity.description}</span>
+                                <p className="text-sm font-medium text-blue-600 dark:text-blue-400 truncate">{activity.title}</p>
+                                <p className="mt-2 flex items-center text-sm text-gray-500 dark:text-gray-400">
+                                  <span>{activity.description}</span>
                               </p>
                             </div>
                             <div className="hidden md:block">
                               <div>
                                 <p className="text-sm text-gray-900 dark:text-gray-200">
-                                  Updated by <span className="font-medium">{activity.user}</span>
+                                  Type <span className="font-medium capitalize">{activity.type || 'update'}</span>
                                 </p>
                                 <p className="mt-2 flex items-center text-sm text-gray-500 dark:text-gray-400">
-                                  <span>{activity.time}</span>
+                                  <span>{activity.time ? new Date(activity.time).toLocaleString() : 'Recently'}</span>
                                 </p>
                               </div>
                             </div>

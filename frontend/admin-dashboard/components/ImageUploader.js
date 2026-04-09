@@ -1,7 +1,5 @@
 import { useState, useCallback } from 'react';
-import { withAdminScopeUrl } from '../utils/scopeApi';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
+import { uploadProductImage } from '../utils/mongoService';
 
 const ImageUploader = ({ onImagesChange, initialImages = [], maxImages = 10 }) => {
   const [images, setImages] = useState(initialImages);
@@ -38,23 +36,8 @@ const ImageUploader = ({ onImagesChange, initialImages = [], maxImages = 10 }) =
           continue;
         }
         
-        // Upload to Cloudinary
         try {
-          const formData = new FormData();
-          formData.append('file', file);
-          // Preserve original filename for Cloudinary
-          formData.append('filename', file.name);
-          
-          const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/upload/product-image`), {
-            method: 'POST',
-            body: formData
-          });
-          
-          if (!response.ok) {
-            throw new Error('Failed to upload image');
-          }
-          
-          const imageData = await response.json();
+          const imageData = await uploadProductImage(file);
           
           newImages.push({
             url: imageData.url,

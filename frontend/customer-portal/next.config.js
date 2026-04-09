@@ -6,9 +6,30 @@ const nextConfig = {
     locales: ['en', 'es', 'fr', 'de'],
     defaultLocale: 'en',
   },
-  // Vercel deployment optimizations
+  // Allow product/media images from local dev and external hosts like Cloudinary.
   images: {
-    domains: ['images.unsplash.com', 'via.placeholder.com', 'localhost', '127.0.0.1'], // Add domains for image optimization
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'via.placeholder.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
+      {
+        protocol: 'http',
+        hostname: '127.0.0.1',
+      },
+    ],
   },
   // Environment variables
   env: {
@@ -25,7 +46,37 @@ const nextConfig = {
     return [
       {
         source: '/b2b-marketplace',
-        destination: '/localmarket',
+        destination: '/markets/b2b',
+        permanent: false,
+      },
+      {
+        source: '/b2b-marketplace/:id',
+        destination: '/products/:id',
+        permanent: false,
+      },
+      {
+        source: '/globalmarket',
+        destination: '/marketplace',
+        permanent: false,
+      },
+      {
+        source: '/africamarket',
+        destination: '/markets/africa',
+        permanent: false,
+      },
+      {
+        source: '/chinamarket',
+        destination: '/markets/china',
+        permanent: false,
+      },
+      {
+        source: '/b2bmarket',
+        destination: '/markets/b2b',
+        permanent: false,
+      },
+      {
+        source: '/bestsellers',
+        destination: '/best-sellers',
         permanent: false,
       },
     ];

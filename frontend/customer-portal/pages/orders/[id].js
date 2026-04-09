@@ -3,16 +3,27 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
 import Header from '../../components/header/Header';
+import { getUserOrderById } from '../../utils/userService';
+
+const getStatusClass = (status) => {
+  const normalized = String(status || 'pending').toLowerCase();
+
+  if (normalized === 'completed') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+  if (normalized === 'shipped') return 'border-sky-200 bg-sky-50 text-sky-700';
+  if (normalized === 'processing') return 'border-amber-200 bg-amber-50 text-amber-700';
+  if (normalized === 'cancelled') return 'border-red-200 bg-red-50 text-red-700';
+  return 'border-slate-200 bg-slate-100 text-slate-700';
+};
+
+const formatCurrency = (value) => `$${Number(value || 0).toFixed(2)}`;
 
 export default function OrderDetails() {
   const router = useRouter();
   const { id } = router.query;
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
 
   useEffect(() => {
-    // Check if user is logged in
     const isLoggedIn = localStorage.getItem('userLoggedIn');
     if (!isLoggedIn) {
       router.push('/login');
@@ -30,226 +41,206 @@ export default function OrderDetails() {
       if (!userId) {
         throw new Error('User ID not found in localStorage');
       }
-      
-      // Fetch specific order directly from API
-      const token = localStorage.getItem('userToken');
-      const response = await fetch(`${API_BASE_URL}/api/users/${userId}/orders/${id}`, {
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        }
-      });
-      
-      if (response.ok) {
-        const order = await response.json();
-        setOrder(order);
-      } else {
-        // If order not found, set to null to show error
-        setOrder(null);
-      }
-    } catch (error) {
-      console.error('Error loading order details:', error);
-      // Set to null to show error
+
+      const orderDetails = await getUserOrderById(userId, id);
+      setOrder(orderDetails);
+    } catch (loadError) {
+      console.error('Error loading order details:', loadError);
       setOrder(null);
     } finally {
       setLoading(false);
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'shipped':
-        return 'bg-blue-100 text-blue-800';
-      case 'processing':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="portal-page flex min-h-screen items-center justify-center">
+        <div className="flex items-center gap-3 rounded-full border border-[var(--portal-border)] bg-[var(--portal-surface)] px-5 py-3 text-sm font-medium portal-heading shadow-[0_16px_36px_rgba(160,96,18,0.08)]">
+          <span className="h-3 w-3 animate-pulse rounded-full bg-[#D7932D]" />
+          Loading order details...
+        </div>
       </div>
     );
   }
 
   if (!order) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="portal-page min-h-screen">
         <Head>
           <title>Order Not Found | B2B E-Commerce Platform</title>
           <meta name="description" content="Order not found" />
         </Head>
         <Header />
-        
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="mb-8">
-            <div className="px-6 py-4 bg-gradient-to-r from-gray-900 to-blue-900 rounded-none">
-              <h1 className="text-3xl font-bold text-white">Order Details</h1>
-              <p className="mt-2 text-gray-300">View your order information</p>
-            </div>
-          </div>
-          
-          <div className="text-center py-16">
-            <div className="mx-auto w-24 h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-none flex items-center justify-center mb-6">
-              <svg className="w-12 h-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+
+        <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+          <section className="portal-empty-state">
+            <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-[1.4rem] border border-[var(--portal-border)] bg-[var(--portal-surface-muted)]">
+              <svg className="h-12 w-12 text-[#B5A88B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <h3 className="text-xl font-medium text-gray-900 mb-2">Order not found</h3>
-            <p className="text-gray-600 max-w-md mx-auto mb-6">The order you're looking for doesn't exist or may have been removed.</p>
-            <Link href="/orders" className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-none shadow-sm text-white bg-gradient-to-r from-red-600 to-pink-700 hover:from-red-700 hover:to-pink-800 transition-all duration-300">
+            <h3 className="portal-heading mb-2 text-xl font-medium">Order not found</h3>
+            <p className="portal-text mx-auto mb-6 max-w-md">
+              The order you are looking for does not exist or is no longer available.
+            </p>
+            <Link href="/orders" className="portal-primary-button inline-flex items-center px-6 py-3 text-base font-medium">
               Back to Orders
             </Link>
-          </div>
+          </section>
         </main>
       </div>
     );
   }
 
+  const items = Array.isArray(order.items) ? order.items : [];
+  const subtotal = order.subtotal || (Number(order.total || 0) - Number(order.shipping || 0) - Number(order.tax || 0));
+  const orderDate = order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A';
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="portal-page min-h-screen">
       <Head>
         <title>Order #{order.orderNumber} | B2B E-Commerce Platform</title>
         <meta name="description" content="Order details" />
       </Head>
       <Header />
-      
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <div className="px-6 py-4 bg-gradient-to-r from-gray-900 to-blue-900 rounded-none">
-            <div className="flex justify-between items-center">
-              <h1 className="text-3xl font-bold text-white">Order #{order.orderNumber}</h1>
-              <Link href="/orders" className="text-white hover:text-gray-300">
-                ← Back to Orders
-              </Link>
-            </div>
-          </div>
-        </div>
 
-        <div className="bg-white bg-opacity-80 backdrop-blur-sm rounded-none shadow-lg overflow-hidden border border-gray-200">
-          <div className="px-6 py-4 bg-gradient-to-r from-gray-900 to-blue-900 border-b border-gray-200">
-            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
-              <div>
-                <h3 className="text-lg leading-6 font-medium text-white">Order Information</h3>
-                <p className="mt-1 text-sm text-gray-300">Order details and status</p>
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <section className="portal-hero mb-8">
+          <div className="bg-[linear-gradient(180deg,rgba(240,177,76,0.22),transparent)] px-5 py-6 sm:px-6 lg:px-8">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div className="max-w-2xl">
+                <p className="portal-badge">Order Details</p>
+                <h1 className="portal-heading mt-3 text-[2rem] font-semibold tracking-[-0.03em] sm:text-[2.4rem]">Order #{order.orderNumber || order.id || id}</h1>
+                <p className="portal-text mt-2 text-sm leading-6 sm:text-[15px]">
+                  Review purchased items, shipping details, and the current fulfillment state in the same premium account workspace.
+                </p>
               </div>
-              <div className="mt-2 md:mt-0">
-                <span className={`inline-flex items-center px-3 py-1 rounded-none text-sm font-medium ${getStatusColor(order.status)}`}>
-                  {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+              <div className="flex flex-wrap gap-3">
+                <span className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${getStatusClass(order.status)}`}>
+                  {String(order.status || 'pending')}
                 </span>
+                <Link href="/orders" className="portal-secondary-button">
+                  Back to Orders
+                </Link>
               </div>
             </div>
           </div>
-          
-          <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Order Items */}
-              <div>
-                <h4 className="text-lg font-medium text-gray-800 mb-4">Order Items</h4>
-                <ul className="divide-y divide-gray-200 max-h-96 overflow-y-auto">
-                  {order.items && order.items.map((item, index) => (
-                    <li key={index} className="py-4">
-                      <div className="flex">
-                        <div className="flex-shrink-0 w-16 h-16 border border-gray-200 rounded-none overflow-hidden">
-                          <img
-                            className="w-full h-full object-cover"
-                            src={item.image || (item.images && item.images[0]) || 'https://via.placeholder.com/100x100'}
-                            alt={item.name || item.title || 'Product'}
-                          />
+        </section>
+
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <section className="portal-card overflow-hidden">
+            <div className="border-b border-[var(--portal-border)] bg-[linear-gradient(135deg,#18232f,#283749)] px-6 py-4">
+              <h2 className="text-lg font-semibold text-white">Items in This Order</h2>
+              <p className="mt-1 text-sm text-white/70">A complete breakdown of the products attached to this shipment.</p>
+            </div>
+
+            <div className="divide-y divide-[var(--portal-border)]">
+              {items.map((item, index) => (
+                <div key={index} className="p-5">
+                  <div className="flex flex-col gap-4 sm:flex-row">
+                    <div className="h-28 w-full overflow-hidden rounded-[1rem] border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] sm:w-28">
+                      <img
+                        className="h-full w-full object-cover"
+                        src={item.image || (item.images && item.images[0]) || 'https://via.placeholder.com/100x100'}
+                        alt={item.name || item.title || 'Product'}
+                      />
+                    </div>
+
+                    <div className="flex-1">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <h3 className="portal-heading text-lg font-semibold">{item.name || item.title || 'Product'}</h3>
+                          <p className="portal-muted mt-1 text-sm">Sold by: {item.seller || item.supplier || 'N/A'}</p>
+                          <p className="portal-muted mt-1 text-sm">Quantity: {item.quantity || item.qty || 1}</p>
+                          <p className="portal-heading mt-3 text-base font-semibold">{formatCurrency(item.price || item.unitPrice || 0)} each</p>
                         </div>
-                        <div className="ml-4 flex-1">
-                          <h5 className="text-sm font-medium text-gray-900">{item.name || item.title || 'Product'}</h5>
-                          <p className="text-xs text-gray-600">Sold by: {item.seller || item.supplier || 'N/A'}</p>
-                          <p className="text-xs text-gray-500">Quantity: {item.quantity || item.qty || 1}</p>
-                          <p className="text-sm font-medium text-gray-900 mt-1">${(item.price || item.unitPrice || 0).toFixed(2)} each</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-medium text-gray-900">
-                            ${((item.price || item.unitPrice || 0) * (item.quantity || item.qty || 1)).toFixed(2)}
-                          </p>
-                        </div>
+                        <p className="portal-heading text-lg font-bold">
+                          {formatCurrency((item.price || item.unitPrice || 0) * (item.quantity || item.qty || 1))}
+                        </p>
                       </div>
-                    </li>
-                  ))}
-                </ul>
-                
-                <div className="mt-6 border-t border-gray-200 pt-4">
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <p>Subtotal</p>
-                    <p>${(order.subtotal || (order.total - (order.shipping || 0) - (order.tax || 0)) || 0).toFixed(2)}</p>
-                  </div>
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <p>Shipping</p>
-                    <p className="text-green-600">${(order.shipping || 0).toFixed(2)}</p>
-                  </div>
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <p>Tax</p>
-                    <p>${(order.tax || (order.total * 0.15) || 0).toFixed(2)}</p>
-                  </div>
-                  <div className="flex justify-between text-lg font-bold text-gray-900 mt-2 pt-2 border-t border-gray-200">
-                    <p>Total</p>
-                    <p>${(order.total || 0).toFixed(2)}</p>
+                    </div>
                   </div>
                 </div>
+              ))}
+
+              {items.length === 0 ? (
+                <div className="p-6">
+                  <p className="portal-text text-sm">No item details are available for this order.</p>
+                </div>
+              ) : null}
+            </div>
+          </section>
+
+          <aside className="space-y-6">
+            <div className="portal-card p-6">
+              <div className="border-b border-[var(--portal-border)] pb-4">
+                <h2 className="portal-heading text-lg font-semibold">Order Summary</h2>
+                <p className="portal-muted mt-1 text-sm">Core metadata and financial totals for this order.</p>
               </div>
-              
-              <div>
-                <h4 className="text-lg font-medium text-gray-800 mb-4">Order Details</h4>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <div>
-                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Order Number</p>
-                    <p className="text-sm text-gray-900">#{order.orderNumber || order.id || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Order Date</p>
-                    <p className="text-sm text-gray-900">
-                      {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Method</p>
-                    <p className="text-sm text-gray-900">{order.paymentMethod || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Status</p>
-                    <p className="text-sm text-gray-900">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-none text-xs font-medium ${getStatusColor(order.status)}`}>
-                        {order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'N/A'}
-                      </span>
-                    </p>
-                  </div>
+
+              <div className="mt-5 space-y-4">
+                <div className="portal-soft-card p-4">
+                  <p className="portal-muted text-xs uppercase tracking-[0.12em]">Order Number</p>
+                  <p className="portal-heading mt-1 text-sm font-semibold">#{order.orderNumber || order.id || 'N/A'}</p>
                 </div>
-                
-                <h4 className="text-lg font-medium text-gray-800 mb-4">Shipping Address</h4>
-                <div className="bg-gray-50 bg-opacity-50 p-4 rounded-none border border-gray-200">
-                  <p className="text-sm font-medium text-gray-900">{order.shippingInfo?.fullName || order.shippingInfo?.name || 'N/A'}</p>
-                  <p className="text-sm text-gray-600">{order.shippingInfo?.address || 'N/A'}</p>
-                  <p className="text-sm text-gray-600">{order.shippingInfo?.city || ''}, {order.shippingInfo?.state || ''} {order.shippingInfo?.zipCode || ''}</p>
-                  <p className="text-sm text-gray-600">{order.shippingInfo?.country || 'N/A'}</p>
-                  <p className="text-sm text-gray-600 mt-2">Phone: {order.shippingInfo?.phone || 'N/A'}</p>
+
+                <div className="portal-soft-card p-4">
+                  <p className="portal-muted text-xs uppercase tracking-[0.12em]">Order Date</p>
+                  <p className="portal-heading mt-1 text-sm font-semibold">{orderDate}</p>
                 </div>
-                
-                <div className="mt-6">
-                  <h4 className="text-lg font-medium text-gray-800 mb-4">Order Actions</h4>
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <button className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white rounded-none text-sm font-medium transition-all duration-300">
-                      Track Order
-                    </button>
-                    <button className="flex-1 px-4 py-2 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white rounded-none text-sm font-medium transition-all duration-300">
-                      Contact Seller
-                    </button>
+
+                <div className="portal-soft-card p-4">
+                  <p className="portal-muted text-xs uppercase tracking-[0.12em]">Payment Method</p>
+                  <p className="portal-heading mt-1 text-sm font-semibold">{order.paymentMethod || 'N/A'}</p>
+                </div>
+
+                <div className="space-y-2 border-t border-[var(--portal-border)] pt-4 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="portal-muted">Subtotal</span>
+                    <span className="portal-heading font-semibold">{formatCurrency(subtotal)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="portal-muted">Shipping</span>
+                    <span className="portal-heading font-semibold">{formatCurrency(order.shipping || 0)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="portal-muted">Tax</span>
+                    <span className="portal-heading font-semibold">{formatCurrency(order.tax || (Number(order.total || 0) * 0.15))}</span>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-[var(--portal-border)] pt-3">
+                    <span className="portal-heading text-base font-semibold">Total</span>
+                    <span className="portal-heading text-xl font-bold">{formatCurrency(order.total || 0)}</span>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+
+            <div className="portal-card p-6">
+              <div className="border-b border-[var(--portal-border)] pb-4">
+                <h2 className="portal-heading text-lg font-semibold">Shipping Address</h2>
+                <p className="portal-muted mt-1 text-sm">Delivery details captured for this order.</p>
+              </div>
+
+              <div className="portal-soft-card mt-5 p-4">
+                <p className="portal-heading text-sm font-semibold">{order.shippingInfo?.fullName || order.shippingInfo?.name || 'N/A'}</p>
+                <p className="portal-text mt-2 text-sm leading-6">{order.shippingInfo?.address || 'N/A'}</p>
+                <p className="portal-text text-sm leading-6">
+                  {order.shippingInfo?.city || ''}{order.shippingInfo?.city ? ', ' : ''}{order.shippingInfo?.state || ''} {order.shippingInfo?.zipCode || ''}
+                </p>
+                <p className="portal-text text-sm leading-6">{order.shippingInfo?.country || 'N/A'}</p>
+                <p className="portal-muted mt-3 text-sm">Phone: {order.shippingInfo?.phone || 'N/A'}</p>
+              </div>
+            </div>
+
+            <div className="portal-card p-6">
+              <h2 className="portal-heading text-lg font-semibold">Order Actions</h2>
+              <p className="portal-muted mt-1 text-sm">Quick access to the next workflow around this order.</p>
+              <div className="mt-5 flex flex-col gap-3">
+                <button className="portal-primary-button w-full">Track Order</button>
+                <button className="portal-secondary-button w-full justify-center">Contact Seller</button>
+              </div>
+            </div>
+          </aside>
         </div>
       </main>
     </div>

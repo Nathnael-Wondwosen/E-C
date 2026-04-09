@@ -1,18 +1,23 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const compression = require('compression');
 const { ObjectId } = require('mongodb');
 const multer = require('multer');
 const { OAuth2Client } = require('google-auth-library');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { registerGatewayRoutes } = require('./routes');
+const { createErrorHandler, asyncHandler } = require('./middleware/errorHandler');
+const { createServices } = require('./services');
+const logger = require('./helpers/logger');
 
 const {
   createAuthTokenFactory,
   authenticateTokenFactory,
   requireSelfOrAdmin,
-  requireAdmin
+  requireAdmin,
+  requireSellerOrAdmin
 } = require('./middleware/authMiddleware');
 const { createRequestIdMiddleware } = require('./middleware/requestId');
 const { createRequestLogCollector } = require('./middleware/requestLogger');
@@ -67,6 +72,7 @@ const createApp = ({ env, db }) => {
 
   app.use(cors(buildCorsOptions({ corsOrigin })));
   app.use(helmet());
+  app.use(compression()); // NEW: Response compression for 30-50% payload reduction
   app.use(createRequestIdMiddleware());
   app.use(requestLogs.middleware);
   app.use(createRateLimiter({ maxRequestsPerMinute: Number(process.env.RATE_LIMIT_PER_MINUTE || 300), db }));
@@ -98,13 +104,17 @@ const createApp = ({ env, db }) => {
     sendOptimizedJson
   };
 
+  // Create service instances with dependency injection
+  const services = createServices(db);
+
   registerGatewayRoutes({
     app,
     getDb: () => db,
     middleware: {
       authenticateToken,
       requireSelfOrAdmin,
-      requireAdmin
+      requireAdmin,
+      requireSellerOrAdmin
     },
     helpers: scopedHelpers,
     authDeps: {
@@ -125,6 +135,7 @@ const createApp = ({ env, db }) => {
       proxyJsonToIdentityService,
       enforceIdentityBoundary
     },
+    services, // NEW: Pass services to routes
     upload,
     objectId: ObjectId,
     serviceUrls: {
@@ -133,20 +144,36 @@ const createApp = ({ env, db }) => {
     },
   });
 
+  // NEW: Global error handler middleware (must be last)
+  app.use(createErrorHandler());
+
   return app;
 };
 
 const startServer = async () => {
   const env = loadGatewayEnv();
   const db = await connectToMongo({ mongoUri: env.mongoUri, dbName: env.dbName });
-  console.log(`Connected to MongoDB database: ${env.dbName}`);
+  logger.info('Connected to MongoDB', { database: env.dbName });
   await initCacheStore({ redisUrl: process.env.REDIS_URL || '' });
   await ensureGatewayIndexes(db);
-  console.log('Gateway indexes ensured');
+  logger.info('Gateway indexes ensured');
 
   const app = createApp({ env, db });
-  app.listen(env.port, () => {
-    console.log(`API Gateway running on port ${env.port}`);
+  const server = app.listen(env.port, () => {
+    logger.info('API Gateway started', { port: env.port, env: env.env });
+  });
+
+  // NEW: Graceful shutdown handling
+  const { setupGracefulShutdown } = require('./utils/gracefulShutdown');
+  setupGracefulShutdown(server, {
+    closeDB: async () => {
+      if (db && typeof db.client?.close === 'function') {
+        await db.client.close();
+      }
+    },
+    onShutdown: () => {
+      clearInterval(pruneTimer);
+    }
   });
 
   const pruneTimer = setInterval(() => {

@@ -1,0 +1,17 @@
+ ⨯ Failed to start server
+Error: listen EADDRINUSE: address already in use :::3006
+    at <unknown> (Error: listen EADDRINUSE: address already in use :::3006)
+    at new Promise (<anonymous>) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 3006
+}
+npm error Lifecycle script `start` failed with error:
+npm error code 1
+npm error path C:\Users\Developer\Documents\GitHub\Portal\E-C\frontend\admin-dashboard
+npm error workspace admin-dashboard@1.0.0
+npm error location C:\Users\Developer\Documents\GitHub\Portal\E-C\frontend\admin-dashboard
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c next start -p 3006

@@ -11,6 +11,49 @@ const { createTokenFactory, toResponseUser } = require('./helpers/authHelpers');
 const { authenticateTokenFactory, requireSelfOrAdmin } = require('./middleware/authMiddleware');
 const { registerRoutes } = require('./routes');
 
+const ensureAdminUser = async ({ env }) => {
+  const { adminUsername, adminPassword } = env;
+
+  if (!adminUsername || !adminPassword) {
+    console.warn('identity-service: ADMIN_USERNAME/ADMIN_PASSWORD not set, admin bootstrap skipped');
+    return;
+  }
+
+  const normalizedUsername = String(adminUsername).trim();
+  const normalizedEmail = `${normalizedUsername}@admin.local`.toLowerCase();
+  const existingUser =
+    (await User.findOne({ username: normalizedUsername })) ||
+    (await User.findOne({ email: normalizedEmail }));
+
+  const passwordHash = await bcrypt.hash(String(adminPassword), 10);
+
+  if (!existingUser) {
+    await User.create({
+      email: normalizedEmail,
+      username: normalizedUsername,
+      passwordHash,
+      status: 'active',
+      role: 'admin',
+      roles: ['admin'],
+      displayName: 'Administrator',
+      authProvider: 'local'
+    });
+    console.log(`identity-service: bootstrapped admin user "${normalizedUsername}"`);
+    return;
+  }
+
+  existingUser.email = normalizedEmail;
+  existingUser.username = normalizedUsername;
+  existingUser.passwordHash = passwordHash;
+  existingUser.status = 'active';
+  existingUser.role = 'admin';
+  existingUser.roles = Array.from(new Set([...(existingUser.roles || []), 'admin']));
+  existingUser.displayName = existingUser.displayName || 'Administrator';
+  existingUser.authProvider = existingUser.authProvider || 'local';
+  await existingUser.save();
+  console.log(`identity-service: ensured admin user "${normalizedUsername}"`);
+};
+
 const createApp = ({ env }) => {
   const app = express();
   const createToken = createTokenFactory({
@@ -43,6 +86,7 @@ const createApp = ({ env }) => {
 const startServer = async () => {
   const env = loadIdentityEnv();
   await connectToMongo({ mongoUri: env.mongoUri, dbName: env.dbName });
+  await ensureAdminUser({ env });
 
   const app = createApp({ env });
   app.listen(env.port, () => {

@@ -29,9 +29,8 @@ let categoriesCache = null;
 let categoriesCacheTimestamp = null;
 const CATEGORIES_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-// Cache for products
-let productsCache = null;
-let productsCacheTimestamp = null;
+// Cache for products (scope-aware)
+const productsCacheByScope = new Map();
 const PRODUCTS_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 // Fetch hero slides from API
@@ -140,33 +139,41 @@ export async function getCategoriesPage(page = 1, limit = 30) {
 }
 
 // Fetch products from API
-export async function getProducts() {
-  // Check if we have valid cached data
+export async function getProducts(scope = '') {
+  const normalizedScope = String(scope || '').trim().toLowerCase();
+  const scopeKey = normalizedScope || '__all__';
+
+  // Check if we have valid cached data for this scope
   const now = Date.now();
-  if (productsCache && productsCacheTimestamp && (now - productsCacheTimestamp) < PRODUCTS_CACHE_DURATION) {
-    return productsCache;
+  const cachedEntry = productsCacheByScope.get(scopeKey);
+  if (cachedEntry && (now - cachedEntry.timestamp) < PRODUCTS_CACHE_DURATION) {
+    return cachedEntry.items;
   }
 
   try {
-    const { ok, payload } = await requestJson('/api/products', { retries: 1 });
+    const query = normalizedScope ? `?scope=${encodeURIComponent(normalizedScope)}` : '';
+    const { ok, payload } = await requestJson(`/api/products${query}`, { retries: 1 });
     if (!ok) throw new Error('Failed to fetch products');
-    const products = payload.items || payload;
+    const products = Array.isArray(payload?.items) ? payload.items : (Array.isArray(payload) ? payload : []);
     
-    // Update cache
-    productsCache = products;
-    productsCacheTimestamp = now;
+    // Update scope cache
+    productsCacheByScope.set(scopeKey, {
+      items: products,
+      timestamp: now
+    });
     
     return products;
   } catch (error) {
     console.error('Error fetching products:', error);
-    // Return cached data if available, otherwise return empty array
-    return productsCache || [];
+    // Return cached data for this scope if available, otherwise return empty array
+    return cachedEntry?.items || [];
   }
 }
 
-export async function getProductsPage(page = 1, limit = 24) {
+export async function getProductsPage(page = 1, limit = 24, scope = '') {
   try {
-    const { ok, payload } = await requestJson(`/api/products?page=${page}&limit=${limit}`, { retries: 1 });
+    const scopeParam = scope ? `&scope=${encodeURIComponent(scope)}` : '';
+    const { ok, payload } = await requestJson(`/api/products?page=${page}&limit=${limit}${scopeParam}`, { retries: 1 });
     if (!ok) {
       return { items: [], total: 0, page, limit, totalPages: 1 };
     }

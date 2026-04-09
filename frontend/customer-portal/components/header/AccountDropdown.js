@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
+import { clearCustomerSession } from '../../utils/session';
 
 const getLoginState = () => {
   if (typeof window === 'undefined') return { loggedIn: false, userType: 'buyer', userName: 'User' };
@@ -57,12 +58,7 @@ export default function AccountDropdown({
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('userLoggedIn');
-    localStorage.removeItem('userEmail');
-    localStorage.removeItem('userType');
-    localStorage.removeItem('userId');
-    localStorage.removeItem('userToken');
-    window.dispatchEvent(new CustomEvent('loginStatusChanged'));
+    clearCustomerSession();
     setIsOpen(false);
     router.push('/login');
   };

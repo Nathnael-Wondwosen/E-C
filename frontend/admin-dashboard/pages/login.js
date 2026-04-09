@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { DEFAULT_ADMIN_SCOPE } from '../config/adminScopes';
+import { requestJson } from '../utils/httpClient';
 
 export default function AdminLogin() {
   const [username, setUsername] = useState('');
@@ -9,7 +10,6 @@ export default function AdminLogin() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -17,7 +17,7 @@ export default function AdminLogin() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/admin/login`, {
+      const { ok, payload, message } = await requestJson('/api/auth/admin/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -25,15 +25,14 @@ export default function AdminLogin() {
         body: JSON.stringify({ username, password }),
       });
 
-      const data = await response.json();
-      if (!response.ok) {
-        setError(data.error || 'Invalid username or password');
+      if (!ok) {
+        setError(message || 'Invalid username or password');
         return;
       }
 
       localStorage.setItem('adminLoggedIn', 'true');
-      localStorage.setItem('adminToken', data.token);
-      localStorage.setItem('adminUser', JSON.stringify(data.user || {}));
+      localStorage.setItem('adminToken', payload.token || '');
+      localStorage.setItem('adminUser', JSON.stringify(payload.user || {}));
       const scope = localStorage.getItem('adminScope') || DEFAULT_ADMIN_SCOPE;
       router.push(`/admin/${scope}`);
     } catch (err) {

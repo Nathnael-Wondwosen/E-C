@@ -33,6 +33,50 @@ const registerAuthRoutes = ({
   const shouldExposeResetToken = ['1', 'true', 'yes', 'on'].includes(
     `${process.env.EXPOSE_PASSWORD_RESET_TOKEN || 'true'}`.toLowerCase()
   );
+  const LOGIN_MAX_ATTEMPTS = Number(process.env.LOGIN_MAX_ATTEMPTS || 5);
+  const LOGIN_LOCK_MS = Number(process.env.LOGIN_LOCK_MS || 3 * 60 * 1000);
+  const loginThrottleStore = new Map();
+
+  const normalizeLoginKey = (value = '') => String(value || '').trim().toLowerCase();
+  const getThrottleKey = (scope, loginKey) => `${scope}:${normalizeLoginKey(loginKey)}`;
+  const clearThrottle = (throttleKey) => {
+    loginThrottleStore.delete(throttleKey);
+  };
+  const getThrottleState = (throttleKey) => {
+    const entry = loginThrottleStore.get(throttleKey);
+    if (!entry) return { locked: false, retryAfterSec: 0 };
+    const now = Date.now();
+    if (entry.lockUntil && entry.lockUntil > now) {
+      return {
+        locked: true,
+        retryAfterSec: Math.max(1, Math.ceil((entry.lockUntil - now) / 1000))
+      };
+    }
+    if (entry.lockUntil && entry.lockUntil <= now) {
+      loginThrottleStore.delete(throttleKey);
+    }
+    return { locked: false, retryAfterSec: 0 };
+  };
+  const registerFailure = (throttleKey) => {
+    const now = Date.now();
+    const entry = loginThrottleStore.get(throttleKey) || { count: 0, lockUntil: 0 };
+    if (entry.lockUntil && entry.lockUntil <= now) {
+      entry.count = 0;
+      entry.lockUntil = 0;
+    }
+    entry.count += 1;
+    if (entry.count >= LOGIN_MAX_ATTEMPTS) {
+      entry.lockUntil = now + LOGIN_LOCK_MS;
+      entry.count = 0;
+    }
+    loginThrottleStore.set(throttleKey, entry);
+  };
+  const respondLocked = (res, retryAfterSec) => {
+    res.set('Retry-After', String(retryAfterSec));
+    return res.status(429).json({
+      error: `Too many failed login attempts. Try again in ${retryAfterSec} seconds.`
+    });
+  };
   const getAuthenticatedUserId = (req) => {
     const authHeader = req.headers.authorization || '';
     if (!authHeader.startsWith('Bearer ')) {
@@ -72,20 +116,29 @@ const registerAuthRoutes = ({
         return res.status(500).json({ error: 'Database connection not available' });
       }
 
-      const { email, password } = req.body;
+      const { email, password, userType } = req.body;
+      const throttleKey = getThrottleKey('user', email);
+      const requestedUserType = String(userType || '').trim();
+      const normalizedRequestedUserType = requestedUserType ? normalizeUserType(requestedUserType) : '';
 
       if (!email || !password) {
         return res.status(400).json({ error: 'Email and password are required' });
+      }
+      const throttleState = getThrottleState(throttleKey);
+      if (throttleState.locked) {
+        return respondLocked(res, throttleState.retryAfterSec);
       }
 
       const collection = db.collection('users');
       const user = await collection.findOne({ email: email.toLowerCase() });
 
       if (!user) {
-        return res.status(401).json({ error: 'Invalid email or password' });
+        registerFailure(throttleKey);
+        return res.status(404).json({ error: 'Account does not exist. Please sign up first.' });
       }
 
       if (user.authProvider === 'google' && !user.passwordHash && !user.password) {
+        registerFailure(throttleKey);
         return res.status(401).json({ error: 'This account uses Google sign-in. Please continue with Google.' });
       }
 
@@ -107,13 +160,26 @@ const registerAuthRoutes = ({
       }
 
       if (!passwordMatches) {
+        registerFailure(throttleKey);
         return res.status(401).json({ error: 'Invalid email or password' });
       }
 
+      if (normalizedRequestedUserType) {
+        const effectiveUserType = String(user.userType || user.role || 'buyer');
+        if (effectiveUserType !== normalizedRequestedUserType) {
+          registerFailure(throttleKey);
+          return res.status(403).json({
+            error: `This account does not have ${normalizedRequestedUserType} access`
+          });
+        }
+      }
+
       if (!user.isActive) {
+        registerFailure(throttleKey);
         return res.status(401).json({ error: 'Account is not active' });
       }
 
+      clearThrottle(throttleKey);
       const token = createAuthToken(user);
 
       res.json({
@@ -122,7 +188,7 @@ const registerAuthRoutes = ({
           id: user._id.toString(),
           email: user.email,
           name: user.name,
-          userType: user.userType || 'buyer',
+          userType: user.userType || user.role || 'buyer',
           isActive: user.isActive
         },
         token
@@ -140,6 +206,9 @@ const registerAuthRoutes = ({
 
     if (IDENTITY_SERVICE_URL) {
       const { name, email, password, userType, profile } = req.body;
+      const originalBody = req.body;
+
+      // Temporarily modify req.body for proxying
       req.body = {
         email,
         username: email,
@@ -149,12 +218,17 @@ const registerAuthRoutes = ({
         displayName: name || '',
         profile: profile || {}
       };
+
       const proxied = await proxyJsonToIdentityService(
         req,
         res,
         '/api/auth/register',
         { suppressUnavailable: !enforceIdentityBoundary }
       );
+
+      // Restore original body
+      req.body = originalBody;
+
       if (proxied) {
         return;
       }
@@ -468,7 +542,9 @@ const registerAuthRoutes = ({
       }
 
       const { credential, userType } = req.body;
-      const normalizedUserType = normalizeUserType(userType);
+      const rawRequestedUserType = String(userType || '').trim();
+      const hasExplicitUserType = Boolean(rawRequestedUserType);
+      const normalizedUserType = hasExplicitUserType ? normalizeUserType(rawRequestedUserType) : '';
 
       if (!credential) {
         return res.status(400).json({ error: 'Google credential is required' });
@@ -496,7 +572,7 @@ const registerAuthRoutes = ({
           body: JSON.stringify({
             email,
             name: payload.name || email.split('@')[0],
-            userType: normalizedUserType,
+            ...(hasExplicitUserType ? { userType: normalizedUserType } : {}),
             googleId: payload.sub,
             avatarUrl: payload.picture || ''
           })
@@ -508,10 +584,13 @@ const registerAuthRoutes = ({
         }
 
         const delegatedUser = identityPayload.user || {};
+        const delegatedRoles = Array.isArray(delegatedUser.roles) ? delegatedUser.roles : [];
         const delegatedRole =
+          (hasExplicitUserType && delegatedRoles.includes(normalizedUserType) ? normalizedUserType : '') ||
           delegatedUser.role ||
-          (Array.isArray(delegatedUser.roles) && delegatedUser.roles.length ? delegatedUser.roles[0] : '') ||
-          normalizedUserType;
+          (delegatedRoles.length ? delegatedRoles[0] : '') ||
+          normalizedUserType ||
+          'buyer';
         return res.json({
           success: true,
           user: {
@@ -527,38 +606,48 @@ const registerAuthRoutes = ({
 
       const collection = db.collection('users');
       let user = await collection.findOne({ email });
-      let effectiveUserType = normalizedUserType;
+      let effectiveUserType = normalizedUserType || 'buyer';
 
       if (user) {
-        effectiveUserType = user.userType || 'buyer';
+        effectiveUserType = String(user.userType || user.role || 'buyer');
 
         const updates = {
           updatedAt: new Date(),
           authProvider: 'google',
           googleId: payload.sub
         };
+        if (hasExplicitUserType) {
+          updates.userType = normalizedUserType;
+          effectiveUserType = normalizedUserType;
+        }
 
         if (!user.profile) {
           updates.profile = {
             name: payload.name || user.name || '',
             email,
-            userType: user.userType || normalizedUserType
+            userType: hasExplicitUserType ? normalizedUserType : effectiveUserType
+          };
+        } else {
+          updates.profile = {
+            ...user.profile,
+            userType: hasExplicitUserType ? normalizedUserType : (user.profile?.userType || effectiveUserType)
           };
         }
 
         await collection.updateOne({ _id: user._id }, { $set: updates });
         user = await collection.findOne({ _id: user._id });
       } else {
+        const nextUserType = normalizedUserType || 'buyer';
         const newUser = {
           name: payload.name || email.split('@')[0],
           email,
           phone: '',
-          userType: normalizedUserType,
+          userType: nextUserType,
           profile: {
             name: payload.name || email.split('@')[0],
             email,
             phone: '',
-            userType: normalizedUserType
+            userType: nextUserType
           },
           isActive: true,
           authProvider: 'google',
@@ -570,7 +659,7 @@ const registerAuthRoutes = ({
 
         const result = await collection.insertOne(newUser);
         user = await collection.findOne({ _id: result.insertedId });
-        effectiveUserType = normalizedUserType;
+        effectiveUserType = nextUserType;
       }
 
       if (!user.isActive) {
@@ -606,17 +695,24 @@ const registerAuthRoutes = ({
 
     try {
       const { username, password } = req.body;
+      const throttleKey = getThrottleKey('admin', username);
 
       if (!username || !password) {
         return res.status(400).json({ error: 'Username and password are required' });
+      }
+      const throttleState = getThrottleState(throttleKey);
+      if (throttleState.locked) {
+        return respondLocked(res, throttleState.retryAfterSec);
       }
       if (!ADMIN_USERNAME || !ADMIN_PASSWORD) {
         return res.status(500).json({ error: 'Admin login is not configured on server' });
       }
       if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
+        registerFailure(throttleKey);
         return res.status(401).json({ error: 'Invalid username or password' });
       }
 
+      clearThrottle(throttleKey);
       const token = jwt.sign(
         {
           sub: `admin:${ADMIN_USERNAME}`,

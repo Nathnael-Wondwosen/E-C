@@ -1,10 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
-import { getUserCart, getUserWishlist } from '../../utils/userService';
+import {
+  getUserCart,
+  getUserInquiryInbox,
+  getUserInquirySent,
+  getUserWishlist,
+  subscribeToInquiryUpdates
+} from '../../utils/userService';
+import { getCategories } from '../../utils/heroDataService';
 import { STATIC_NAVBAR_LINKS } from '../../constants/navbarLinks';
 import AccountDropdown from './AccountDropdown';
+import { clearCustomerSession } from '../../utils/session';
 
 const supportedLocales = ['en', 'es', 'fr', 'de'];
 
@@ -33,17 +41,23 @@ const protectRoute = (route) => {
 
 export default function Header({ isMenuOpen, setIsMenuOpen, categories = [] }) {
   const router = useRouter();
+  const isProductDetailsPage = router.pathname === '/products/[id]';
   const [isUserLoggedIn, setIsUserLoggedIn] = useState(false);
   const [userType, setUserType] = useState('buyer');
   const [cartCount, setCartCount] = useState(0);
   const [wishlistCount, setWishlistCount] = useState(0);
+  const [inquiryNotificationCount, setInquiryNotificationCount] = useState(0);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [activeCategoryId, setActiveCategoryId] = useState(null);
+  const [resolvedCategories, setResolvedCategories] = useState(Array.isArray(categories) ? categories : []);
+  const [messageToast, setMessageToast] = useState({ open: false, count: 0 });
   const closeCategoryTimeoutRef = useRef(null);
+  const toastTimeoutRef = useRef(null);
+  const previousInquiryCountRef = useRef(0);
 
   const normalizedCategories = useMemo(() => {
-    if (!Array.isArray(categories)) return [];
-    return categories
+    if (!Array.isArray(resolvedCategories)) return [];
+    return resolvedCategories
       .filter((category) => category && category.name)
       .filter((category) => category.isActive !== false)
       .map((category) => ({
@@ -52,6 +66,30 @@ export default function Header({ isMenuOpen, setIsMenuOpen, categories = [] }) {
         parentKey: category.parentId || category.parentCategoryId || category.parent || null,
       }))
       .sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || '')));
+  }, [resolvedCategories]);
+
+  useEffect(() => {
+    const provided = Array.isArray(categories) ? categories : [];
+    if (provided.length > 0) {
+      setResolvedCategories(provided);
+      return;
+    }
+
+    let cancelled = false;
+    const loadCategories = async () => {
+      try {
+        const fetched = await getCategories();
+        if (cancelled) return;
+        setResolvedCategories(Array.isArray(fetched) ? fetched : []);
+      } catch (error) {
+        if (!cancelled) setResolvedCategories([]);
+      }
+    };
+
+    loadCategories();
+    return () => {
+      cancelled = true;
+    };
   }, [categories]);
 
   const topLevelCategories = useMemo(() => {
@@ -73,6 +111,57 @@ export default function Header({ isMenuOpen, setIsMenuOpen, categories = [] }) {
     router.push(router.asPath, router.asPath, { locale });
   };
 
+  const computeInquiryNotificationCount = (inquiries = []) =>
+    inquiries.reduce((sum, entry) => {
+      const unreadCount = Number(entry?.unreadCount || 0);
+      if (unreadCount > 0) return sum + unreadCount;
+      const status = String(entry?.status || 'new').toLowerCase();
+      if (status === 'closed') return sum;
+      const messages = Array.isArray(entry?.messages) ? entry.messages : [];
+      const latestMessage = messages.length ? messages[messages.length - 1] : null;
+      const latestSenderRole = String(latestMessage?.senderRole || '').toLowerCase();
+      const needsAttention = status === 'new' || latestSenderRole === 'buyer';
+      return sum + (needsAttention ? 1 : 0);
+    }, 0);
+  const computeBuyerInquiryNotificationCount = (inquiries = []) =>
+    inquiries.reduce((sum, entry) => {
+      const unreadCount = Number(entry?.unreadCount || 0);
+      if (unreadCount > 0) return sum + unreadCount;
+      const status = String(entry?.status || 'new').toLowerCase();
+      if (status === 'closed') return sum;
+      const messages = Array.isArray(entry?.messages) ? entry.messages : [];
+      const latestMessage = messages.length ? messages[messages.length - 1] : null;
+      const latestSenderRole = String(latestMessage?.senderRole || '').toLowerCase();
+      return sum + (latestSenderRole === 'seller' ? 1 : 0);
+    }, 0);
+
+  const loadHeaderCounts = useCallback(async () => {
+    if (typeof window === 'undefined') return;
+    const userId = localStorage.getItem('userId');
+    if (!userId) return;
+
+    try {
+      const currentType = getUserType();
+      const [cartData, wishlistData, inquiryResult] = await Promise.all([
+        getUserCart(userId),
+        getUserWishlist(userId),
+        currentType === 'seller' ? getUserInquiryInbox(userId) : getUserInquirySent(userId),
+      ]);
+      setCartCount(cartData.count || 0);
+      setWishlistCount(wishlistData.items?.length || 0);
+      if (currentType === 'seller') {
+        setInquiryNotificationCount(computeInquiryNotificationCount(inquiryResult?.inquiries || []));
+      } else {
+        setInquiryNotificationCount(computeBuyerInquiryNotificationCount(inquiryResult?.inquiries || []));
+      }
+    } catch (error) {
+      console.error('Error loading cart and wishlist counts:', error);
+      setCartCount(0);
+      setWishlistCount(0);
+      setInquiryNotificationCount(0);
+    }
+  }, []);
+
   useEffect(() => {
     const refreshLoginStatus = () => {
       const loggedIn = isLoggedIn();
@@ -80,49 +169,110 @@ export default function Header({ isMenuOpen, setIsMenuOpen, categories = [] }) {
       setUserType(getUserType());
 
       if (loggedIn) {
-        loadCartAndWishlistCounts();
+        loadHeaderCounts();
       } else {
         setCartCount(0);
         setWishlistCount(0);
+        setInquiryNotificationCount(0);
       }
     };
 
     refreshLoginStatus();
     window.addEventListener('storage', refreshLoginStatus);
     window.addEventListener('loginStatusChanged', refreshLoginStatus);
+    window.addEventListener('focus', refreshLoginStatus);
 
     return () => {
       window.removeEventListener('storage', refreshLoginStatus);
       window.removeEventListener('loginStatusChanged', refreshLoginStatus);
+      window.removeEventListener('focus', refreshLoginStatus);
     };
-  }, []);
+  }, [loadHeaderCounts]);
+
+  useEffect(() => {
+    if (!isUserLoggedIn) return undefined;
+    const intervalId = window.setInterval(() => {
+      loadHeaderCounts();
+    }, 20000);
+    return () => window.clearInterval(intervalId);
+  }, [isUserLoggedIn, loadHeaderCounts]);
+
+  useEffect(() => {
+    if (!isUserLoggedIn) return undefined;
+    const userId = localStorage.getItem('userId');
+    if (!userId) return undefined;
+    const streamMode = userType === 'seller' ? 'inbox' : 'sent';
+    const unsubscribe = subscribeToInquiryUpdates(userId, {
+      mode: streamMode,
+      onSnapshot: () => {
+        loadHeaderCounts();
+      }
+    });
+    return () => unsubscribe();
+  }, [isUserLoggedIn, userType, loadHeaderCounts]);
 
   useEffect(() => {
     return () => {
       if (closeCategoryTimeoutRef.current) {
         clearTimeout(closeCategoryTimeoutRef.current);
       }
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
     };
   }, []);
 
-  const loadCartAndWishlistCounts = async () => {
-    const userId = localStorage.getItem('userId');
-    if (!userId) return;
-
-    try {
-      const [cartData, wishlistData] = await Promise.all([getUserCart(userId), getUserWishlist(userId)]);
-      setCartCount(cartData.count || 0);
-      setWishlistCount(wishlistData.items?.length || 0);
-    } catch (error) {
-      console.error('Error loading cart and wishlist counts:', error);
-      setCartCount(0);
-      setWishlistCount(0);
+  useEffect(() => {
+    if (!isUserLoggedIn) {
+      previousInquiryCountRef.current = 0;
+      return;
     }
-  };
+    const previous = Number(previousInquiryCountRef.current || 0);
+    const current = Number(inquiryNotificationCount || 0);
+    previousInquiryCountRef.current = current;
+
+    if (router.pathname === '/inquiries') return;
+    if (current <= previous) return;
+
+    setMessageToast({ open: true, count: current - previous });
+    if (typeof window !== 'undefined' && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+      try {
+        // Browser-level alert when user is on a different tab/window.
+        const notification = new Notification('New message update', {
+          body: `${current - previous} new message${current - previous > 1 ? 's' : ''} received`,
+          tag: 'tradeethiopia-messages',
+          renotify: true,
+        });
+        notification.onclick = () => {
+          window.focus();
+          router.push('/inquiries');
+          notification.close();
+        };
+      } catch (_error) {
+        // Ignore notification API runtime issues.
+      }
+    }
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    toastTimeoutRef.current = setTimeout(() => {
+      setMessageToast({ open: false, count: 0 });
+    }, 4200);
+  }, [inquiryNotificationCount, isUserLoggedIn, router.pathname]);
 
   const sortedLinks = [...STATIC_NAVBAR_LINKS]
     .filter((link) => link.enabled)
     .sort((a, b) => a.order - b.order);
+  const resolveNavHref = (link) => {
+    if (!link) return '';
+    const id = String(link.id || '').toLowerCase();
+    const title = String(link.title || '').toLowerCase();
+    if (id === 'local-market' || title === 'local market') {
+      return '/localmarket';
+    }
+    if (id === 'global-market' || title === 'global market') {
+      return '/marketplace';
+    }
+    return link.url;
+  };
   const isActive = (url) => {
     if (!url) return false;
     if (url === '/') return router.pathname === '/';
@@ -130,15 +280,12 @@ export default function Header({ isMenuOpen, setIsMenuOpen, categories = [] }) {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('userLoggedIn');
-    localStorage.removeItem('userEmail');
-    localStorage.removeItem('userType');
-    localStorage.removeItem('userId');
+    clearCustomerSession();
     setIsUserLoggedIn(false);
     setUserType('buyer');
     setCartCount(0);
     setWishlistCount(0);
-    window.dispatchEvent(new CustomEvent('loginStatusChanged'));
+    setInquiryNotificationCount(0);
     window.location.href = '/login';
   };
 
@@ -284,9 +431,9 @@ export default function Header({ isMenuOpen, setIsMenuOpen, categories = [] }) {
               ) : (
                 <Link
                   key={link.id}
-                  href={link.url}
+                  href={resolveNavHref(link)}
                   className={`shrink-0 px-3 h-8 inline-flex items-center rounded-md text-sm transition-colors ${
-                    isActive(link.url) ? 'text-blue-700 font-semibold bg-blue-50' : 'text-gray-700 hover:bg-gray-100 hover:text-blue-700'
+                    isActive(resolveNavHref(link)) ? 'text-blue-700 font-semibold bg-blue-50' : 'text-gray-700 hover:bg-gray-100 hover:text-blue-700'
                   }`}
                 >
                   {link.title}
@@ -296,6 +443,7 @@ export default function Header({ isMenuOpen, setIsMenuOpen, categories = [] }) {
           </div>
 
           <div className="flex items-center gap-3 text-gray-700">
+            {!isProductDetailsPage ? (
             <div className="flex items-center gap-2 pr-2 border-r border-gray-200">
               <a href="#" aria-label="Facebook" className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-gray-200 hover:border-blue-400 hover:text-blue-700 transition-colors">
                 <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -313,6 +461,7 @@ export default function Header({ isMenuOpen, setIsMenuOpen, categories = [] }) {
                 </svg>
               </a>
             </div>
+            ) : null}
 
             <button
               type="button"
@@ -347,6 +496,30 @@ export default function Header({ isMenuOpen, setIsMenuOpen, categories = [] }) {
                 </span>
               )}
             </button>
+
+            {isUserLoggedIn ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+                    Notification.requestPermission().catch(() => {});
+                  }
+                  protectRoute('/inquiries');
+                }}
+                aria-label="Messages"
+                title="Messages"
+                className="relative h-8 w-8 inline-flex items-center justify-center rounded-md hover:bg-gray-100 hover:text-blue-700 transition-colors"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M5 17h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                {inquiryNotificationCount > 0 ? (
+                  <span className="absolute -top-2 -right-2 h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center">
+                    {inquiryNotificationCount > 99 ? '99+' : inquiryNotificationCount}
+                  </span>
+                ) : null}
+              </button>
+            ) : null}
 
             <div className="relative group">
               <button
@@ -440,7 +613,7 @@ export default function Header({ isMenuOpen, setIsMenuOpen, categories = [] }) {
                     {link.title}
                   </a>
                 ) : (
-                  <Link key={link.id} href={link.url} className="block py-2 text-sm text-gray-700" onClick={() => setIsMenuOpen(false)}>
+                  <Link key={link.id} href={resolveNavHref(link)} className="block py-2 text-sm text-gray-700" onClick={() => setIsMenuOpen(false)}>
                     {link.title}
                   </Link>
                 )
@@ -450,6 +623,11 @@ export default function Header({ isMenuOpen, setIsMenuOpen, categories = [] }) {
             <div className="border-t border-gray-100 pt-2">
               <Link href="/wishlist" className="block py-2 text-sm text-gray-700" onClick={() => setIsMenuOpen(false)}>Wishlist</Link>
               <Link href="/cart" className="block py-2 text-sm text-gray-700" onClick={() => setIsMenuOpen(false)}>Cart</Link>
+              {isUserLoggedIn ? (
+                <Link href="/inquiries" className="block py-2 text-sm text-gray-700" onClick={() => setIsMenuOpen(false)}>
+                  Messages {inquiryNotificationCount > 0 ? `(${inquiryNotificationCount})` : ''}
+                </Link>
+              ) : null}
               {isUserLoggedIn ? (
                 <>
                   <Link href={userType === 'seller' ? '/dashboard/seller' : '/dashboard/customer'} className="block py-2 text-sm text-gray-700" onClick={() => setIsMenuOpen(false)}>Dashboard</Link>
@@ -465,6 +643,23 @@ export default function Header({ isMenuOpen, setIsMenuOpen, categories = [] }) {
           </div>
         </div>
       )}
+
+      {isUserLoggedIn && messageToast.open ? (
+        <button
+          type="button"
+          onClick={() => {
+            setMessageToast({ open: false, count: 0 });
+            router.push('/inquiries');
+          }}
+          className="fixed bottom-4 right-4 z-[70] inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm font-semibold text-emerald-700 shadow-[0_14px_34px_rgba(15,23,42,0.16)]"
+        >
+          <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-emerald-100 px-1 text-[11px] text-emerald-700">
+            +{messageToast.count}
+          </span>
+          New message update
+          <span className="text-xs text-emerald-600">Open</span>
+        </button>
+      ) : null}
     </header>
   );
 }

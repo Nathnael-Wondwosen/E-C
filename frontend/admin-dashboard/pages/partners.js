@@ -4,10 +4,13 @@ import Head from 'next/head';
 import AdminLayout from '../components/AdminLayout';
 import ImageUploader from '../components/ImageUploader';
 import { withAdminScopeUrl } from '../utils/scopeApi';
+import { requestJson } from '../utils/httpClient';
 
 export default function PartnersManagement() {
   const [partners, setPartners] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingPartner, setEditingPartner] = useState(null);
   const [formData, setFormData] = useState({
@@ -38,14 +41,14 @@ export default function PartnersManagement() {
   const loadPartners = async () => {
     try {
       setLoading(true);
-      
-      // Fetch partners from API
-      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/partners`));
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      setError('');
+      const { ok, payload, message } = await requestJson(withAdminScopeUrl(`${API_BASE_URL}/api/partners`), {
+        retries: 1
+      });
+      if (!ok) {
+        throw new Error(message || 'Failed to load partners');
       }
-      
-      const fetchedPartners = await response.json();
+      const fetchedPartners = Array.isArray(payload) ? payload : payload?.items || [];
       // Convert MongoDB _id to id for frontend compatibility
       const convertedPartners = fetchedPartners.map(partner => ({
         ...partner,
@@ -54,7 +57,8 @@ export default function PartnersManagement() {
       setPartners(convertedPartners);
     } catch (error) {
       console.error('Error loading partners:', error);
-      alert('Error loading partners. Please try again.');
+      setPartners([]);
+      setError(error.message || 'Error loading partners. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -86,21 +90,20 @@ export default function PartnersManagement() {
     e.preventDefault();
     
     try {
+      setError('');
       if (editingPartner) {
         // Update existing partner
-        const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/partners/${editingPartner.id}`), {
+        const { ok, payload, message } = await requestJson(withAdminScopeUrl(`${API_BASE_URL}/api/partners/${editingPartner.id}`), {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(formData),
         });
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        if (!ok) {
+          throw new Error(message || 'Failed to update partner');
         }
-        
-        const updatedPartner = await response.json();
+        const updatedPartner = payload;
         // Convert MongoDB _id to id for frontend compatibility
         const convertedPartner = {
           ...updatedPartner,
@@ -111,21 +114,20 @@ export default function PartnersManagement() {
           partner.id === editingPartner.id ? convertedPartner : partner
         );
         setPartners(updatedPartners);
+        setSuccess('Partner updated successfully.');
       } else {
         // Add new partner
-        const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/partners`), {
+        const { ok, payload, message } = await requestJson(withAdminScopeUrl(`${API_BASE_URL}/api/partners`), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(formData),
         });
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        if (!ok) {
+          throw new Error(message || 'Failed to create partner');
         }
-        
-        const newPartner = await response.json();
+        const newPartner = payload;
         // Convert MongoDB _id to id for frontend compatibility
         const convertedPartner = {
           ...newPartner,
@@ -133,6 +135,7 @@ export default function PartnersManagement() {
         };
         
         setPartners([...partners, convertedPartner]);
+        setSuccess('Partner created successfully.');
       }
       
       // Reset form
@@ -146,11 +149,9 @@ export default function PartnersManagement() {
       });
       setShowForm(false);
       setEditingPartner(null);
-      
-      alert('Partner saved successfully!');
     } catch (error) {
       console.error('Error saving partner:', error);
-      alert('Error saving partner. Please try again.');
+      setError(error.message || 'Error saving partner. Please try again.');
     }
   };
 
@@ -172,34 +173,32 @@ export default function PartnersManagement() {
     }
     
     try {
-      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/partners/${id}`), {
+      setError('');
+      const { ok, message } = await requestJson(withAdminScopeUrl(`${API_BASE_URL}/api/partners/${id}`), {
         method: 'DELETE',
       });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (!ok) {
+        throw new Error(message || 'Failed to delete partner');
       }
-      
       const updatedPartners = partners.filter(partner => partner.id !== id);
       setPartners(updatedPartners);
-      alert('Partner deleted successfully!');
+      setSuccess('Partner deleted successfully.');
     } catch (error) {
       console.error('Error deleting partner:', error);
-      alert('Error deleting partner. Please try again.');
+      setError(error.message || 'Error deleting partner. Please try again.');
     }
   };
 
   const handleToggleStatus = async (id) => {
     try {
-      const response = await fetch(withAdminScopeUrl(`${API_BASE_URL}/api/partners/${id}/toggle`), {
+      setError('');
+      const { ok, payload, message } = await requestJson(withAdminScopeUrl(`${API_BASE_URL}/api/partners/${id}/toggle`), {
         method: 'PATCH',
       });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (!ok) {
+        throw new Error(message || 'Failed to update partner status');
       }
-      
-      const updatedPartner = await response.json();
+      const updatedPartner = payload;
       // Convert MongoDB _id to id for frontend compatibility
       const convertedPartner = {
         ...updatedPartner,
@@ -210,9 +209,10 @@ export default function PartnersManagement() {
         partner.id === id ? convertedPartner : partner
       );
       setPartners(updatedPartners);
+      setSuccess('Partner status updated successfully.');
     } catch (error) {
       console.error('Error toggling partner status:', error);
-      alert('Error updating partner status. Please try again.');
+      setError(error.message || 'Error updating partner status. Please try again.');
     }
   };
 
@@ -251,6 +251,18 @@ export default function PartnersManagement() {
               Add Partner
             </button>
           </div>
+
+          {success ? (
+            <div className="mb-4 rounded border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-700">
+              {success}
+            </div>
+          ) : null}
+
+          {error ? (
+            <div className="mb-4 rounded border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          ) : null}
 
           {loading ? (
             <div className="bg-white shadow rounded-lg p-6">

@@ -1,16 +1,24 @@
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Header from '../../components/header/Header';
 import { getProductsPage } from '../../utils/heroDataService';
 import {
   addToCart,
   addToWishlist,
+  addPreviewToCart,
+  addPreviewToWishlist,
   getProductById,
+  getProductReviews,
+  getPublicSupplierProfile,
+  getPreviewProductById,
+  getPreviewWishlist,
+  submitProductReview,
   submitProductInquiry,
   getUserWishlist,
-  removeFromWishlist
+  removeFromWishlist,
+  removePreviewFromWishlist
 } from '../../utils/userService';
 
 const formatMoney = (value) => {
@@ -32,7 +40,7 @@ const normalizePositiveNumber = (value, fallback = 0) => {
 
 const getProductImage = (item) => {
   if (Array.isArray(item?.images) && item.images.length > 0) return item.images[0];
-  return item?.image || '';
+  return item?.image || item?.thumbnail || '';
 };
 
 export default function ProductDetails() {
@@ -49,11 +57,21 @@ export default function ProductDetails() {
   const [isImagePreviewOpen, setIsImagePreviewOpen] = useState(false);
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [isRelatedLoading, setIsRelatedLoading] = useState(false);
-  const [touchStartX, setTouchStartX] = useState(0);
+  const [supplierProfile, setSupplierProfile] = useState(null);
+  const [supplierProfileLoading, setSupplierProfileLoading] = useState(false);
+  const touchStartXRef = useRef(0);
+  const touchStartYRef = useRef(0);
   const [inquiry, setInquiry] = useState({
     quantity: '1',
     message: ''
   });
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviews, setReviews] = useState([]);
+  const [reviewSummary, setReviewSummary] = useState({ totalReviews: 0, averageRating: 0 });
+  const [reviewDraft, setReviewDraft] = useState({ rating: '5', comment: '' });
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewFeedback, setReviewFeedback] = useState('');
+  const isPreviewProductId = String(id || '').startsWith('fallback-');
 
   useEffect(() => {
     if (!id) return;
@@ -62,11 +80,21 @@ export default function ProductDetails() {
     const loadProduct = async () => {
       setLoading(true);
       try {
-        const payload = await getProductById(id);
+        let payload = null;
+        if (isPreviewProductId) {
+          payload = getPreviewProductById(id);
+        } else {
+          payload = await getProductById(id);
+        }
         if (!mounted) return;
+        if (!payload && isPreviewProductId) {
+          setProduct(null);
+          return;
+        }
         setProduct({
           ...payload,
-          id: String(payload?.id || payload?._id || id)
+          id: String(payload?.id || payload?._id || id),
+          isPreview: Boolean(payload?.isPreview || isPreviewProductId),
         });
         setSelectedImageIndex(0);
       } catch {
@@ -81,7 +109,7 @@ export default function ProductDetails() {
     return () => {
       mounted = false;
     };
-  }, [id]);
+  }, [id, isPreviewProductId]);
 
   useEffect(() => {
     const loadWishlist = async () => {
@@ -89,10 +117,39 @@ export default function ProductDetails() {
       const userId = localStorage.getItem('userId');
       if (!userId) return;
       const result = await getUserWishlist(userId);
-      setWishlistItems(result?.items || []);
+      const previewItems = getPreviewWishlist(userId);
+      setWishlistItems([...(result?.items || []), ...previewItems]);
     };
     loadWishlist();
   }, []);
+
+  useEffect(() => {
+    if (!product?.id || product?.isPreview) {
+      setReviews([]);
+      setReviewSummary({ totalReviews: 0, averageRating: 0 });
+      return;
+    }
+
+    let mounted = true;
+    const loadReviews = async () => {
+      setReviewsLoading(true);
+      const result = await getProductReviews(product.id);
+      if (!mounted) return;
+      if (result?.success) {
+        setReviews(Array.isArray(result.reviews) ? result.reviews : []);
+        setReviewSummary(result.summary || { totalReviews: 0, averageRating: 0 });
+      } else {
+        setReviews([]);
+        setReviewSummary({ totalReviews: 0, averageRating: 0 });
+      }
+      setReviewsLoading(false);
+    };
+
+    loadReviews();
+    return () => {
+      mounted = false;
+    };
+  }, [product?.id, product?.isPreview]);
 
   useEffect(() => {
     if (!product?.id) return;
@@ -142,17 +199,65 @@ export default function ProductDetails() {
     [wishlistItems, product?.id]
   );
 
-  const supplierName = toText(product?.supplierName || product?.seller || product?.companyName, 'Verified Supplier');
-  const supplierYears = toText(product?.supplierYears || product?.yearsInBusiness, '8 Years');
-  const supplierCountry = toText(product?.origin || product?.country || product?.countryOfOrigin, 'China');
   const supplierOwnerUserId = toText(
     product?.supplierId || product?.companyId || product?.ownerId || product?.sellerId || product?.createdBy,
     ''
   );
+  const supplierName = toText(
+    supplierProfile?.companyName ||
+      supplierProfile?.name ||
+      product?.supplierName ||
+      product?.seller ||
+      product?.companyName,
+    'Verified Supplier'
+  );
+  const supplierCountry = toText(
+    supplierProfile?.city && supplierProfile?.country
+      ? `${supplierProfile.city}, ${supplierProfile.country}`
+      : supplierProfile?.country || product?.origin || product?.country || product?.countryOfOrigin,
+    'Location not specified'
+  );
+  const supplierYears = useMemo(() => {
+    if (supplierProfile?.joinedAt) {
+      const joined = new Date(supplierProfile.joinedAt);
+      if (!Number.isNaN(joined.getTime())) {
+        const years = Math.max(1, new Date().getFullYear() - joined.getFullYear());
+        return `${years} ${years === 1 ? 'Year' : 'Years'}`;
+      }
+    }
+    return toText(product?.supplierYears || product?.yearsInBusiness, 'Not specified');
+  }, [supplierProfile?.joinedAt, product?.supplierYears, product?.yearsInBusiness]);
+  const supplierBusinessType = toText(supplierProfile?.businessType, 'Not specified');
+  const supplierWebsite = toText(supplierProfile?.website, '');
+  const supplierPhone = toText(supplierProfile?.phone, '');
+  const supplierContactEmail = toText(supplierProfile?.contactEmail, '');
+  const supplierLocationAddress = toText(
+    supplierProfile?.locationAddress || supplierProfile?.address || product?.locationAddress || '',
+    ''
+  );
+  const supplierLocationLat = Number(supplierProfile?.locationLat);
+  const supplierLocationLng = Number(supplierProfile?.locationLng);
+  const hasSupplierCoordinates =
+    Number.isFinite(supplierLocationLat) &&
+    Number.isFinite(supplierLocationLng) &&
+    Math.abs(supplierLocationLat) <= 90 &&
+    Math.abs(supplierLocationLng) <= 180;
+  const supplierMapQuery = hasSupplierCoordinates
+    ? `${supplierLocationLat},${supplierLocationLng}`
+    : supplierLocationAddress || supplierCountry;
+  const supplierMapHref = supplierMapQuery
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(supplierMapQuery)}`
+    : '';
+  const supplierMapEmbedUrl = supplierMapQuery
+    ? `https://www.google.com/maps?q=${encodeURIComponent(supplierMapQuery)}&z=14&output=embed`
+    : '';
+  const resolvedSupplierContactId = String(supplierProfile?.id || supplierOwnerUserId || '').trim();
   const moq = normalizePositiveNumber(product?.moq, 1);
   const leadTime = toText(product?.leadTime, '15-25 days');
   const stock = normalizePositiveNumber(product?.stock, 0);
-  const unitPrice = normalizePositiveNumber(product?.price, 0);
+  const baseUnitPrice = normalizePositiveNumber(product?.price, 0);
+  const listingDiscountPercent = Math.max(0, Math.min(90, Number(product?.discountPercentage || 0)));
+  const unitPrice = Number((baseUnitPrice * (1 - listingDiscountPercent / 100)).toFixed(2));
   const inquiryQuantity = Math.max(moq, normalizePositiveNumber(inquiry.quantity, moq));
   const productCategory = toText(product?.category?.name || product?.category, 'General Machinery');
   const modelNo = toText(product?.modelNo || product?.sku, `MDL-${String(product?.id || '').slice(-6).toUpperCase()}`);
@@ -163,7 +268,31 @@ export default function ProductDetails() {
   const dispatchPort = toText(product?.port || product?.shippingPort, 'Shanghai');
   const averageRating = normalizePositiveNumber(product?.rating, 4.7);
   const reviewCount = normalizePositiveNumber(product?.reviewCount, 32);
-  const responseHours = normalizePositiveNumber(product?.responseHours, 4);
+  const effectiveAverageRating = reviewSummary?.averageRating > 0 ? Number(reviewSummary.averageRating) : averageRating;
+  const effectiveReviewCount = Number(reviewSummary?.totalReviews || 0) > 0 ? Number(reviewSummary.totalReviews) : reviewCount;
+  const responseHours = normalizePositiveNumber(supplierProfile?.responseHours || product?.responseHours, 4);
+
+  useEffect(() => {
+    if (!supplierOwnerUserId || product?.isPreview) {
+      setSupplierProfile(null);
+      setSupplierProfileLoading(false);
+      return;
+    }
+
+    let mounted = true;
+    const loadSupplierProfile = async () => {
+      setSupplierProfileLoading(true);
+      const payload = await getPublicSupplierProfile(supplierOwnerUserId);
+      if (!mounted) return;
+      setSupplierProfile(payload);
+      setSupplierProfileLoading(false);
+    };
+
+    loadSupplierProfile();
+    return () => {
+      mounted = false;
+    };
+  }, [supplierOwnerUserId, product?.isPreview]);
 
   const featureList = useMemo(() => {
     if (Array.isArray(product?.tags) && product.tags.length) return product.tags.slice(0, 8);
@@ -243,20 +372,30 @@ export default function ProductDetails() {
   };
 
   const handleImageTouchStart = (event) => {
-    setTouchStartX(event.touches[0]?.clientX || 0);
+    touchStartXRef.current = event.touches[0]?.clientX || 0;
+    touchStartYRef.current = event.touches[0]?.clientY || 0;
   };
 
   const handleImageTouchEnd = (event) => {
-    if (!canBrowseGallery || !touchStartX) return;
+    if (!canBrowseGallery || !touchStartXRef.current) return;
     const touchEndX = event.changedTouches[0]?.clientX || 0;
-    const distance = touchEndX - touchStartX;
+    const touchEndY = event.changedTouches[0]?.clientY || 0;
+    const deltaX = touchEndX - touchStartXRef.current;
+    const deltaY = touchEndY - touchStartYRef.current;
+    if (Math.abs(deltaY) > Math.abs(deltaX)) {
+      touchStartXRef.current = 0;
+      touchStartYRef.current = 0;
+      return;
+    }
+    const distance = deltaX;
     if (Math.abs(distance) < 35) return;
     if (distance > 0) {
       goToPrevImage();
     } else {
       goToNextImage();
     }
-    setTouchStartX(0);
+    touchStartXRef.current = 0;
+    touchStartYRef.current = 0;
   };
 
   const ensureLoggedInUser = () => {
@@ -273,7 +412,8 @@ export default function ProductDetails() {
 
   const refreshWishlist = async (userId) => {
     const result = await getUserWishlist(userId);
-    setWishlistItems(result?.items || []);
+    const previewItems = getPreviewWishlist(userId);
+    setWishlistItems([...(result?.items || []), ...previewItems]);
   };
 
   const handleAddToCart = async () => {
@@ -284,7 +424,9 @@ export default function ProductDetails() {
     const quantity = inquiryQuantity;
     setActionLoading((prev) => ({ ...prev, cart: true }));
     setMessage('');
-    const result = await addToCart(userId, product.id, quantity);
+    const result = product?.isPreview
+      ? addPreviewToCart(userId, product, quantity)
+      : await addToCart(userId, product.id, quantity);
     setActionLoading((prev) => ({ ...prev, cart: false }));
     if (!result?.success) {
       setMessage(result?.message || 'Could not add product to cart.');
@@ -300,9 +442,13 @@ export default function ProductDetails() {
 
     setActionLoading((prev) => ({ ...prev, wishlist: true }));
     setMessage('');
-    const result = isWishlisted
-      ? await removeFromWishlist(userId, product.id)
-      : await addToWishlist(userId, product.id);
+    const result = product?.isPreview
+      ? (isWishlisted
+          ? removePreviewFromWishlist(userId, product.id)
+          : addPreviewToWishlist(userId, product))
+      : (isWishlisted
+          ? await removeFromWishlist(userId, product.id)
+          : await addToWishlist(userId, product.id));
     setActionLoading((prev) => ({ ...prev, wishlist: false }));
     if (!result?.success) {
       setMessage(result?.message || 'Could not update wishlist.');
@@ -325,14 +471,14 @@ export default function ProductDetails() {
       return;
     }
 
-    if (!supplierOwnerUserId) {
+    if (!resolvedSupplierContactId) {
       setMessage('Supplier contact is not configured for this product yet.');
       return;
     }
 
     const result = await submitProductInquiry({
       productId: product?.id,
-      supplierId: supplierOwnerUserId,
+      supplierId: resolvedSupplierContactId,
       quantity: inquiryQuantity,
       message: inquiry.message.trim() || `I am interested in ${product?.name}.`
     });
@@ -343,6 +489,43 @@ export default function ProductDetails() {
 
     setMessage('Inquiry sent to this product owner successfully.');
     setInquiry((prev) => ({ ...prev, message: '' }));
+  };
+
+  const handleReviewSubmit = async (event) => {
+    if (event?.preventDefault) event.preventDefault();
+    if (!product?.id || product?.isPreview) {
+      setReviewFeedback('Reviews are not available for preview products.');
+      return;
+    }
+
+    if (typeof window === 'undefined') return;
+    const isLoggedIn = localStorage.getItem('userLoggedIn') === 'true';
+    if (!isLoggedIn) {
+      const next = encodeURIComponent(router.asPath || `/products/${product.id}`);
+      router.push(`/login?next=${next}`);
+      return;
+    }
+
+    setReviewSubmitting(true);
+    setReviewFeedback('');
+    const result = await submitProductReview(product.id, {
+      rating: Number(reviewDraft.rating || 0),
+      comment: reviewDraft.comment
+    });
+    setReviewSubmitting(false);
+
+    if (!result?.success) {
+      setReviewFeedback(result?.message || 'Failed to submit review.');
+      return;
+    }
+
+    setReviewFeedback(result.message || 'Review submitted successfully.');
+    setReviewDraft((prev) => ({ ...prev, comment: '' }));
+    const refreshed = await getProductReviews(product.id);
+    if (refreshed?.success) {
+      setReviews(Array.isArray(refreshed.reviews) ? refreshed.reviews : []);
+      setReviewSummary(refreshed.summary || { totalReviews: 0, averageRating: 0 });
+    }
   };
 
   useEffect(() => {
@@ -369,24 +552,51 @@ export default function ProductDetails() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-100">
+      <div className="portal-page min-h-screen">
         <Header />
-        <div className="mx-auto flex min-h-[60vh] max-w-7xl items-center justify-center px-4">
-          <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-t-2 border-cyan-600" />
-        </div>
+        <main className="mx-auto w-full max-w-[1360px] px-2.5 py-3 sm:px-5 lg:py-6">
+          <div className="mb-3 h-10 animate-pulse rounded-[0.9rem] border border-slate-200 bg-white sm:mb-4 sm:h-12" />
+          <section className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-[1.12fr_1.04fr_0.84fr]">
+            <div className="rounded-[1.1rem] border border-slate-200 bg-white p-3">
+              <div className="h-[290px] animate-pulse rounded-[1rem] bg-slate-200 sm:h-[420px]" />
+              <div className="mt-3 flex gap-2">
+                {[1, 2, 3, 4, 5].map((slot) => (
+                  <div key={slot} className="h-12 w-12 animate-pulse rounded-md bg-slate-200" />
+                ))}
+              </div>
+            </div>
+            <div className="rounded-[1.1rem] border border-slate-200 bg-white p-4">
+              <div className="h-5 w-2/3 animate-pulse rounded bg-slate-200" />
+              <div className="mt-2 h-3 w-1/3 animate-pulse rounded bg-slate-200" />
+              <div className="mt-4 h-24 animate-pulse rounded-xl bg-slate-200" />
+              <div className="mt-4 space-y-2">
+                <div className="h-10 animate-pulse rounded bg-slate-200" />
+                <div className="h-10 animate-pulse rounded bg-slate-200" />
+                <div className="h-10 animate-pulse rounded bg-slate-200" />
+              </div>
+            </div>
+            <div className="rounded-[1.1rem] border border-slate-200 bg-white p-4">
+              <div className="h-4 w-1/2 animate-pulse rounded bg-slate-200" />
+              <div className="mt-2 h-3 w-2/3 animate-pulse rounded bg-slate-200" />
+              <div className="mt-4 h-24 animate-pulse rounded bg-slate-200" />
+              <div className="mt-3 h-10 animate-pulse rounded bg-slate-200" />
+              <div className="mt-2 h-10 animate-pulse rounded bg-slate-200" />
+            </div>
+          </section>
+        </main>
       </div>
     );
   }
 
   if (!product) {
     return (
-      <div className="min-h-screen bg-slate-100">
+      <div className="portal-page min-h-screen">
         <Header />
         <main className="mx-auto max-w-4xl px-4 py-12">
-          <div className="rounded-xl border border-red-200 bg-white p-8 text-center shadow-sm">
+          <div className="portal-card p-8 text-center">
             <h1 className="text-xl font-semibold text-slate-900">Product not found</h1>
             <p className="mt-2 text-sm text-slate-600">This item may have been removed or is outside your current market scope.</p>
-            <Link href="/marketplace" className="mt-5 inline-flex items-center rounded-lg bg-cyan-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-cyan-700">
+            <Link href="/marketplace" className="portal-primary-button mt-5 inline-flex items-center px-4 py-2.5 text-sm font-semibold">
               Back to Marketplace
             </Link>
           </div>
@@ -396,7 +606,7 @@ export default function ProductDetails() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f3f5f7]">
+    <div className="portal-page min-h-screen">
       <Head>
         <title>{product.name} | TradeEthiopia</title>
         <meta name="description" content={product.description || `${product.name} product detail`} />
@@ -404,52 +614,92 @@ export default function ProductDetails() {
 
       <Header />
 
-      <main className="mx-auto w-full max-w-[1360px] px-3 py-4 sm:px-5 lg:py-6">
-        <div className="mb-4 rounded border border-[#e4e7ec] bg-white px-4 py-3 text-xs text-slate-500">
-          <Link href="/dashboard/customer" className="hover:text-[#e2611a]">Dashboard</Link> /{' '}
-          <Link href="/marketplace" className="hover:text-[#e2611a]">Marketplace</Link> /{' '}
+      <main className="mx-auto w-full max-w-[1360px] px-2.5 py-3 pb-24 sm:px-5 lg:py-6 lg:pb-6">
+        <div className="mb-3 rounded-[0.9rem] border border-[var(--portal-border)] bg-[var(--portal-surface)] px-3 py-2.5 text-[10px] text-slate-500 shadow-[0_10px_24px_rgba(15,23,32,0.04)] sm:mb-4 sm:rounded-[1rem] sm:px-4 sm:py-3 sm:text-xs">
+          <Link href="/dashboard/customer" className="hover:text-[var(--portal-accent)]">Dashboard</Link> /{' '}
+          <Link href="/marketplace" className="hover:text-[var(--portal-accent)]">Marketplace</Link> /{' '}
           <span className="text-slate-700">{productCategory}</span> /{' '}
           <span className="font-semibold text-slate-900">{product.name}</span>
         </div>
 
         {message && (
-          <div className="mb-4 rounded border border-[#ffd8c3] bg-[#fff6f1] px-3 py-2 text-sm text-[#ad4a16]">
+          <div className="mb-3 rounded-[0.9rem] border border-[#F5D0FE] bg-[#FDF4FF] px-3 py-2 text-xs text-[#A21CAF] sm:mb-4 sm:text-sm">
             {message}
           </div>
         )}
 
-        <section className="grid grid-cols-1 gap-4 lg:grid-cols-[1.1fr_1.08fr_0.82fr]">
-          <div className="rounded border border-[#dfe3e8] bg-white p-3">
-            <div className="grid grid-cols-[84px_1fr] gap-3">
-              <div className="space-y-2 overflow-y-auto pr-1">
+        <section className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-[1.12fr_1.04fr_0.84fr]">
+          <div className="portal-card overflow-hidden p-2 sm:p-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-[84px_1fr]">
+              <div className="hidden space-y-2 overflow-y-auto pr-1 md:block">
                 {galleryImages.length > 0 ? (
                   galleryImages.map((image, idx) => (
                     <button
                       key={`${image}-${idx}`}
                       type="button"
                       onClick={() => setSelectedImageIndex(idx)}
-                      className={`h-[74px] w-[74px] overflow-hidden rounded border ${selectedImageIndex === idx ? 'border-[#e2611a]' : 'border-[#dfe3e8]'}`}
+                      className={`h-[74px] w-[74px] overflow-hidden rounded-[0.8rem] border transition ${selectedImageIndex === idx ? 'border-[#e2611a] ring-2 ring-[#fbcfe8]' : 'border-[#dfe3e8] hover:border-[#f59e0b]'}`}
                     >
                       <img src={image} alt={`${product.name} thumbnail ${idx + 1}`} className="h-full w-full object-cover" />
                     </button>
                   ))
                 ) : (
-                  <div className="h-[74px] w-[74px] rounded border border-dashed border-slate-300 bg-slate-50" />
+                  <div className="h-[74px] w-[74px] rounded-[0.8rem] border border-dashed border-slate-300 bg-slate-50" />
                 )}
               </div>
 
               <div
-                className="relative overflow-hidden rounded border border-[#dfe3e8] bg-[#f8fafc]"
+                className="relative overflow-hidden rounded-[1.2rem] border border-[var(--portal-border)] bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.9),rgba(241,245,249,0.9)_45%,rgba(226,232,240,0.95))]"
                 onTouchStart={handleImageTouchStart}
                 onTouchEnd={handleImageTouchEnd}
               >
+                <div className="absolute left-3 top-3 z-20 flex items-center gap-2 md:hidden">
+                  <button
+                    type="button"
+                    onClick={() => router.back()}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow backdrop-blur sm:h-9 sm:w-9"
+                    aria-label="Go back"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="absolute right-3 top-3 z-20 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleToggleWishlist}
+                    disabled={actionLoading.wishlist}
+                    className={`inline-flex h-8 w-8 items-center justify-center rounded-full shadow backdrop-blur sm:h-9 sm:w-9 ${
+                      isWishlisted ? 'bg-rose-100 text-rose-600' : 'bg-white/90 text-slate-700'
+                    }`}
+                    aria-label="Toggle wishlist"
+                  >
+                    <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsImagePreviewOpen(true)}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow backdrop-blur sm:h-9 sm:w-9"
+                    aria-label="Open image preview"
+                  >
+                    <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 3h6m0 0v6m0-6l-7 7M9 21H3m0 0v-6m0 6l7-7" />
+                    </svg>
+                  </button>
+                </div>
+
                 {selectedImage ? (
                   <>
                     <img
+                      key={`hero-image-${selectedImageIndex}`}
                       src={selectedImage}
                       alt={product.name}
                       loading="lazy"
-                      className="h-[430px] w-full cursor-zoom-in object-contain transition duration-300 hover:scale-[1.04]"
+                      className="h-[290px] w-full cursor-zoom-in object-contain transition duration-300 sm:h-[420px] md:h-[430px] hover:scale-[1.03] animate-[productFadeIn_280ms_ease]"
                       onClick={() => setIsImagePreviewOpen(true)}
                     />
                     {canBrowseGallery && (
@@ -472,31 +722,68 @@ export default function ProductDetails() {
                         </button>
                       </>
                     )}
+                    {canBrowseGallery && (
+                      <div className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-white/70 px-2 py-1 backdrop-blur md:hidden">
+                        {galleryImages.map((_, idx) => (
+                          <span
+                            key={`dot-${idx}`}
+                            className={`h-1.5 w-1.5 rounded-full ${selectedImageIndex === idx ? 'bg-slate-800' : 'bg-slate-300'}`}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </>
                 ) : (
-                  <div className="flex h-[430px] items-center justify-center text-sm text-slate-500">No image available</div>
+                  <div className="flex h-[290px] items-center justify-center text-sm text-slate-500 sm:h-[420px] md:h-[430px]">No image available</div>
                 )}
               </div>
+
+              {galleryImages.length > 0 ? (
+                <div className="scrollbar-hide -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 md:hidden">
+                  {galleryImages.map((image, idx) => (
+                    <button
+                      key={`mobile-${image}-${idx}`}
+                      type="button"
+                      onClick={() => setSelectedImageIndex(idx)}
+                      className={`h-[58px] w-[58px] shrink-0 overflow-hidden rounded-[0.75rem] border transition ${
+                        selectedImageIndex === idx ? 'border-[#f97316] ring-2 ring-[#fecdd3]' : 'border-[#dfe3e8]'
+                      }`}
+                    >
+                      <img src={image} alt={`${product.name} mobile thumbnail ${idx + 1}`} className="h-full w-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
 
-          <div className="rounded border border-[#dfe3e8] bg-white p-4">
+          <div className="portal-card p-3.5 sm:p-5">
             <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
-              <span className="rounded bg-[#fff2e8] px-2 py-1 font-semibold text-[#d94c00]">Verified Supplier</span>
-              <span className="rounded bg-slate-100 px-2 py-1 font-semibold text-slate-700">{productCategory}</span>
-              <span className="rounded bg-emerald-50 px-2 py-1 font-semibold text-emerald-700">{stock > 0 ? 'Ready Stock' : 'Build to Order'}</span>
+              <span className="rounded-full bg-[#FDF4FF] px-2.5 py-1 font-semibold text-[#C026D3]">Verified Supplier</span>
+              <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-700">{productCategory}</span>
+              <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">{stock > 0 ? 'Ready Stock' : 'Build to Order'}</span>
             </div>
 
-            <h1 className="text-[24px] font-bold leading-snug text-slate-900">{product.name}</h1>
-            <p className="mt-1 text-sm text-slate-500">Model No.: {modelNo}</p>
+            <h1 className="text-[18px] font-bold leading-snug text-slate-900 sm:text-[24px]">{product.name}</h1>
+            <p className="mt-1 text-xs text-slate-500 sm:text-sm">Model No.: {modelNo}</p>
             <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
-              <span>Rating {averageRating.toFixed(1)} / 5.0</span>
-              <span>{reviewCount}+ Reviews</span>
+              <span>Rating {effectiveAverageRating.toFixed(1)} / 5.0</span>
+              <span>{effectiveReviewCount}+ Reviews</span>
             </div>
 
-            <div className="mt-4 rounded border border-[#ffd6bf] bg-[#fff7f2] p-3">
+            <div className="mt-4 rounded-[1rem] border border-[#F5D0FE] bg-[linear-gradient(135deg,#FFFFFF,#FDF4FF,#FFF7ED)] p-3.5">
               <p className="text-xs text-slate-600">Reference FOB Price (Port: {dispatchPort})</p>
-              <p className="text-3xl font-bold text-[#d94c00]">{formatMoney(unitPrice)}</p>
+              <div className="flex flex-wrap items-end gap-2">
+                <p className="text-[1.75rem] font-black tracking-tight text-[#C026D3] sm:text-3xl">{formatMoney(unitPrice)}</p>
+                {listingDiscountPercent > 0 ? (
+                  <>
+                    <p className="text-base font-semibold text-slate-400 line-through">{formatMoney(baseUnitPrice)}</p>
+                    <span className="rounded bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
+                      {listingDiscountPercent}% OFF
+                    </span>
+                  </>
+                ) : null}
+              </div>
               <p className="mt-1 text-xs text-slate-600">Min. Order: <span className="font-semibold">{moq} Unit(s)</span></p>
             </div>
 
@@ -526,7 +813,7 @@ export default function ProductDetails() {
               </table>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+            <div className="mt-4 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
               <div className="rounded border border-[#dfe3e8] bg-slate-50 px-3 py-2">
                 <p className="text-xs text-slate-500">Lead Time</p>
                 <p className="font-semibold text-slate-800">{leadTime}</p>
@@ -539,7 +826,7 @@ export default function ProductDetails() {
 
             <div className="mt-4">
               <h2 className="text-sm font-semibold text-slate-800">Key Features</h2>
-              <ul className="mt-2 grid grid-cols-1 gap-2 text-sm text-slate-700 sm:grid-cols-2">
+              <ul className="mt-2 grid grid-cols-1 gap-1.5 text-[13px] text-slate-700 sm:grid-cols-2 sm:gap-2 sm:text-sm">
                 {featureList.map((item, idx) => (
                   <li key={`${item}-${idx}`} className="flex items-start gap-2">
                     <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[#e2611a]" />
@@ -549,26 +836,26 @@ export default function ProductDetails() {
               </ul>
             </div>
 
-            <div className="mt-5 flex flex-wrap gap-2">
+            <div className="mt-5 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
               <button
                 onClick={handleAddToCart}
                 disabled={actionLoading.cart}
-                className="rounded bg-[#e2611a] px-4 py-2 text-sm font-semibold text-white hover:bg-[#cb5313] disabled:opacity-60"
+                className="rounded bg-[linear-gradient(135deg,#D946EF,#FB7185_52%,#FB923C)] px-4 py-2 text-sm font-semibold text-white transition-transform hover:brightness-105 active:scale-[0.99] disabled:opacity-60"
               >
                 {actionLoading.cart ? 'Adding...' : 'Add to Cart'}
               </button>
               <button
                 type="button"
                 onClick={handleInquirySubmit}
-                disabled={!supplierOwnerUserId}
-                className="rounded border border-[#e2611a] bg-white px-4 py-2 text-sm font-semibold text-[#e2611a] hover:bg-[#fff5ef] disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!resolvedSupplierContactId}
+                className="rounded border border-[#F5D0FE] bg-white px-4 py-2 text-sm font-semibold text-[#C026D3] transition-transform hover:bg-[#FDF4FF] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Send Inquiry
               </button>
               <button
                 onClick={handleToggleWishlist}
                 disabled={actionLoading.wishlist}
-                className={`rounded border px-4 py-2 text-sm font-semibold ${
+                className={`rounded border px-4 py-2 text-sm font-semibold transition-transform active:scale-[0.98] ${
                   isWishlisted ? 'border-rose-300 bg-rose-50 text-rose-700' : 'border-slate-300 bg-white text-slate-700'
                 } disabled:opacity-60`}
               >
@@ -577,21 +864,87 @@ export default function ProductDetails() {
             </div>
           </div>
 
-          <aside className="h-fit rounded border border-[#dfe3e8] bg-white p-4 lg:sticky lg:top-20">
+          <aside className="portal-card h-fit p-3.5 sm:p-5 lg:sticky lg:top-20">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Supplier Profile</h2>
             <p className="mt-2 text-lg font-bold text-slate-900">{supplierName}</p>
             <p className="text-sm text-slate-600">{supplierYears} experience | {supplierCountry}</p>
+            {supplierProfileLoading ? (
+              <p className="mt-2 text-xs text-slate-500">Loading supplier details...</p>
+            ) : null}
 
             <div className="mt-3 grid gap-2 text-xs text-slate-600">
               <div className="rounded border border-[#dfe3e8] bg-slate-50 px-3 py-2">Response time: within {responseHours}h</div>
-              <div className="rounded border border-[#dfe3e8] bg-slate-50 px-3 py-2">Trade assurance available</div>
-              <div className="rounded border border-[#dfe3e8] bg-slate-50 px-3 py-2">Support: OEM/ODM customization</div>
+              <div className="rounded border border-[#dfe3e8] bg-slate-50 px-3 py-2">
+                Verification: {supplierProfile?.isVerified ? 'Verified supplier' : 'Standard supplier'}
+              </div>
+              <div className="rounded border border-[#dfe3e8] bg-slate-50 px-3 py-2">
+                Active listings: {Number(supplierProfile?.totalListings || 0)}
+              </div>
+              {supplierBusinessType !== 'Not specified' ? (
+                <div className="rounded border border-[#dfe3e8] bg-slate-50 px-3 py-2">Business type: {supplierBusinessType}</div>
+              ) : null}
             </div>
-            {!supplierOwnerUserId && (
+            {!resolvedSupplierContactId && (
               <p className="mt-2 text-xs text-amber-700">
                 Supplier contact for this listing is not configured yet.
               </p>
             )}
+            {!supplierProfileLoading && resolvedSupplierContactId && !supplierProfile && (
+              <p className="mt-2 text-xs text-amber-700">
+                Supplier profile is not available yet for this listing.
+              </p>
+            )}
+            {(supplierWebsite || supplierPhone || supplierContactEmail) ? (
+              <div className="mt-3 space-y-1 text-xs text-slate-600">
+                {supplierWebsite ? (
+                  <p>
+                    Website:{' '}
+                    <a
+                      href={supplierWebsite.startsWith('http') ? supplierWebsite : `https://${supplierWebsite}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-semibold text-[#C026D3] hover:text-[#DB2777]"
+                    >
+                      {supplierWebsite}
+                    </a>
+                  </p>
+                ) : null}
+                {supplierPhone ? <p>Phone: <span className="font-semibold text-slate-800">{supplierPhone}</span></p> : null}
+                {supplierContactEmail ? <p>Email: <span className="font-semibold text-slate-800">{supplierContactEmail}</span></p> : null}
+              </div>
+            ) : null}
+            {(supplierLocationAddress || supplierCountry !== 'Location not specified' || supplierMapHref) ? (
+              <div className="mt-3 rounded border border-[#dfe3e8] bg-slate-50 p-3 text-xs text-slate-700">
+                <p className="font-semibold text-slate-800">Seller Location</p>
+                <p className="mt-1">{supplierLocationAddress || supplierCountry}</p>
+                {hasSupplierCoordinates ? (
+                  <p className="mt-1 text-slate-500">
+                    Coordinates: {supplierLocationLat.toFixed(6)}, {supplierLocationLng.toFixed(6)}
+                  </p>
+                ) : null}
+                {supplierMapHref ? (
+                  <a
+                    href={supplierMapHref}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-block font-semibold text-[#C026D3] hover:text-[#DB2777]"
+                  >
+                    Open in Google Maps
+                  </a>
+                ) : null}
+                {supplierMapEmbedUrl ? (
+                  <div className="mt-3 overflow-hidden rounded border border-[#e5e7eb] bg-white">
+                    <iframe
+                      title="Seller location map"
+                      src={supplierMapEmbedUrl}
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      className="h-48 w-full border-0"
+                    />
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
 
             <form onSubmit={handleInquirySubmit} className="mt-4 space-y-2">
               <label className="block text-xs font-semibold text-slate-600">Inquiry Quantity (Units)</label>
@@ -613,7 +966,7 @@ export default function ProductDetails() {
                 placeholder="Tell supplier your requirements..."
               />
 
-              <div className="rounded border border-[#ffd6bf] bg-[#fff7f2] px-3 py-2 text-xs text-[#ad4a16]">
+              <div className="rounded-[0.95rem] border border-[#F5D0FE] bg-[#FDF4FF] px-3 py-2 text-xs text-[#A21CAF]">
                 Quote Preview:
                 <span className="ml-1 font-bold">{formatMoney(quantityLevelPrice)}</span> x {inquiryQuantity} ={' '}
                 <span className="font-bold">{formatMoney(quantityBasedTotal)}</span>
@@ -633,15 +986,15 @@ export default function ProductDetails() {
 
               <button
                 type="submit"
-                disabled={!supplierOwnerUserId}
-                className="w-full rounded bg-[#e2611a] px-4 py-2 text-sm font-semibold text-white hover:bg-[#cb5313] disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!resolvedSupplierContactId}
+                className="w-full rounded bg-[linear-gradient(135deg,#D946EF,#FB7185_52%,#FB923C)] px-4 py-2 text-sm font-semibold text-white transition-transform hover:brightness-105 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {supplierOwnerUserId ? 'Contact Supplier' : 'Supplier Contact Unavailable'}
+                {resolvedSupplierContactId ? 'Contact Supplier' : 'Supplier Contact Unavailable'}
               </button>
               <button
                 type="button"
                 onClick={() => router.push('/marketplace')}
-                className="w-full rounded border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                className="w-full rounded border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-transform hover:bg-slate-50 active:scale-[0.99]"
               >
                 Back to Marketplace
               </button>
@@ -649,18 +1002,19 @@ export default function ProductDetails() {
           </aside>
         </section>
 
-        <section className="mt-5 rounded border border-[#dfe3e8] bg-white">
-          <div className="flex flex-wrap border-b border-[#dfe3e8]">
+        <section className="portal-card mt-5 overflow-hidden">
+          <div className="scrollbar-hide flex flex-nowrap overflow-x-auto border-b border-[#dfe3e8] bg-slate-50/70">
             {[
               ['overview', 'Product Description'],
               ['specs', 'Technical Specifications'],
               ['trade', 'Trade Information'],
-              ['supplier', 'Supplier Details']
+              ['supplier', 'Supplier Details'],
+              ['reviews', 'Customer Reviews']
             ].map(([key, label]) => (
               <button
                 key={key}
                 onClick={() => setActiveTab(key)}
-                className={`px-4 py-3 text-sm font-semibold ${activeTab === key ? 'border-b-2 border-[#e2611a] text-[#e2611a]' : 'text-slate-600'}`}
+                className={`shrink-0 px-4 py-3 text-sm font-semibold transition ${activeTab === key ? 'border-b-2 border-[#D946EF] bg-white text-[#C026D3]' : 'text-slate-600 hover:text-slate-900'}`}
               >
                 {label}
               </button>
@@ -668,7 +1022,7 @@ export default function ProductDetails() {
           </div>
 
           {activeTab === 'overview' && (
-            <div className="p-4 text-sm leading-7 text-slate-700">
+            <div className="animate-[productFadeIn_220ms_ease] p-4 text-sm leading-7 text-slate-700">
               <p>{toText(product.description, 'Detailed commercial description will be provided by supplier upon inquiry.')}</p>
               <p className="mt-3">
                 This product listing supports bulk procurement workflows. Submit quantity and technical requirements to receive a formal quotation.
@@ -677,7 +1031,7 @@ export default function ProductDetails() {
           )}
 
           {activeTab === 'specs' && (
-            <div className="p-4">
+            <div className="animate-[productFadeIn_220ms_ease] p-4">
               <div className="overflow-x-auto">
                 <table className="min-w-full border border-slate-200 text-sm">
                   <tbody>
@@ -694,7 +1048,7 @@ export default function ProductDetails() {
           )}
 
           {activeTab === 'trade' && (
-            <div className="p-4">
+            <div className="animate-[productFadeIn_220ms_ease] p-4">
               <div className="grid gap-3 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="rounded border border-[#dfe3e8] bg-slate-50 px-3 py-2">
                   <p className="text-xs text-slate-500">Min Order Quantity</p>
@@ -725,20 +1079,109 @@ export default function ProductDetails() {
           )}
 
           {activeTab === 'supplier' && (
-            <div className="p-4 text-sm text-slate-700">
+            <div className="animate-[productFadeIn_220ms_ease] p-4 text-sm text-slate-700">
               <p><span className="font-semibold">Supplier:</span> {supplierName}</p>
               <p className="mt-1"><span className="font-semibold">Business Tenure:</span> {supplierYears}</p>
               <p className="mt-1"><span className="font-semibold">Location:</span> {supplierCountry}</p>
+              {supplierLocationAddress ? <p className="mt-1"><span className="font-semibold">Address:</span> {supplierLocationAddress}</p> : null}
+              {supplierMapHref ? (
+                <p className="mt-1">
+                  <span className="font-semibold">Map:</span>{' '}
+                  <a
+                    href={supplierMapHref}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold text-[#C026D3] hover:text-[#DB2777]"
+                  >
+                    Open in Google Maps
+                  </a>
+                </p>
+              ) : null}
+              <p className="mt-1"><span className="font-semibold">Business Type:</span> {supplierBusinessType}</p>
+              <p className="mt-1"><span className="font-semibold">Verification:</span> {supplierProfile?.isVerified ? 'Verified supplier' : 'Standard supplier'}</p>
+              <p className="mt-1"><span className="font-semibold">Active Listings:</span> {Number(supplierProfile?.totalListings || 0)}</p>
               <p className="mt-1"><span className="font-semibold">Primary Category:</span> {productCategory}</p>
               <p className="mt-1"><span className="font-semibold">Typical Response Time:</span> within {responseHours} hours</p>
+              {supplierWebsite ? <p className="mt-1"><span className="font-semibold">Website:</span> {supplierWebsite}</p> : null}
+              {supplierPhone ? <p className="mt-1"><span className="font-semibold">Phone:</span> {supplierPhone}</p> : null}
+              {supplierContactEmail ? <p className="mt-1"><span className="font-semibold">Email:</span> {supplierContactEmail}</p> : null}
+            </div>
+          )}
+
+          {activeTab === 'reviews' && (
+            <div className="animate-[productFadeIn_220ms_ease] space-y-4 p-4 text-sm text-slate-700">
+              <div className="rounded border border-[#dfe3e8] bg-slate-50 px-3 py-3">
+                <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Rating Summary</p>
+                <p className="mt-1 text-lg font-semibold text-slate-900">{effectiveAverageRating.toFixed(1)} / 5.0</p>
+                <p className="text-xs text-slate-600">{effectiveReviewCount} review(s)</p>
+              </div>
+
+              <form onSubmit={handleReviewSubmit} className="rounded border border-[#dfe3e8] bg-white p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Write a Review</p>
+                <div className="mt-2">
+                  <label className="text-xs font-semibold text-slate-600">Rating</label>
+                  <select
+                    value={reviewDraft.rating}
+                    onChange={(event) => setReviewDraft((prev) => ({ ...prev, rating: event.target.value }))}
+                    className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                  >
+                    <option value="5">5 - Excellent</option>
+                    <option value="4">4 - Good</option>
+                    <option value="3">3 - Average</option>
+                    <option value="2">2 - Poor</option>
+                    <option value="1">1 - Very Poor</option>
+                  </select>
+                </div>
+                <div className="mt-3">
+                  <label className="text-xs font-semibold text-slate-600">Comment</label>
+                  <textarea
+                    rows={4}
+                    value={reviewDraft.comment}
+                    onChange={(event) => setReviewDraft((prev) => ({ ...prev, comment: event.target.value }))}
+                    className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                    placeholder="Share your experience with this product..."
+                  />
+                </div>
+                {reviewFeedback ? <p className="mt-2 text-xs text-[#C026D3]">{reviewFeedback}</p> : null}
+                <div className="mt-3 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={reviewSubmitting || !String(reviewDraft.comment || '').trim()}
+                    className="rounded bg-[linear-gradient(135deg,#D946EF,#FB7185_52%,#FB923C)] px-4 py-2 text-sm font-semibold text-white transition-transform hover:brightness-105 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {reviewSubmitting ? 'Submitting...' : 'Submit Review'}
+                  </button>
+                </div>
+              </form>
+
+              <div className="space-y-3">
+                {reviewsLoading ? (
+                  <p className="text-sm text-slate-500">Loading reviews...</p>
+                ) : reviews.length === 0 ? (
+                  <p className="text-sm text-slate-500">No reviews yet. Be the first to review this product.</p>
+                ) : (
+                  reviews.map((item) => (
+                    <div key={item.id || `${item.userId}-${item.createdAt}`} className="rounded border border-[#e5e7eb] bg-white p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="font-semibold text-slate-900">{item.userName || 'Buyer'}</p>
+                        <p className="text-xs text-slate-500">{formatDateTime(item.createdAt)}</p>
+                      </div>
+                      <p className="mt-1 text-xs font-semibold uppercase tracking-[0.08em] text-amber-600">
+                        Rating: {Number(item.rating || 0)} / 5
+                      </p>
+                      <p className="mt-2 whitespace-pre-line leading-6 text-slate-700">{item.comment || '-'}</p>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           )}
         </section>
 
-        <section className="mt-5 rounded border border-[#dfe3e8] bg-white p-4">
+        <section className="portal-card mt-5 p-4">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-base font-semibold text-slate-900">Similar Products</h2>
-            <Link href="/products" className="text-sm font-semibold text-[#e2611a] hover:text-[#cb5313]">
+            <Link href="/products" className="text-sm font-semibold text-[#C026D3] hover:text-[#DB2777]">
               View all
             </Link>
           </div>
@@ -760,7 +1203,7 @@ export default function ProductDetails() {
                 <Link
                   key={item.id}
                   href={`/products/${item.id}`}
-                  className="rounded border border-[#e9edf2] p-3 transition hover:border-[#e2611a]/40 hover:shadow-sm"
+                  className="rounded border border-[#e9edf2] p-3 transition hover:border-[#F0ABFC] hover:shadow-sm"
                 >
                   <div className="flex h-32 items-center justify-center overflow-hidden rounded bg-slate-100">
                     {getProductImage(item) ? (
@@ -771,7 +1214,7 @@ export default function ProductDetails() {
                   </div>
                   <p className="mt-2 line-clamp-2 text-sm font-semibold text-slate-800">{toText(item.name, 'Unnamed product')}</p>
                   <p className="mt-1 text-xs text-slate-500">{toText(item?.category?.name || item?.category, 'General')}</p>
-                  <p className="mt-2 text-sm font-bold text-[#d94c00]">{formatMoney(item.price || 0)}</p>
+                  <p className="mt-2 text-sm font-bold text-[#C026D3]">{formatMoney(item.price || 0)}</p>
                 </Link>
               ))}
             </div>
@@ -782,6 +1225,30 @@ export default function ProductDetails() {
           )}
         </section>
       </main>
+
+      <div
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-3 py-2 backdrop-blur lg:hidden"
+        style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}
+      >
+        <div className="mx-auto grid max-w-[1360px] grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={handleInquirySubmit}
+            disabled={!resolvedSupplierContactId}
+            className="rounded-lg border border-[#F5D0FE] bg-white px-2.5 py-2.5 text-xs font-semibold text-[#C026D3] transition-transform hover:bg-[#FDF4FF] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Inquiry
+          </button>
+          <button
+            type="button"
+            onClick={handleAddToCart}
+            disabled={actionLoading.cart}
+            className="rounded-lg bg-[linear-gradient(135deg,#D946EF,#FB7185_52%,#FB923C)] px-2.5 py-2.5 text-xs font-semibold text-white transition-transform hover:brightness-105 active:scale-[0.98] disabled:opacity-60"
+          >
+            {actionLoading.cart ? 'Adding...' : 'Add to Cart'}
+          </button>
+        </div>
+      </div>
 
       {isImagePreviewOpen && selectedImage && (
         <div
@@ -829,6 +1296,19 @@ export default function ProductDetails() {
           </div>
         </div>
       )}
+
+      <style jsx global>{`
+        @keyframes productFadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(6px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }

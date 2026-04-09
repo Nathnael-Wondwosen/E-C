@@ -3,7 +3,13 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
 import Header from '../components/header/Header';
-import { getUserCart, getProductsByIds, getUserProfile } from '../utils/userService';
+import { createUserOrder, getUserCart, getUserProfile } from '../utils/userService';
+
+const paymentOptions = [
+  { id: 'credit-card', label: 'Credit Card', note: 'Fastest checkout for immediate confirmation.' },
+  { id: 'paypal', label: 'PayPal', note: 'Use your PayPal balance or linked account.' },
+  { id: 'bank-transfer', label: 'Bank Transfer', note: 'Best for larger B2B settlement flows.' }
+];
 
 export default function Checkout() {
   const [cartItems, setCartItems] = useState([]);
@@ -21,10 +27,8 @@ export default function Checkout() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const router = useRouter();
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
 
   useEffect(() => {
-    // Check if user is logged in
     const isLoggedIn = localStorage.getItem('userLoggedIn');
     if (!isLoggedIn) {
       router.push('/login');
@@ -44,7 +48,6 @@ export default function Checkout() {
         throw new Error('User ID not found in localStorage');
       }
 
-      // Fetch user profile to get shipping info
       const userProfile = await getUserProfile(userId);
       setUser({
         id: userId,
@@ -52,36 +55,9 @@ export default function Checkout() {
         userType: localStorage.getItem('userType')
       });
 
-      // Fetch user's cart
       const cartData = await getUserCart(userId);
-      
-      // Transform cart data to match the expected format
-      let cartItemsWithDetails = [];
-      if (cartData.items && Array.isArray(cartData.items)) {
-        // Get product IDs to fetch details
-        const productIds = cartData.items.map(item => item.productId);
-        
-        // Fetch product details
-        const products = await getProductsByIds(productIds);
-        
-        // Map products with cart quantities
-        cartItemsWithDetails = cartData.items.map((cartItem, index) => {
-          const product = products.find(p => p.id === cartItem.productId);
-          return {
-            id: cartItem.productId,
-            productId: cartItem.productId,
-            name: product?.name || `Product ${cartItem.productId}`,
-            price: product?.price || 0,
-            quantity: cartItem.quantity || 1,
-            image: (product?.images && product?.images.length > 0) ? product.images[0] : 'https://via.placeholder.com/100x100',
-            seller: product?.seller || 'Seller Name'
-          };
-        });
-      }
+      setCartItems(Array.isArray(cartData?.items) ? cartData.items : []);
 
-      setCartItems(cartItemsWithDetails);
-
-      // Set default shipping info from user profile if available
       setShippingInfo({
         fullName: userProfile?.profile?.name || userProfile?.name || '',
         address: userProfile?.profile?.address || '',
@@ -94,20 +70,22 @@ export default function Checkout() {
     } catch (err) {
       console.error('Error loading checkout data:', err);
       setError(err.message);
-      // Fallback to empty cart
       setCartItems([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateTotal = () => {
-    return cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
-  };
+  const calculateSubtotal = () =>
+    cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
+
+  const calculateTax = () => calculateSubtotal() * 0.15;
+
+  const calculateTotal = () => calculateSubtotal() + calculateTax();
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setShippingInfo(prev => ({
+    setShippingInfo((prev) => ({
       ...prev,
       [name]: value
     }));
@@ -115,71 +93,58 @@ export default function Checkout() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
       const userId = localStorage.getItem('userId');
       if (!userId) {
         throw new Error('User not authenticated');
       }
-      
-      // Prepare order data
+
       const orderData = {
         items: cartItems,
         shippingInfo,
         paymentMethod,
-        total: calculateTotal() * 1.15, // Include tax
-        subtotal: calculateTotal(),
-        tax: calculateTotal() * 0.15
+        total: calculateTotal(),
+        subtotal: calculateSubtotal(),
+        tax: calculateTax()
       };
-      
-      // Call API to create order
-      const token = localStorage.getItem('userToken');
-      const response = await fetch(`${API_BASE_URL}/api/users/${userId}/orders`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify(orderData)
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to place order');
+
+      const result = await createUserOrder(userId, orderData);
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to place order');
       }
-      
-      const result = await response.json();
-      
-      console.log('Order placed successfully:', result.order);
-      
-      // Redirect to order confirmation
+
       router.push('/orders');
-    } catch (error) {
-      console.error('Error placing order:', error);
-      alert(`Failed to place order: ${error.message}`);
+    } catch (submitError) {
+      console.error('Error placing order:', submitError);
+      alert(`Failed to place order: ${submitError.message}`);
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="portal-page flex min-h-screen items-center justify-center">
+        <div className="flex items-center gap-3 rounded-full border border-[var(--portal-border)] bg-[var(--portal-surface)] px-5 py-3 text-sm font-medium portal-heading shadow-[0_16px_36px_rgba(160,96,18,0.08)]">
+          <span className="h-3 w-3 animate-pulse rounded-full bg-[#D7932D]" />
+          Preparing checkout...
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
-        <div className="bg-white bg-opacity-80 backdrop-blur-sm rounded-none shadow-lg p-8 max-w-md w-full mx-4 border border-gray-200">
+      <div className="portal-page flex min-h-screen items-center justify-center">
+        <div className="portal-card mx-4 w-full max-w-md p-8">
           <div className="text-center">
-            <div className="text-red-500 text-6xl mb-4">⚠️</div>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Error Loading Data</h2>
-            <p className="text-gray-600 mb-6">{error}</p>
-            <button 
-              onClick={() => window.location.reload()}
-              className="px-6 py-3 bg-gradient-to-r from-red-600 to-pink-700 text-white rounded-none font-medium hover:from-red-700 hover:to-pink-800 transition-all duration-300"
-            >
+            <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-[1.4rem] border border-red-200 bg-red-50 text-red-600">
+              <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v4m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" />
+              </svg>
+            </div>
+            <h2 className="portal-heading mb-2 text-xl font-bold">Error Loading Checkout</h2>
+            <p className="portal-text mb-6">{error}</p>
+            <button onClick={() => window.location.reload()} className="portal-primary-button px-6 py-3">
               Try Again
             </button>
           </div>
@@ -189,293 +154,198 @@ export default function Checkout() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="portal-page min-h-screen">
       <Head>
         <title>Checkout | B2B E-Commerce Platform</title>
         <meta name="description" content="Complete your purchase" />
       </Head>
       <Header />
-      
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {cartItems.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="mx-auto w-24 h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-none flex items-center justify-center mb-6">
-              <svg className="w-12 h-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <section className="portal-empty-state">
+            <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-[1.4rem] border border-[var(--portal-border)] bg-[var(--portal-surface-muted)]">
+              <svg className="h-12 w-12 text-[#B5A88B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m0 0h8M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
             </div>
-            <h3 className="text-xl font-medium text-gray-900 mb-2">Your cart is empty</h3>
-            <p className="text-gray-600 max-w-md mx-auto mb-6">Looks like you haven't added anything to your cart yet. Start shopping to begin your collection.</p>
-            <Link href="/marketplace" className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-none shadow-sm text-white bg-gradient-to-r from-red-600 to-pink-700 hover:from-red-700 hover:to-pink-800 transition-all duration-300">
+            <h3 className="portal-heading mb-2 text-xl font-medium">Your cart is empty</h3>
+            <p className="portal-text mx-auto mb-6 max-w-md">
+              Add products to your basket before moving into checkout.
+            </p>
+            <Link href="/marketplace" className="portal-primary-button inline-flex items-center px-6 py-3 text-base font-medium">
               Browse Products
             </Link>
-          </div>
+          </section>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Order Summary */}
-            <div className="lg:col-span-2">
-              <div className="bg-white bg-opacity-80 backdrop-blur-sm rounded-none shadow-lg overflow-hidden border border-gray-200">
-                <div className="px-6 py-4 bg-gradient-to-r from-blue-800 to-blue-900 border-b border-gray-200">
-                  <h2 className="text-lg font-semibold text-white">Order Summary</h2>
-                </div>
-                
-                <div className="p-6">
-                  <ul className="divide-y divide-gray-200">
-                    {cartItems.map((item) => (
-                      <li key={item.id} className="py-4 flex items-center">
-                        <div className="flex-shrink-0 w-16 h-16 border border-gray-200 rounded-none overflow-hidden">
-                          <img
-                            className="w-full h-full object-cover"
-                            src={item.image}
-                            alt={item.name}
-                          />
-                        </div>
-                        <div className="ml-4 flex-1">
-                          <h3 className="text-sm font-medium text-gray-900">{item.name}</h3>
-                          <p className="text-xs text-gray-600">Sold by: {item.seller}</p>
-                          <p className="text-xs text-gray-500">Qty: {item.quantity}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-bold text-gray-900">
-                            ${(item.price * item.quantity).toFixed(2)}
-                          </p>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                  
-                  <div className="mt-6 pt-4 border-t border-gray-200">
-                    <div className="flex justify-between items-center py-1">
-                      <span className="text-sm font-medium text-gray-700">Subtotal</span>
-                      <span className="text-sm font-medium text-gray-900">${calculateTotal().toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-1">
-                      <span className="text-sm font-medium text-gray-700">Shipping</span>
-                      <span className="text-sm font-medium text-green-600">FREE</span>
-                    </div>
-                    <div className="flex justify-between items-center py-1">
-                      <span className="text-sm font-medium text-gray-700">Tax</span>
-                      <span className="text-sm font-medium text-gray-900">${(calculateTotal() * 0.15).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-3 mt-3 border-t border-gray-300">
-                      <span className="text-base font-bold text-gray-900">Total</span>
-                      <span className="text-lg font-bold text-gray-900">
-                        ${(calculateTotal() * 1.15).toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Checkout Form */}
-            <div className="lg:col-span-1">
-              <div className="bg-white bg-opacity-80 backdrop-blur-sm rounded-none shadow-lg p-6 sticky top-8 border border-gray-200">
-                <div className="px-4 py-3 bg-gradient-to-r from-blue-800 to-blue-900 border-b border-gray-200 mb-6">
-                  <h2 className="text-lg font-semibold text-white">Shipping Information</h2>
-                </div>
-                
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* Shipping Information */}
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 gap-y-4">
-                      <div>
-                        <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">
-                          Full Name
-                        </label>
-                        <input
-                          type="text"
-                          id="fullName"
-                          name="fullName"
-                          value={shippingInfo.fullName}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-none shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white bg-opacity-50"
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">
-                          Address
-                        </label>
-                        <input
-                          type="text"
-                          id="address"
-                          name="address"
-                          value={shippingInfo.address}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-none shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white bg-opacity-50"
-                          required
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
-                            City
-                          </label>
-                          <input
-                            type="text"
-                            id="city"
-                            name="city"
-                            value={shippingInfo.city}
-                            onChange={handleInputChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-none shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white bg-opacity-50"
-                            required
-                          />
-                        </div>
-
-                        <div>
-                          <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-1">
-                            State
-                          </label>
-                          <input
-                            type="text"
-                            id="state"
-                            name="state"
-                            value={shippingInfo.state}
-                            onChange={handleInputChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-none shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white bg-opacity-50"
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label htmlFor="zipCode" className="block text-sm font-medium text-gray-700 mb-1">
-                            ZIP Code
-                          </label>
-                          <input
-                            type="text"
-                            id="zipCode"
-                            name="zipCode"
-                            value={shippingInfo.zipCode}
-                            onChange={handleInputChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-none shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white bg-opacity-50"
-                            required
-                          />
-                        </div>
-
-                        <div>
-                          <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-1">
-                            Country
-                          </label>
-                          <input
-                            type="text"
-                            id="country"
-                            name="country"
-                            value={shippingInfo.country}
-                            onChange={handleInputChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-none shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white bg-opacity-50"
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-                          Phone Number
-                        </label>
-                        <input
-                          type="tel"
-                          id="phone"
-                          name="phone"
-                          value={shippingInfo.phone}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-none shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white bg-opacity-50"
-                          required
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Payment Method */}
-                  <div className="pt-4 border-t border-gray-200">
-                    <h3 className="text-md font-semibold text-gray-900 mb-4">Payment Method</h3>
-                    <div className="space-y-3">
-                      <div className="flex items-center p-3 border-2 border-blue-200 rounded-none bg-blue-50 bg-opacity-30">
-                        <input
-                          id="credit-card"
-                          name="payment-method"
-                          type="radio"
-                          value="credit-card"
-                          checked={paymentMethod === 'credit-card'}
-                          onChange={(e) => setPaymentMethod(e.target.value)}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                        />
-                        <label htmlFor="credit-card" className="ml-2 block text-sm font-medium text-gray-700">
-                          Credit Card
-                        </label>
-                      </div>
-                      <div className="flex items-center p-3 border border-gray-200 rounded-none hover:border-red-300 transition-colors duration-200">
-                        <input
-                          id="paypal"
-                          name="payment-method"
-                          type="radio"
-                          value="paypal"
-                          checked={paymentMethod === 'paypal'}
-                          onChange={(e) => setPaymentMethod(e.target.value)}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                        />
-                        <label htmlFor="paypal" className="ml-2 block text-sm font-medium text-gray-700">
-                          PayPal
-                        </label>
-                      </div>
-                      <div className="flex items-center p-3 border border-gray-200 rounded-none hover:border-red-300 transition-colors duration-200">
-                        <input
-                          id="bank-transfer"
-                          name="payment-method"
-                          type="radio"
-                          value="bank-transfer"
-                          checked={paymentMethod === 'bank-transfer'}
-                          onChange={(e) => setPaymentMethod(e.target.value)}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                        />
-                        <label htmlFor="bank-transfer" className="ml-2 block text-sm font-medium text-gray-700">
-                          Bank Transfer
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Place Order Button */}
-                  <div className="pt-6">
-                    <button
-                      type="submit"
-                      className="w-full py-3 px-4 border border-transparent rounded-none shadow-sm text-base font-medium text-white bg-gradient-to-r from-red-600 to-pink-700 hover:from-red-700 hover:to-pink-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-300"
-                    >
-                      Complete Order
-                    </button>
-                  </div>
-
-                  <div className="pt-4 text-center text-xs text-gray-500">
-                    <p className="mb-2">
-                      By placing your order, you agree to our{' '}
-                      <Link href="/terms" className="text-blue-600 hover:text-red-600 font-medium">
-                        Terms of Service
-                      </Link>{' '}
-                      and{' '}
-                      <Link href="/privacy" className="text-blue-600 hover:text-red-600 font-medium">
-                        Privacy Policy
-                      </Link>.
+          <>
+            <section className="portal-hero mb-8">
+              <div className="bg-[linear-gradient(180deg,rgba(240,177,76,0.22),transparent)] px-5 py-6 sm:px-6 lg:px-8">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                  <div className="max-w-2xl">
+                    <p className="portal-badge">Checkout</p>
+                    <h1 className="portal-heading mt-3 text-[2rem] font-semibold tracking-[-0.03em] sm:text-[2.4rem]">Finalize Your Order</h1>
+                    <p className="portal-text mt-2 text-sm leading-6 sm:text-[15px]">
+                      Review your items, confirm delivery details, and move through a cleaner purchase flow that matches the rest of the portal.
                     </p>
-                    <div className="flex justify-center space-x-3 mt-3">
-                      <div className="w-10 h-6 bg-gray-200 rounded-none flex items-center justify-center">
-                        <span className="text-xs font-bold">VISA</span>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <span className="portal-pill">{cartItems.length} items ready</span>
+                    <Link href="/cart" className="portal-secondary-button">
+                      Back to Cart
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+              <section className="space-y-6">
+                <div className="portal-card overflow-hidden">
+                  <div className="border-b border-[var(--portal-border)] bg-[linear-gradient(135deg,#18232f,#283749)] px-6 py-4">
+                    <h2 className="text-lg font-semibold text-white">Shipping Information</h2>
+                    <p className="mt-1 text-sm text-white/70">Use a complete business delivery address for reliable fulfillment.</p>
+                  </div>
+
+                  <form onSubmit={handleSubmit} className="p-6">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <label className="sm:col-span-2">
+                        <span className="mb-2 block text-sm font-medium portal-heading">Full Name</span>
+                        <input type="text" id="fullName" name="fullName" value={shippingInfo.fullName} onChange={handleInputChange} className="portal-input" required />
+                      </label>
+                      <label className="sm:col-span-2">
+                        <span className="mb-2 block text-sm font-medium portal-heading">Address</span>
+                        <input type="text" id="address" name="address" value={shippingInfo.address} onChange={handleInputChange} className="portal-input" required />
+                      </label>
+                      <label>
+                        <span className="mb-2 block text-sm font-medium portal-heading">City</span>
+                        <input type="text" id="city" name="city" value={shippingInfo.city} onChange={handleInputChange} className="portal-input" required />
+                      </label>
+                      <label>
+                        <span className="mb-2 block text-sm font-medium portal-heading">State</span>
+                        <input type="text" id="state" name="state" value={shippingInfo.state} onChange={handleInputChange} className="portal-input" required />
+                      </label>
+                      <label>
+                        <span className="mb-2 block text-sm font-medium portal-heading">ZIP Code</span>
+                        <input type="text" id="zipCode" name="zipCode" value={shippingInfo.zipCode} onChange={handleInputChange} className="portal-input" required />
+                      </label>
+                      <label>
+                        <span className="mb-2 block text-sm font-medium portal-heading">Country</span>
+                        <input type="text" id="country" name="country" value={shippingInfo.country} onChange={handleInputChange} className="portal-input" required />
+                      </label>
+                      <label className="sm:col-span-2">
+                        <span className="mb-2 block text-sm font-medium portal-heading">Phone Number</span>
+                        <input type="tel" id="phone" name="phone" value={shippingInfo.phone} onChange={handleInputChange} className="portal-input" required />
+                      </label>
+                    </div>
+
+                    <div className="mt-8 border-t border-[var(--portal-border)] pt-6">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <h3 className="portal-heading text-lg font-semibold">Payment Method</h3>
+                          <p className="portal-muted mt-1 text-sm">Choose the settlement path that fits this order.</p>
+                        </div>
+                        {user?.email ? <span className="portal-pill">{user.email}</span> : null}
                       </div>
-                      <div className="w-10 h-6 bg-gray-200 rounded-none flex items-center justify-center">
-                        <span className="text-xs font-bold">MC</span>
-                      </div>
-                      <div className="w-10 h-6 bg-gray-200 rounded-none flex items-center justify-center">
-                        <span className="text-xs font-bold">PP</span>
+
+                      <div className="mt-4 space-y-3">
+                        {paymentOptions.map((option) => {
+                          const selected = paymentMethod === option.id;
+
+                          return (
+                            <label
+                              key={option.id}
+                              className={`flex cursor-pointer items-start gap-3 rounded-[1rem] border p-4 transition ${selected ? 'border-[var(--portal-border-strong)] bg-[var(--portal-accent-soft)]' : 'border-[var(--portal-border)] bg-[var(--portal-surface-muted)] hover:border-[var(--portal-border-strong)]'}`}
+                            >
+                              <input
+                                id={option.id}
+                                name="payment-method"
+                                type="radio"
+                                value={option.id}
+                                checked={selected}
+                                onChange={(e) => setPaymentMethod(e.target.value)}
+                                className="mt-1 h-4 w-4 accent-[#B86D16]"
+                              />
+                              <div>
+                                <p className="portal-heading text-sm font-semibold">{option.label}</p>
+                                <p className="portal-muted mt-1 text-sm">{option.note}</p>
+                              </div>
+                            </label>
+                          );
+                        })}
                       </div>
                     </div>
+
+                    <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="portal-muted max-w-lg text-xs leading-5">
+                        By placing your order, you agree to our{' '}
+                        <Link href="/terms" className="font-semibold text-[var(--portal-accent)] hover:text-[#c87918]">
+                          Terms of Service
+                        </Link>{' '}
+                        and{' '}
+                        <Link href="/privacy" className="font-semibold text-[var(--portal-accent)] hover:text-[#c87918]">
+                          Privacy Policy
+                        </Link>.
+                      </p>
+                      <button type="submit" className="portal-primary-button px-6 py-3">
+                        Complete Order
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </section>
+
+              <aside className="space-y-6">
+                <div className="portal-card sticky top-8 overflow-hidden">
+                  <div className="border-b border-[var(--portal-border)] px-6 py-4">
+                    <h2 className="portal-heading text-lg font-semibold">Order Summary</h2>
+                    <p className="portal-muted mt-1 text-sm">A compact view of the shipment you are about to place.</p>
                   </div>
-                </form>
-              </div>
+
+                  <div className="space-y-4 p-6">
+                    {cartItems.map((item) => (
+                      <div key={item.id} className="portal-soft-card flex items-center gap-3 p-3">
+                        <div className="h-16 w-16 overflow-hidden rounded-[0.9rem] border border-[var(--portal-border)] bg-white">
+                          <img className="h-full w-full object-cover" src={item.image} alt={item.name} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="portal-heading truncate text-sm font-semibold">{item.name}</p>
+                          <p className="portal-muted mt-1 text-xs">Qty {item.quantity} • {item.seller || 'Marketplace seller'}</p>
+                        </div>
+                        <p className="portal-heading text-sm font-semibold">${Number((item.price || 0) * (item.quantity || 0)).toFixed(2)}</p>
+                      </div>
+                    ))}
+
+                    <div className="border-t border-[var(--portal-border)] pt-4">
+                      <div className="flex items-center justify-between py-1 text-sm">
+                        <span className="portal-muted">Subtotal</span>
+                        <span className="portal-heading font-semibold">${calculateSubtotal().toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center justify-between py-1 text-sm">
+                        <span className="portal-muted">Shipping</span>
+                        <span className="portal-heading font-semibold">$0.00</span>
+                      </div>
+                      <div className="flex items-center justify-between py-1 text-sm">
+                        <span className="portal-muted">Tax</span>
+                        <span className="portal-heading font-semibold">${calculateTax().toFixed(2)}</span>
+                      </div>
+                      <div className="mt-3 flex items-center justify-between border-t border-[var(--portal-border)] pt-4">
+                        <span className="portal-heading text-base font-semibold">Total</span>
+                        <span className="portal-heading text-xl font-bold">${calculateTotal().toFixed(2)}</span>
+                      </div>
+                    </div>
+
+                    <div className="portal-soft-card p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--portal-accent-strong)]">Protected Checkout</p>
+                      <p className="portal-text mt-2 text-sm leading-6">
+                        Your delivery information is prefilled from your account so you can move faster with fewer errors.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </aside>
             </div>
-          </div>
+          </>
         )}
       </main>
     </div>

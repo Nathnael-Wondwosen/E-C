@@ -2,19 +2,50 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import AdminLayout from '../components/AdminLayout';
-import ARPreview from '../components/ARPreview';
-import ProductInsights from '../components/ProductInsights';
-import PricingOptimizer from '../components/PricingOptimizer';
-import SupplierRecommendations from '../components/SupplierRecommendations';
-import CrossPlatformSync from '../components/CrossPlatformSync';
 import ImageUploader from '../components/ImageUploader';
 import { getProducts, getCategories, createProduct, updateProduct, deleteProduct } from '../utils/mongoService';
 // Import CSV utilities
 import { downloadCSV, readCSVFile } from '../utils/csvUtils';
 // Import AI service
 import { getProductSuggestions, suggestCategoryForProduct } from '../utils/aiService';
-// Import predictive analytics
-import { predictDemand, analyzeInventoryHealth, generateReorderSuggestions, forecastSeasonalTrends } from '../utils/predictiveAnalytics';
+
+const deriveInventoryAnalytics = (items = []) => {
+  const lowStockItems = items.filter((item) => Number(item.stock || 0) < 10).length;
+  const overstockedItems = items.filter((item) => Number(item.stock || 0) > 200).length;
+  const total = items.length || 1;
+  const healthScore = Math.max(
+    0,
+    Math.min(100, Math.round(((total - lowStockItems - overstockedItems * 0.5) / total) * 100))
+  );
+  const stockoutRisk = Math.min(100, Math.round((lowStockItems / total) * 100));
+  const recommendations = [];
+  if (lowStockItems > 0) {
+    recommendations.push(`${lowStockItems} products are below the preferred stock threshold.`);
+  }
+  if (overstockedItems > 0) {
+    recommendations.push(`${overstockedItems} products appear overstocked and may need slower purchasing.`);
+  }
+  if (recommendations.length === 0) {
+    recommendations.push('Inventory levels are within the normal operating range.');
+  }
+
+  return {
+    healthScore,
+    lowStockItems,
+    overstockedItems,
+    stockoutRisk,
+    recommendations
+  };
+};
+
+const deriveReorderSuggestions = (items = []) =>
+  items
+    .filter((item) => Number(item.stock || 0) < 10)
+    .map((item) => ({
+      ...item,
+      quantityNeeded: Math.max(10, 25 - Number(item.stock || 0))
+    }))
+    .sort((a, b) => Number(a.stock || 0) - Number(b.stock || 0));
 
 export default function ProductsManagement() {
   const [products, setProducts] = useState([]);
@@ -22,6 +53,8 @@ export default function ProductsManagement() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
+  const [filterOriginTag, setFilterOriginTag] = useState('');
+  const [filterArrivalTag, setFilterArrivalTag] = useState('');
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState('asc');
   const [showAddForm, setShowAddForm] = useState(false);
@@ -51,7 +84,10 @@ export default function ProductsManagement() {
     supplierId: '',
     companyId: '',
     businessType: '',
-    country: ''
+    country: '',
+    countryOfOrigin: '',
+    isMadeInEthiopia: false,
+    isNewArrival: false
   });
   const [importError, setImportError] = useState('');
   const [suggestions, setSuggestions] = useState([]);
@@ -64,10 +100,6 @@ export default function ProductsManagement() {
     recommendations: []
   });
   const [reorderSuggestions, setReorderSuggestions] = useState([]);
-  const [seasonalForecasts, setSeasonalForecasts] = useState([]);
-  const [activeAnalyticsTab, setActiveAnalyticsTab] = useState('overview');
-  const [arProduct, setArProduct] = useState(null);
-  const [showInsights, setShowInsights] = useState(false);
   const searchInputRef = useRef(null);
   const fileInputRef = useRef(null);
   const router = useRouter();
@@ -88,16 +120,8 @@ export default function ProductsManagement() {
       setLoading(true);
       const data = await getProducts();
       setProducts(data);
-      
-      // Load analytics
-      const healthAnalysis = await analyzeInventoryHealth(data);
-      setAnalytics(healthAnalysis);
-      
-      const reorders = await generateReorderSuggestions(data);
-      setReorderSuggestions(reorders);
-      
-      const forecasts = await forecastSeasonalTrends(data);
-      setSeasonalForecasts(forecasts);
+      setAnalytics(deriveInventoryAnalytics(data));
+      setReorderSuggestions(deriveReorderSuggestions(data));
     } catch (error) {
       console.error('Error loading products:', error);
     } finally {
@@ -128,6 +152,9 @@ export default function ProductsManagement() {
         const productData = {
           name: newProduct.name,
           description: newProduct.description || '',
+          countryOfOrigin: String(newProduct.countryOfOrigin || '').trim(),
+          isMadeInEthiopia: Boolean(newProduct.isMadeInEthiopia),
+          isNewArrival: Boolean(newProduct.isNewArrival),
           price: parseFloat(newProduct.price),
           category: newProduct.category,
           stock: parseInt(newProduct.stock) || 0,
@@ -166,17 +193,16 @@ export default function ProductsManagement() {
           tags: [],
           specifications: {},
           supplierId: '',
-          companyId: ''
+          companyId: '',
+          countryOfOrigin: '',
+          isMadeInEthiopia: false,
+          isNewArrival: false
         });
         setShowAddForm(false);
         
-        // Refresh analytics
         const updatedProducts = [...products, product];
-        const healthAnalysis = await analyzeInventoryHealth(updatedProducts);
-        setAnalytics(healthAnalysis);
-        
-        const reorders = await generateReorderSuggestions(updatedProducts);
-        setReorderSuggestions(reorders);
+        setAnalytics(deriveInventoryAnalytics(updatedProducts));
+        setReorderSuggestions(deriveReorderSuggestions(updatedProducts));
         
         // Refresh categories to update product counts
         loadCategories();
@@ -199,6 +225,9 @@ export default function ProductsManagement() {
       try {
         const updatedProduct = {
           ...editingProduct,
+          countryOfOrigin: String(editingProduct.countryOfOrigin || '').trim(),
+          isMadeInEthiopia: Boolean(editingProduct.isMadeInEthiopia),
+          isNewArrival: Boolean(editingProduct.isNewArrival),
           price: parseFloat(editingProduct.price),
           stock: parseInt(editingProduct.stock) || 0,
           thumbnail: editingProduct.thumbnail || (editingProduct.images && editingProduct.images.length > 0 ? editingProduct.images[0] : ''),
@@ -222,15 +251,11 @@ export default function ProductsManagement() {
         
         setEditingProduct(null);
         
-        // Refresh analytics
         const updatedProducts = products.map(prod => 
           prod.id === editingProduct.id ? result : prod
         );
-        const healthAnalysis = await analyzeInventoryHealth(updatedProducts);
-        setAnalytics(healthAnalysis);
-        
-        const reorders = await generateReorderSuggestions(updatedProducts);
-        setReorderSuggestions(reorders);
+        setAnalytics(deriveInventoryAnalytics(updatedProducts));
+        setReorderSuggestions(deriveReorderSuggestions(updatedProducts));
         
         // Refresh categories to update product counts
         loadCategories();
@@ -238,45 +263,6 @@ export default function ProductsManagement() {
         console.error('Error updating product:', error);
         alert('Failed to update product. Please try again.');
       }
-    }
-  };
-
-  // Handle price updates from pricing optimizer
-  const handlePriceUpdate = async (productId, newPrice) => {
-    try {
-      const productToUpdate = products.find(p => p.id === productId);
-      if (!productToUpdate) return;
-
-      const updatedProduct = {
-        ...productToUpdate,
-        price: parseFloat(newPrice),
-        updatedAt: new Date()
-      };
-
-      // Call the actual API to update the product price
-      const result = await updateProduct(productId, updatedProduct);
-
-      setProducts(products.map(prod => 
-        prod.id === productId ? result : prod
-      ));
-
-      // Refresh analytics
-      const updatedProducts = products.map(prod => 
-        prod.id === productId ? result : prod
-      );
-      const healthAnalysis = await analyzeInventoryHealth(updatedProducts);
-      setAnalytics(healthAnalysis);
-      
-      const reorders = await generateReorderSuggestions(updatedProducts);
-      setReorderSuggestions(reorders);
-      
-      // Refresh categories to update product counts if category changed
-      if (productToUpdate.category !== result.category) {
-        loadCategories();
-      }
-    } catch (error) {
-      console.error('Error updating product price:', error);
-      alert('Failed to update product price. Please try again.');
     }
   };
 
@@ -289,13 +275,8 @@ export default function ProductsManagement() {
         if (result.success) {
           const updatedProducts = products.filter(prod => prod.id !== productId);
           setProducts(updatedProducts);
-          
-          // Refresh analytics
-          const healthAnalysis = await analyzeInventoryHealth(updatedProducts);
-          setAnalytics(healthAnalysis);
-          
-          const reorders = await generateReorderSuggestions(updatedProducts);
-          setReorderSuggestions(reorders);
+          setAnalytics(deriveInventoryAnalytics(updatedProducts));
+          setReorderSuggestions(deriveReorderSuggestions(updatedProducts));
           
           // Refresh categories to update product counts
           loadCategories();
@@ -380,6 +361,9 @@ export default function ProductsManagement() {
         id: product.id,
         name: product.name,
         description: product.description || '',
+        countryOfOrigin: product.countryOfOrigin || '',
+        isMadeInEthiopia: Boolean(product.isMadeInEthiopia),
+        isNewArrival: Boolean(product.isNewArrival),
         price: product.price,
         category: product.category,
         stock: product.stock,
@@ -417,6 +401,9 @@ export default function ProductsManagement() {
         id: row.id || Date.now() + index,
         name: row.name,
         description: row.description || '',
+        countryOfOrigin: row.countryOfOrigin || '',
+        isMadeInEthiopia: ['true', '1', 'yes', 'on'].includes(String(row.isMadeInEthiopia || '').toLowerCase()),
+        isNewArrival: ['true', '1', 'yes', 'on'].includes(String(row.isNewArrival || '').toLowerCase()),
         price: parseFloat(row.price),
         category: row.category,
         stock: parseInt(row.stock) || 0,
@@ -440,13 +427,9 @@ export default function ProductsManagement() {
       setProducts(prev => [...prev, ...createdProducts]);
       alert(`Successfully imported ${createdProducts.length} products.`);
       
-      // Refresh analytics
       const updatedProducts = [...products, ...createdProducts];
-      const healthAnalysis = await analyzeInventoryHealth(updatedProducts);
-      setAnalytics(healthAnalysis);
-      
-      const reorders = await generateReorderSuggestions(updatedProducts);
-      setReorderSuggestions(reorders);
+      setAnalytics(deriveInventoryAnalytics(updatedProducts));
+      setReorderSuggestions(deriveReorderSuggestions(updatedProducts));
       
       // Refresh categories to update product counts
       loadCategories();
@@ -466,7 +449,15 @@ export default function ProductsManagement() {
                          product.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.sku.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = filterCategory === '' || product.category === filterCategory;
-    return matchesSearch && matchesCategory;
+    const matchesOriginTag =
+      filterOriginTag === '' ||
+      (filterOriginTag === 'made-in-ethiopia' && Boolean(product.isMadeInEthiopia)) ||
+      (filterOriginTag === 'not-made-in-ethiopia' && !Boolean(product.isMadeInEthiopia));
+    const matchesArrivalTag =
+      filterArrivalTag === '' ||
+      (filterArrivalTag === 'new-arrival' && Boolean(product.isNewArrival)) ||
+      (filterArrivalTag === 'not-new-arrival' && !Boolean(product.isNewArrival));
+    return matchesSearch && matchesCategory && matchesOriginTag && matchesArrivalTag;
   });
 
   const sortedProducts = [...filteredProducts].sort((a, b) => {
@@ -509,17 +500,6 @@ export default function ProductsManagement() {
               </p>
             </div>
             <div className="mt-4 flex md:mt-0 md:ml-4 space-x-2">
-              <button
-                type="button"
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white dark:border-gray-600 dark:hover:bg-gray-600"
-                onClick={() => setShowInsights(!showInsights)}
-              >
-                <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                  <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                </svg>
-                {showInsights ? 'Hide Insights' : 'Show Insights'}
-              </button>
               <button
                 type="button"
                 className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -634,7 +614,7 @@ export default function ProductsManagement() {
 
           {/* Filters and Search */}
           <div className="mt-6">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {/* Category Filter */}
               <select
                 className="focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md"
@@ -663,6 +643,26 @@ export default function ProductsManagement() {
                 <option value="price-desc">Price (High-Low)</option>
                 <option value="stock-asc">Stock (Low-High)</option>
                 <option value="stock-desc">Stock (High-Low)</option>
+              </select>
+
+              <select
+                className="focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md"
+                value={filterOriginTag}
+                onChange={(e) => setFilterOriginTag(e.target.value)}
+              >
+                <option value="">All Origins</option>
+                <option value="made-in-ethiopia">Made in Ethiopia</option>
+                <option value="not-made-in-ethiopia">Not Made in Ethiopia</option>
+              </select>
+
+              <select
+                className="focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-md"
+                value={filterArrivalTag}
+                onChange={(e) => setFilterArrivalTag(e.target.value)}
+              >
+                <option value="">All Arrival States</option>
+                <option value="new-arrival">New Arrival</option>
+                <option value="not-new-arrival">Not New Arrival</option>
               </select>
             </div>
           </div>
@@ -819,6 +819,24 @@ export default function ProductsManagement() {
                         }
                       />
                     </div>
+
+                    <div>
+                      <label htmlFor="product-country-origin" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Country of Origin
+                      </label>
+                      <input
+                        type="text"
+                        id="product-country-origin"
+                        className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
+                        placeholder="Example: Ethiopia"
+                        value={editingProduct ? (editingProduct.countryOfOrigin || '') : newProduct.countryOfOrigin}
+                        onChange={(e) =>
+                          editingProduct
+                            ? setEditingProduct({ ...editingProduct, countryOfOrigin: e.target.value })
+                            : setNewProduct({ ...newProduct, countryOfOrigin: e.target.value })
+                        }
+                      />
+                    </div>
                     
                     <div className="sm:col-span-2">
                       <label htmlFor="product-description" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -841,7 +859,7 @@ export default function ProductsManagement() {
                     {/* Premium Product Options */}
                     <div className="sm:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-4">
                       <h3 className="text-md font-medium text-gray-900 dark:text-white mb-3">Product Visibility Options</h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                         <div className="flex items-center">
                           <input
                             id="is-featured"
@@ -890,6 +908,40 @@ export default function ProductsManagement() {
                           />
                           <label htmlFor="is-premium" className="ml-2 block text-sm text-gray-900 dark:text-white">
                             Premium Product
+                          </label>
+                        </div>
+
+                        <div className="flex items-center">
+                          <input
+                            id="is-made-in-ethiopia"
+                            type="checkbox"
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            checked={editingProduct ? Boolean(editingProduct.isMadeInEthiopia) : Boolean(newProduct.isMadeInEthiopia)}
+                            onChange={(e) =>
+                              editingProduct
+                                ? setEditingProduct({ ...editingProduct, isMadeInEthiopia: e.target.checked })
+                                : setNewProduct({ ...newProduct, isMadeInEthiopia: e.target.checked })
+                            }
+                          />
+                          <label htmlFor="is-made-in-ethiopia" className="ml-2 block text-sm text-gray-900 dark:text-white">
+                            Made in Ethiopia
+                          </label>
+                        </div>
+
+                        <div className="flex items-center">
+                          <input
+                            id="is-new-arrival"
+                            type="checkbox"
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            checked={editingProduct ? Boolean(editingProduct.isNewArrival) : Boolean(newProduct.isNewArrival)}
+                            onChange={(e) =>
+                              editingProduct
+                                ? setEditingProduct({ ...editingProduct, isNewArrival: e.target.checked })
+                                : setNewProduct({ ...newProduct, isNewArrival: e.target.checked })
+                            }
+                          />
+                          <label htmlFor="is-new-arrival" className="ml-2 block text-sm text-gray-900 dark:text-white">
+                            New Arrival
                           </label>
                         </div>
                       </div>
@@ -1005,52 +1057,12 @@ export default function ProductsManagement() {
             </div>
           )}
 
-          {/* Predictive Analytics Dashboard */}
           <div className="mt-8">
             <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-              Predictive Analytics Dashboard
+              Inventory Summary
             </h2>
-            
-            {/* Analytics Tabs */}
-            <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
-              <nav className="-mb-px flex space-x-8">
-                <button
-                  onClick={() => setActiveAnalyticsTab('overview')}
-                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
-                    activeAnalyticsTab === 'overview'
-                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-                  }`}
-                >
-                  Overview
-                </button>
-                <button
-                  onClick={() => setActiveAnalyticsTab('reorder')}
-                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
-                    activeAnalyticsTab === 'reorder'
-                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-                  }`}
-                >
-                  Reorder Suggestions
-                </button>
-                <button
-                  onClick={() => setActiveAnalyticsTab('seasonal')}
-                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
-                    activeAnalyticsTab === 'seasonal'
-                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-                  }`}
-                >
-                  Seasonal Forecasts
-                </button>
-              </nav>
-            </div>
-            
-            {/* Analytics Content */}
-            {activeAnalyticsTab === 'overview' && (
-              <div>
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+            <div>
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-6">
                   <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
                     <div className="px-4 py-5 sm:p-6">
                       <div className="flex items-center">
@@ -1159,11 +1171,10 @@ export default function ProductsManagement() {
                   </div>
                 </div>
                 
-                {/* Recommendations */}
                 {analytics.recommendations && analytics.recommendations.length > 0 && (
                   <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
                     <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                      AI Recommendations
+                      Inventory Notes
                     </h3>
                     <ul className="space-y-3">
                       {analytics.recommendations.map((rec, index) => (
@@ -1181,17 +1192,15 @@ export default function ProductsManagement() {
                     </ul>
                   </div>
                 )}
-              </div>
-            )}
-            
-            {activeAnalyticsTab === 'reorder' && (
-              <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+            </div>
+
+            <div className="mt-6 bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
                 <div className="px-4 py-5 sm:px-6">
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                     Reorder Suggestions
                   </h3>
                   <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    Based on current stock levels and predicted demand
+                    Products currently below the preferred stock threshold
                   </p>
                 </div>
                 <div className="border-t border-gray-200 dark:border-gray-700">
@@ -1234,66 +1243,6 @@ export default function ProductsManagement() {
                   )}
                 </div>
               </div>
-            )}
-            
-            {activeAnalyticsTab === 'seasonal' && (
-              <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
-                <div className="px-4 py-5 sm:px-6">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                    Seasonal Demand Forecasts
-                  </h3>
-                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    Predicted seasonal trends for your products
-                  </p>
-                </div>
-                <div className="border-t border-gray-200 dark:border-gray-700">
-                  {seasonalForecasts.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                      No significant seasonal trends detected for your products.
-                    </div>
-                  ) : (
-                    <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-                      {seasonalForecasts.map((product) => (
-                        <li key={product.id} className="px-4 py-4 sm:px-6">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0 h-10 w-10 bg-gray-200 dark:bg-gray-600 rounded-md flex items-center justify-center">
-                                <svg className="h-6 w-6 text-gray-500 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                              </div>
-                              <div className="ml-4">
-                                <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                  {product.name}
-                                </div>
-                                <div className="text-sm text-gray-500 dark:text-gray-400">
-                                  {product.category} • Expected {product.expectedSalesIncrease > 0 ? '+' : ''}{product.expectedSalesIncrease} units
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex items-center">
-                              <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                product.isPeakSeason 
-                                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
-                                  : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                              }`}>
-                                {product.isPeakSeason ? 'Peak Season' : 'Normal'}
-                              </div>
-                              <div className="ml-3 text-sm text-gray-500 dark:text-gray-400">
-                                x{product.expectedMultiplier}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                            {product.recommendation}
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Products Table */}
@@ -1318,6 +1267,9 @@ export default function ProductsManagement() {
                       Category
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Origin
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Price
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -1334,7 +1286,7 @@ export default function ProductsManagement() {
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                   {loading ? (
                     <tr>
-                      <td colSpan="6" className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500 dark:text-gray-400">
+                      <td colSpan="7" className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500 dark:text-gray-400">
                         <div className="flex justify-center">
                           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
                         </div>
@@ -1342,7 +1294,7 @@ export default function ProductsManagement() {
                     </tr>
                   ) : sortedProducts.length === 0 ? (
                     <tr>
-                      <td colSpan="6" className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500 dark:text-gray-400">
+                      <td colSpan="7" className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500 dark:text-gray-400">
                         {searchTerm || filterCategory ? 'No products match your filters' : 'No products found'}
                       </td>
                     </tr>
@@ -1363,11 +1315,22 @@ export default function ProductsManagement() {
                                   {product.description}
                                 </div>
                               )}
+                              <div className="mt-1 flex flex-wrap gap-1">
+                                {product.isMadeInEthiopia ? (
+                                  <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">Made in Ethiopia</span>
+                                ) : null}
+                                {product.isNewArrival ? (
+                                  <span className="inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">New Arrival</span>
+                                ) : null}
+                              </div>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900 dark:text-white">{product.category}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900 dark:text-white">{product.countryOfOrigin || '-'}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                           ${product.price.toFixed(2)}
@@ -1387,12 +1350,6 @@ export default function ProductsManagement() {
                           {product.sku}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button
-                            onClick={() => setArProduct(product)}
-                            className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 mr-3"
-                          >
-                            AR Preview
-                          </button>
                           <button
                             onClick={() => setEditingProduct({...product})}
                             className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-3"
@@ -1414,47 +1371,6 @@ export default function ProductsManagement() {
             </div>
           </div>
 
-          {/* AR Preview Modal */}
-          {arProduct && (
-            <ARPreview 
-              product={arProduct} 
-              onClose={() => setArProduct(null)} 
-            />
-          )}
-          
-          {/* Advanced Product Insights */}
-          {showInsights && (
-            <div className="mt-8">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-medium text-gray-900 dark:text-white">
-                  Advanced Product Insights
-                </h2>
-                <button 
-                  onClick={() => setShowInsights(false)}
-                  className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                >
-                  Close
-                </button>
-              </div>
-              <ProductInsights products={products} />
-            </div>
-          )}
-          
-          {/* Pricing Optimizer */}
-          <div className="mt-8">
-            <PricingOptimizer products={products} onUpdatePrice={handlePriceUpdate} />
-          </div>
-          
-          {/* Supplier Recommendations */}
-          <div className="mt-8">
-            <SupplierRecommendations products={products} />
-          </div>
-          
-          {/* Cross-Platform Sync */}
-          <div className="mt-8">
-            <CrossPlatformSync products={products} categories={categories} />
-          </div>
-          
           {/* Product Analytics */}
           <div className="mt-8">
             <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">

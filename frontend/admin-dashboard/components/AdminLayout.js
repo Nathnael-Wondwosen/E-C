@@ -117,8 +117,6 @@ export default function AdminLayout({ children, title = 'Admin Dashboard' }) {
           { name: 'B2B Products', href: '/b2b/products' },
           { name: 'Categories', href: '/categories' },
           { name: 'Inventory', href: '/products/inventory' },
-          { name: 'Auto Categorize', href: '/auto-categorize' },
-          { name: 'Variants & Comparison', href: '/product-variants' },
         ],
       },
       {
@@ -167,7 +165,6 @@ export default function AdminLayout({ children, title = 'Admin Dashboard' }) {
         ],
       },
       { name: 'Services', href: '/services', icon: 'Services' },
-      { name: 'Analytics', href: '/analytics', icon: 'Analytics' },
       { name: 'Logs', href: '/logs', icon: 'Logs' },
       { name: 'Settings', href: '/settings', icon: 'Settings' },
     ],

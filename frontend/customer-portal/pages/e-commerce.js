@@ -362,7 +362,7 @@ export default function Home() {
         id: product.id,
         name: product.name || product.title || 'Product',
         price: Number(product.price || 0),
-        image: product.images?.[0] || product.image || '/placeholder-product.jpg',
+        image: product.images?.[0] || product.image || product.thumbnail || '/placeholder-product.jpg',
       });
 
       if (`${product.productType || ''}`.toLowerCase() === 'b2b') {
@@ -370,7 +370,7 @@ export default function Home() {
           id: product.id,
           name: product.name || product.title || 'Product',
           price: Number(product.price || 0),
-          image: product.images?.[0] || product.image || '/placeholder-product.jpg',
+          image: product.images?.[0] || product.image || product.thumbnail || '/placeholder-product.jpg',
         });
       }
 
@@ -380,7 +380,7 @@ export default function Home() {
           id: product.id,
           name: product.name || product.title || 'Product',
           price: Number(product.price || 0),
-          image: product.images?.[0] || product.image || '/placeholder-product.jpg',
+          image: product.images?.[0] || product.image || product.thumbnail || '/placeholder-product.jpg',
         });
       }
     });

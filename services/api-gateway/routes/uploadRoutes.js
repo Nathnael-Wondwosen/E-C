@@ -7,7 +7,8 @@ const registerUploadRoutes = ({
 }) => {
   const {
     authenticateToken,
-    requireAdmin
+    requireAdmin,
+    requireSellerOrAdmin
   } = middleware;
 
   if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
@@ -53,15 +54,19 @@ const registerUploadRoutes = ({
     }
   });
 
-  app.post('/api/upload/product-image', authenticateToken, requireAdmin, upload.single('file'), async (req, res) => {
+  app.post('/api/upload/product-image', authenticateToken, requireSellerOrAdmin, upload.single('file'), async (req, res) => {
     try {
       if (!req.file) {
+        console.error('[upload/product-image] Missing file in request body');
         return res.status(400).json({ error: 'No file uploaded' });
       }
 
-      console.log('=== UPLOAD REQUEST ===');
+      console.log('=== UPLOAD REQUEST /api/upload/product-image ===');
+      console.log('Seller ID:', String(req.auth?.sub || 'unknown'));
       console.log('Body:', req.body);
       console.log('Filename param:', req.body.filename);
+      console.log('MIME:', req.file.mimetype);
+      console.log('Size(bytes):', req.file.size);
 
       const filename = req.body.filename;
 
@@ -87,10 +92,15 @@ const registerUploadRoutes = ({
           options,
           (error, uploadResult) => {
             if (error) {
-              console.error('Cloudinary upload error:', error);
+              console.error('[upload/product-image] Cloudinary upload error:', {
+                message: error?.message || error,
+                name: error?.name || '',
+                http_code: error?.http_code || error?.status || '',
+                ...(error?.error && typeof error.error === 'object' ? { cloudinary: error.error } : {})
+              });
               reject(error);
             } else {
-              console.log('Upload successful:', uploadResult.secure_url);
+              console.log('[upload/product-image] Upload successful:', uploadResult.secure_url);
               resolve(uploadResult);
             }
           }
@@ -107,7 +117,10 @@ const registerUploadRoutes = ({
         format: result.format
       });
     } catch (error) {
-      console.error('Error uploading product image:', error);
+      console.error('[upload/product-image] Error uploading product image:', {
+        message: error?.message || error,
+        stack: error?.stack || ''
+      });
       res.status(500).json({ error: 'Failed to upload product image to Cloudinary' });
     }
   });

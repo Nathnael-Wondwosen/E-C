@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import Head from 'next/head';
-import { useRouter } from 'next/router';
 
 // Sample blog data with image URLs
 const blogPosts = [
@@ -112,13 +111,26 @@ const blogPosts = [
   // Additional posts would follow the same structure
 ];
 
-export default function BlogPost() {
-  const router = useRouter();
-  const { id } = router.query;
-  
-  // Find the blog post by ID
-  const post = blogPosts.find(post => post.id === parseInt(id)) || blogPosts[0];
-  
+export async function getStaticPaths() {
+  return {
+    paths: blogPosts.map((post) => ({
+      params: { id: String(post.id) },
+    })),
+    fallback: false,
+  };
+}
+
+export async function getStaticProps({ params }) {
+  const post = blogPosts.find((item) => item.id === Number(params.id)) || blogPosts[0];
+
+  return {
+    props: {
+      post,
+    },
+  };
+}
+
+export default function BlogPost({ post }) {
   // Find related posts (same category, excluding current post)
   const relatedPosts = blogPosts
     .filter(blogPost => blogPost.category === post.category && blogPost.id !== post.id)

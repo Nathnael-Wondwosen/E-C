@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import AdminLayout from '../components/AdminLayout';
+import { getRequestLogs } from '../utils/mongoService';
 
 export default function LogsPage() {
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [requestIdFilter, setRequestIdFilter] = useState('');
@@ -11,18 +11,11 @@ export default function LogsPage() {
   const loadLogs = async () => {
     try {
       setLoading(true);
-      const requestId = requestIdFilter.trim();
-      const query = new URLSearchParams({
-        limit: String(limit),
-        ...(requestId ? { requestId } : {})
-      }).toString();
-
-      const response = await fetch(`${API_BASE_URL}/logs/requests?${query}`);
-      if (!response.ok) {
-        throw new Error(`Failed to load logs (${response.status})`);
-      }
-      const payload = await response.json();
-      setItems(payload.items || []);
+      const payload = await getRequestLogs({
+        limit,
+        requestId: requestIdFilter.trim()
+      });
+      setItems(payload);
     } catch (error) {
       setItems([]);
     } finally {
@@ -125,4 +118,3 @@ export default function LogsPage() {
     </AdminLayout>
   );
 }
-

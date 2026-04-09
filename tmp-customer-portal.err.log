@@ -1,0 +1,23 @@
+ ⨯ Failed to start server
+Error: listen EADDRINUSE: address already in use :::3005
+    at Server.setupListenHandle [as _listen2] (node:net:1912:16)
+    at listenInCluster (node:net:1969:12)
+    at Server.listen (node:net:2074:7)
+    at C:\Users\Developer\Documents\GitHub\Portal\E-C\frontend\customer-portal\node_modules\next\dist\server\lib\start-server.js:280:16
+    at new Promise (<anonymous>)
+    at startServer (C:\Users\Developer\Documents\GitHub\Portal\E-C\frontend\customer-portal\node_modules\next\dist\server\lib\start-server.js:191:11)
+    at Module.nextStart (C:\Users\Developer\Documents\GitHub\Portal\E-C\frontend\customer-portal\node_modules\next\dist\cli\next-start.js:25:40)
+    at C:\Users\Developer\Documents\GitHub\Portal\E-C\frontend\customer-portal\node_modules\next\dist\bin\next:105:856 {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 3005
+}
+npm error Lifecycle script `start` failed with error:
+npm error code 1
+npm error path C:\Users\Developer\Documents\GitHub\Portal\E-C\frontend\customer-portal
+npm error workspace customer-portal@1.0.0
+npm error location C:\Users\Developer\Documents\GitHub\Portal\E-C\frontend\customer-portal
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c next start -p 3005

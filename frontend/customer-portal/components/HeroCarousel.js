@@ -53,14 +53,14 @@ const marketFallbackSlides = {
     { title: 'Faster Local Fulfillment', subtitle: 'Reduce lead time with suppliers built for Ethiopian demand.', ctaText: 'Find Suppliers', ctaLink: '/localmarket' },
   ],
   africa: [
-    { title: 'Trade Across Africa', subtitle: 'Connect with regional suppliers and buyers across African markets.', ctaText: 'Explore Africa', ctaLink: '/marketplace?scope=africa' },
-    { title: 'Regional Supply Power', subtitle: 'Source agricultural, industrial, and consumer goods with speed.', ctaText: 'Browse Africa', ctaLink: '/marketplace?scope=africa' },
-    { title: 'Grow Beyond Borders', subtitle: 'Scale your business through strong regional trade routes.', ctaText: 'Start Regional Trade', ctaLink: '/marketplace?scope=africa' },
+    { title: 'Trade Across Africa', subtitle: 'Connect with regional suppliers and buyers across African markets.', ctaText: 'Explore Africa', ctaLink: '/markets/africa' },
+    { title: 'Regional Supply Power', subtitle: 'Source agricultural, industrial, and consumer goods with speed.', ctaText: 'Browse Africa', ctaLink: '/markets/africa' },
+    { title: 'Grow Beyond Borders', subtitle: 'Scale your business through strong regional trade routes.', ctaText: 'Start Regional Trade', ctaLink: '/markets/africa' },
   ],
   global: [
-    { title: 'Go Global With Confidence', subtitle: 'Access worldwide products, suppliers, and export opportunities.', ctaText: 'Explore Global', ctaLink: '/marketplace?scope=global' },
-    { title: 'International Buyer Reach', subtitle: 'Expand your market access with global-ready product sourcing.', ctaText: 'Find Global Products', ctaLink: '/marketplace?scope=global' },
-    { title: 'Worldwide Commerce Network', subtitle: 'Trade smarter through a modern multi-market commerce gateway.', ctaText: 'Start Global Trade', ctaLink: '/marketplace?scope=global' },
+    { title: 'Go Global With Confidence', subtitle: 'Access worldwide products, suppliers, and export opportunities.', ctaText: 'Explore Global', ctaLink: '/marketplace' },
+    { title: 'International Buyer Reach', subtitle: 'Expand your market access with global-ready product sourcing.', ctaText: 'Find Global Products', ctaLink: '/marketplace' },
+    { title: 'Worldwide Commerce Network', subtitle: 'Trade smarter through a modern multi-market commerce gateway.', ctaText: 'Start Global Trade', ctaLink: '/marketplace' },
   ],
 };
 
