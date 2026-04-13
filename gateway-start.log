@@ -1,0 +1,13 @@
+
+> api-gateway@1.0.0 dev
+> node --watch server.js
+
+[36m[2026-04-13T06:26:27.693Z] [INFO][0m Connected to MongoDB {
+  "database": "ecommerce_platform"
+}
+[36m[2026-04-13T06:26:34.025Z] [INFO][0m Gateway indexes ensured {}
+[31m[2026-04-13T06:26:34.092Z] [ERROR][0m Uncaught Exception {
+  "error": "listen EADDRINUSE: address already in use :::3000",
+  "stack": "Error: listen EADDRINUSE: address already in use :::3000\n    at Server.setupListenHandle [as _listen2] (node:net:1908:16)\n    at listenInCluster (node:net:1965:12)\n    at Server.listen (node:net:2067:7)\n    at Function.listen (C:\\Users\\Developer\\Documents\\GitHub\\Portal\\E-C\\node_modules\\express\\lib\\application.js:635:24)\n    at startServer (C:\\Users\\Developer\\Documents\\GitHub\\Portal\\E-C\\services\\api-gateway\\app.js:162:22)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"
+}
+Failed running 'server.js'
