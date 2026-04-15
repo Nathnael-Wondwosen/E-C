@@ -83,11 +83,53 @@ See [AWS Deployment Guide](AWS_DEPLOYMENT.md) for detailed instructions.
    npm install
    ```
 
-2. Set up environment variables by copying `.env.example` to `.env` and filling in the values
+2. Create and sync environment files in one step:
+   ```bash
+   npm run env:setup
+   ```
 
-3. Run development servers:
+3. Edit the root `.env` and set these values first:
+   - `MONGODB_URI`
+   - `JWT_SECRET`
+   - `NEXT_PUBLIC_API_BASE_URL`
+
+4. If you change the root `.env` later, resync the app-level env files:
+   ```bash
+   npm run env:sync
+   ```
+   Backend services read the root `.env` directly.
+   The sync step only regenerates frontend `.env.local` files.
+
+5. Run development servers:
    ```bash
    npm run dev
+   ```
+
+## GitHub To EC2 Workflow
+
+Push only code and env templates to GitHub. Do not commit real `.env` files.
+
+1. Local machine:
+   ```bash
+   git add .
+   git commit -m "your changes"
+   git push origin main
+   ```
+
+2. EC2 instance:
+   ```bash
+   cd ~/E-C
+   git pull origin main
+   npm run env:sync
+   bash reload.sh
+   ```
+
+3. If the EC2 server does not have a root `.env` yet:
+   ```bash
+   cp .env.aws.template .env
+   nano .env
+   npm run env:sync
+   bash reload.sh
    ```
 
 ## Deployment
@@ -108,8 +150,9 @@ See [AWS Deployment Guide](AWS_DEPLOYMENT.md) for detailed instructions.
 1. Review [AWS Deployment Guide](AWS_DEPLOYMENT.md)
 2. Set up AWS account and CLI
 3. Configure IAM roles using `aws-iam-roles.json`
-4. Update environment variables in `.env.aws.template`
-5. Run deployment script `deploy-aws.sh` or `deploy-aws.ps1`
+4. Copy `.env.aws.template` to `.env`, fill in `MONGODB_URI`, `JWT_SECRET`, and `NEXT_PUBLIC_API_BASE_URL`
+5. Run `npm run env:sync`
+6. Run deployment script `deploy-aws.sh` or `deploy-aws.ps1`
 
 For detailed instructions, see [Render Deployment Guide](docs/render-deployment-guide.md) or [AWS Deployment Guide](AWS_DEPLOYMENT.md).
 

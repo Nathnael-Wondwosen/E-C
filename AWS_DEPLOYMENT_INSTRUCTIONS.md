@@ -94,7 +94,19 @@ Set environment variables for each service in the ECS task definitions.
 
 ## Environment Variables
 
-Each service requires specific environment variables. See `.env.aws.template` for a complete list.
+Use `.env.aws.template` as the starting point for the root `.env`, then run:
+
+```bash
+npm run env:sync
+```
+
+Set these values before deployment:
+- `MONGODB_URI`
+- `MONGODB_DB_NAME`
+- `JWT_SECRET`
+- `NEXT_PUBLIC_API_BASE_URL`
+
+This repo now treats the root `.env` as the single source of truth and syncs the service/frontend env files from it.
 
 ## Monitoring and Logging
 

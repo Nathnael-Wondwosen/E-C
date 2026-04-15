@@ -1,4 +1,12 @@
 node_modules
 .next/
-.env*.local
+.env
+.env.local
+.env.production
+frontend/*/.env
+frontend/*/.env.local
+frontend/*/.env.production
+services/*/.env
+services/*/.env.local
+services/*/.env.production
 aws-task-definitions-updated.json

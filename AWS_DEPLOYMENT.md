@@ -91,26 +91,22 @@ The platform consists of the following microservices:
 
 ## Environment Variables
 
-Each service requires specific environment variables:
+Use one root `.env` file as the source of truth, then run:
 
-### API Gateway
-```
-NODE_ENV=production
-PORT=3000
-JWT_SECRET=your-jwt-secret
-CLOUDINARY_URL=your-cloudinary-url
+```bash
+npm run env:sync
 ```
 
-### User Service
-```
-NODE_ENV=production
-PORT=3001
-MONGODB_URI=mongodb://username:password@host:port/database
-JWT_SECRET=your-jwt-secret
+Set these values first:
+
+```env
+MONGODB_URI=mongodb://username:password@host:27017/ecommerce_platform?authSource=admin
+MONGODB_DB_NAME=ecommerce_platform
+JWT_SECRET=replace_with_a_long_random_secret
+NEXT_PUBLIC_API_BASE_URL=http://your-ec2-public-ip-or-domain
 ```
 
-### Other Services
-Similar pattern with service-specific configurations.
+If you use MongoDB Atlas instead of a self-hosted instance, set `MONGODB_URI` to your Atlas connection string.
 
 ## Monitoring and Logging
 

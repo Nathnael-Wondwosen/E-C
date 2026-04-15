@@ -1,6 +1,5 @@
-const path = require('path');
-require('dotenv').config();
-require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
+const { loadProjectEnv } = require('../../shared/utils/loadProjectEnv');
+loadProjectEnv(__dirname);
 const { startServer } = require('./app');
 
 startServer().catch((error) => {

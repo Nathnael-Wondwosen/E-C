@@ -66,9 +66,37 @@
           {
             "name": "PORT",
             "value": "3000"
+          },
+          {
+            "name": "MONGODB_URI",
+            "value": "mongodb://admin:password@mongodb:27017/ecommerce_platform?authSource=admin"
+          },
+          {
+            "name": "MONGODB_DB_NAME",
+            "value": "ecommerce_platform"
+          },
+          {
+            "name": "JWT_SECRET",
+            "value": "your-production-jwt-secret"
+          },
+          {
+            "name": "USER_SERVICE_URL",
+            "value": "http://localhost:3001"
+          },
+          {
+            "name": "PRODUCT_SERVICE_URL",
+            "value": "http://localhost:3002"
+          },
+          {
+            "name": "IDENTITY_SERVICE_URL",
+            "value": "http://localhost:3015"
           }
         ],
         "dependsOn": [
+          {
+            "containerName": "mongodb",
+            "condition": "START"
+          },
           {
             "containerName": "user-service",
             "condition": "START"

@@ -25,8 +25,19 @@ git fetch --all --prune
 git checkout "$BRANCH"
 git pull --ff-only origin "$BRANCH"
 
+if [[ ! -f ".env" ]]; then
+  echo "[reload] missing root .env file"
+  echo "[reload] create it from one of these templates, then rerun:"
+  echo "[reload]   cp .env.aws.template .env"
+  echo "[reload]   nano .env"
+  exit 1
+fi
+
 echo "[reload] installing dependencies..."
 npm ci
+
+echo "[reload] syncing env files from root .env..."
+npm run env:sync
 
 echo "[reload] building services/frontend..."
 npm run build:services
@@ -49,11 +60,12 @@ pm2 save
 
 echo "[reload] done."
 echo "[reload] health check:"
-for i in {1..15}; do
+for i in {1..30}; do
   if curl -fsS http://127.0.0.1:3000/health >/dev/null; then
     curl -fsS http://127.0.0.1:3000/health
     exit 0
   fi
+  echo "[reload] waiting for API Gateway... attempt $i/30"
   sleep 2
 done
 

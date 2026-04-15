@@ -1,8 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const path = require('path');
-require('dotenv').config();
-require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
+const { loadProjectEnv } = require('../../shared/utils/loadProjectEnv');
+loadProjectEnv(__dirname);
 
 const app = express();
 const PORT = process.env.USER_SERVICE_PORT || process.env.PORT || 3007;

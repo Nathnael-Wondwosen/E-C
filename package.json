@@ -8,6 +8,8 @@
     "shared"
   ],
   "scripts": {
+    "env:setup": "node scripts/sync-env.js",
+    "env:sync": "node scripts/sync-env.js",
     "dev": "concurrently \"npm run dev --workspace=services/api-gateway\" \"npm run dev --workspace=services/identity-service\" \"npm run dev --workspace=frontend/customer-portal\" \"npm run dev --workspace=frontend/admin-dashboard\"",
     "dev:current": "npm run dev",
     "dev:identity": "npm run dev --workspace=services/identity-service",

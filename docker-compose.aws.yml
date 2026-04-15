@@ -20,11 +20,18 @@ services:
     ports:
       - "3000:3000"
     depends_on:
+      - mongodb
       - user-service
       - product-service
     environment:
       - NODE_ENV=production
       - PORT=3000
+      - MONGODB_URI=mongodb://admin:password@mongodb:27017/ecommerce_platform?authSource=admin
+      - MONGODB_DB_NAME=ecommerce_platform
+      - JWT_SECRET=your-production-jwt-secret
+      - USER_SERVICE_URL=http://user-service:3001
+      - PRODUCT_SERVICE_URL=http://product-service:3002
+      - IDENTITY_SERVICE_URL=http://identity-service:3015
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
