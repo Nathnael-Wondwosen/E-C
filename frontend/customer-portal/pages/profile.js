@@ -5,7 +5,7 @@ import Link from 'next/link';
 import {
   changeUserPassword,
   getUserProfile,
-  updateUserProfile,
+  updateUserProfile
 } from '../utils/userService';
 import { clearCustomerSession } from '../utils/session';
 
@@ -16,10 +16,10 @@ const sellerBusinessTypes = [
   { value: 'wholesaler', label: 'Wholesaler' },
   { value: 'retailer', label: 'Retailer' },
   { value: 'service', label: 'Service Provider' },
-  { value: 'other', label: 'Other' },
+  { value: 'other', label: 'Other' }
 ];
 
-function StatTile({ label, value, tone = 'default' }) {
+function StatTile ({ label, value, tone = 'default' }) {
   const toneClass =
     tone === 'accent'
       ? 'text-[var(--portal-accent-strong)]'
@@ -35,7 +35,7 @@ function StatTile({ label, value, tone = 'default' }) {
   );
 }
 
-function InfoField({ label, value }) {
+function InfoField ({ label, value }) {
   return (
     <div className="portal-soft-card p-4">
       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--portal-accent-strong)]">{label}</p>
@@ -44,7 +44,7 @@ function InfoField({ label, value }) {
   );
 }
 
-function FormField({
+function FormField ({
   id,
   label,
   type = 'text',
@@ -54,7 +54,7 @@ function FormField({
   placeholder = '',
   disabled = false,
   hint = '',
-  children,
+  children
 }) {
   return (
     <label className="block">
@@ -83,7 +83,49 @@ function FormField({
   );
 }
 
-export default function Profile() {
+function SectionHeading ({ eyebrow, title, description }) {
+  return (
+    <div>
+      {eyebrow ? (
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--portal-accent-strong)]">
+          {eyebrow}
+        </p>
+      ) : null}
+      <h3 className="portal-heading mt-2 text-lg font-semibold">{title}</h3>
+      {description ? <p className="portal-muted mt-1 text-sm leading-6">{description}</p> : null}
+    </div>
+  );
+}
+
+function ChecklistItem ({ label, complete }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-[1rem] border border-[var(--portal-border)] bg-white/70 px-3.5 py-3 dark:bg-[rgba(16,25,34,0.7)]">
+      <div className="flex items-center gap-3">
+        <span
+          className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
+            complete
+              ? 'bg-emerald-100 text-emerald-700'
+              : 'bg-amber-100 text-amber-700'
+          }`}
+        >
+          {complete ? 'OK' : '!'}
+        </span>
+        <span className="text-sm font-medium text-[var(--portal-heading)]">{label}</span>
+      </div>
+      <span
+        className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] ${
+          complete
+            ? 'bg-emerald-100 text-emerald-700'
+            : 'bg-amber-100 text-amber-700'
+        }`}
+      >
+        {complete ? 'Ready' : 'Needs work'}
+      </span>
+    </div>
+  );
+}
+
+export default function Profile () {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [formData, setFormData] = useState({
@@ -95,7 +137,7 @@ export default function Profile() {
     businessType: '',
     locationAddress: '',
     locationLat: '',
-    locationLng: '',
+    locationLng: ''
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -106,7 +148,7 @@ export default function Profile() {
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
-    confirmPassword: '',
+    confirmPassword: ''
   });
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -162,7 +204,7 @@ export default function Profile() {
         businessType: userProfile.profile?.businessType || '',
         locationAddress: userProfile.profile?.locationAddress || '',
         locationLat: userProfile.profile?.locationLat || '',
-        locationLng: userProfile.profile?.locationLng || '',
+        locationLng: userProfile.profile?.locationLng || ''
       });
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -201,14 +243,14 @@ export default function Profile() {
           userType: formData.userType,
           ...(formData.userType === 'seller'
             ? {
-                companyName: formData.companyName.trim(),
-                businessType: formData.businessType,
-                locationAddress: formData.locationAddress.trim(),
-                locationLat: formData.locationLat ? Number(formData.locationLat) : null,
-                locationLng: formData.locationLng ? Number(formData.locationLng) : null,
-              }
-            : {}),
-        },
+              companyName: formData.companyName.trim(),
+              businessType: formData.businessType,
+              locationAddress: formData.locationAddress.trim(),
+              locationLat: formData.locationLat ? Number(formData.locationLat) : null,
+              locationLng: formData.locationLng ? Number(formData.locationLng) : null
+            }
+            : {})
+        }
       };
 
       const result = await updateUserProfile(userId, payload);
@@ -223,8 +265,8 @@ export default function Profile() {
         ...result.user,
         profile: {
           ...(prev?.profile || {}),
-          ...payload.profile,
-        },
+          ...payload.profile
+        }
       }));
       setMessage({ tone: 'success', text: 'Profile updated successfully.' });
     } catch (error) {
@@ -254,7 +296,7 @@ export default function Profile() {
     setPasswordForm({
       currentPassword: '',
       newPassword: '',
-      confirmPassword: '',
+      confirmPassword: ''
     });
     setShowPasswordModal(true);
   };
@@ -305,7 +347,7 @@ export default function Profile() {
       formData.email,
       formData.phone,
       formData.userType === 'seller' ? formData.companyName : 'complete',
-      formData.userType === 'seller' ? formData.businessType : 'complete',
+      formData.userType === 'seller' ? formData.businessType : 'complete'
     ];
     const completed = fields.filter((value) => String(value || '').trim()).length;
     return Math.round((completed / fields.length) * 100);
@@ -313,6 +355,7 @@ export default function Profile() {
 
   const accountBadge = formData.userType === 'seller' ? 'Seller Account' : 'Buyer Account';
   const accountHome = formData.userType === 'seller' ? '/dashboard/seller' : '/dashboard/customer';
+  const isSeller = formData.userType === 'seller';
   const initials = (formData.name || formData.email || 'U')
     .split(' ')
     .filter(Boolean)
@@ -323,10 +366,29 @@ export default function Profile() {
   const locationMapLink = hasValidLocation
     ? `https://www.google.com/maps?q=${encodeURIComponent(`${formData.locationLat},${formData.locationLng}`)}`
     : '';
+  const publicShopHref = user?.id || user?._id ? `/seller/${encodeURIComponent(String(user.id || user._id))}` : '';
+  const sellerReadinessItems = useMemo(
+    () => [
+      { label: 'Business name added', complete: Boolean(formData.companyName.trim()) },
+      { label: 'Business type selected', complete: Boolean(formData.businessType.trim()) },
+      { label: 'Contact phone available', complete: Boolean(formData.phone.trim()) },
+      {
+        label: 'Location pinned or address added',
+        complete: Boolean(formData.locationAddress.trim() || hasValidLocation)
+      }
+    ],
+    [formData.businessType, formData.companyName, formData.locationAddress, formData.phone, hasValidLocation]
+  );
+  const sellerReadinessScore = useMemo(() => {
+    if (!isSeller) return profileCompletion;
+    const completed = sellerReadinessItems.filter((item) => item.complete).length;
+    return Math.round((completed / sellerReadinessItems.length) * 100);
+  }, [isSeller, profileCompletion, sellerReadinessItems]);
+  const sellerProfileTone = sellerReadinessScore >= 100 ? 'Launch ready' : sellerReadinessScore >= 75 ? 'Almost ready' : 'In progress';
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (formData.userType !== 'seller') return;
+    if (!isSeller) return;
     if (!mapContainerRef.current) return;
     if (!googleMapsApiKey) {
       setMapError('Google Maps key is missing. Set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to enable map picker.');
@@ -354,7 +416,7 @@ export default function Profile() {
 
       const center = {
         lat: parseCoordinate(formData.locationLat, 9.03),
-        lng: parseCoordinate(formData.locationLng, 38.74),
+        lng: parseCoordinate(formData.locationLng, 38.74)
       };
 
       if (!mapInstanceRef.current) {
@@ -363,7 +425,7 @@ export default function Profile() {
           zoom: hasValidLocation ? 14 : 6,
           mapTypeControl: false,
           streetViewControl: false,
-          fullscreenControl: false,
+          fullscreenControl: false
         });
       }
 
@@ -371,7 +433,7 @@ export default function Profile() {
         mapMarkerRef.current = new window.google.maps.Marker({
           map: mapInstanceRef.current,
           position: center,
-          draggable: true,
+          draggable: true
         });
 
         mapInstanceRef.current.addListener('click', (event) => {
@@ -417,10 +479,10 @@ export default function Profile() {
       }, 200);
       return () => clearInterval(check);
     }
-  }, [formData.userType, googleMapsApiKey, formData.locationLat, formData.locationLng, hasValidLocation]);
+  }, [isSeller, googleMapsApiKey, formData.locationLat, formData.locationLng, hasValidLocation]);
 
   useEffect(() => {
-    if (formData.userType !== 'seller') return;
+    if (!isSeller) return;
     if (!mapInstanceRef.current || !mapMarkerRef.current) return;
     const lat = Number(formData.locationLat);
     const lng = Number(formData.locationLng);
@@ -430,7 +492,7 @@ export default function Profile() {
     if ((mapInstanceRef.current.getZoom() || 0) < 12) {
       mapInstanceRef.current.setZoom(14);
     }
-  }, [formData.locationLat, formData.locationLng, formData.userType]);
+  }, [formData.locationLat, formData.locationLng, isSeller]);
 
   if (loading) {
     return (
@@ -460,12 +522,14 @@ export default function Profile() {
                   {initials || 'U'}
                 </div>
                 <div>
-                  <p className="portal-badge">Account Center</p>
+                  <p className="portal-badge">{isSeller ? 'Seller Studio' : 'Account Center'}</p>
                   <h1 className="portal-heading mt-2 text-[1.75rem] font-semibold tracking-[-0.03em] sm:text-[2.25rem]">
-                    Profile Dashboard
+                    {isSeller ? 'Seller Profile Command' : 'Profile Dashboard'}
                   </h1>
                   <p className="portal-text mt-1 text-sm leading-6 sm:text-[15px]">
-                    Update identity details, business information, and security settings in one polished workspace.
+                    {isSeller
+                      ? 'Shape how your business appears across the seller dashboard, public shop, and inquiry flows from one cleaner workspace.'
+                      : 'Update identity details, account information, and security settings in one polished workspace.'}
                   </p>
                 </div>
               </div>
@@ -473,8 +537,8 @@ export default function Profile() {
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-2">
                 <StatTile label="Completion" value={`${profileCompletion}%`} tone="accent" />
                 <StatTile label="Status" value={accountBadge} tone="success" />
-                <StatTile label="Role" value={formData.userType} />
-                <StatTile label="Security" value="Password" />
+                <StatTile label={isSeller ? 'Shop Readiness' : 'Role'} value={isSeller ? `${sellerReadinessScore}%` : formData.userType} />
+                <StatTile label={isSeller ? 'Profile Mode' : 'Security'} value={isSeller ? sellerProfileTone : 'Password'} />
               </div>
             </div>
           </section>
@@ -491,134 +555,217 @@ export default function Profile() {
             </div>
           ) : null}
 
-          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+          {isSeller ? (
+            <section className="mt-6 rounded-[1.7rem] border border-[rgba(255,255,255,0.7)] bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(242,246,255,0.88))] p-4 shadow-[0_22px_54px_rgba(15,23,32,0.08)] sm:p-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--portal-accent-strong)]">Shop Preview</p>
+                  <h2 className="portal-heading mt-2 text-[1.45rem] font-semibold tracking-[-0.03em] sm:text-[1.75rem]">
+                    {formData.companyName || 'Your seller identity'}
+                  </h2>
+                  <p className="portal-muted mt-2 max-w-2xl text-sm leading-6">
+                    A cleaner summary of how buyers will read your business. Keep this section clear, trustworthy, and easy to scan.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Link href="/dashboard/seller" className="portal-outline-button px-4 py-2 text-sm">
+                    Seller Dashboard
+                  </Link>
+                  {publicShopHref ? (
+                    <Link href={publicShopHref} className="portal-primary-button px-4 py-2 text-sm">
+                      Preview Public Shop
+                    </Link>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-[1.2rem] bg-[linear-gradient(135deg,#0F172A,#1D4ED8)] p-4 text-white shadow-[0_18px_38px_rgba(29,78,216,0.22)]">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/70">Company</p>
+                  <p className="mt-3 text-base font-semibold">{formData.companyName || 'Add company name'}</p>
+                </div>
+                <div className="rounded-[1.2rem] bg-[linear-gradient(135deg,#0B4D63,#0F766E)] p-4 text-white shadow-[0_18px_38px_rgba(15,118,110,0.2)]">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/70">Business Type</p>
+                  <p className="mt-3 text-base font-semibold">{formData.businessType || 'Select type'}</p>
+                </div>
+                <div className="rounded-[1.2rem] bg-[linear-gradient(135deg,#5B21B6,#7C3AED)] p-4 text-white shadow-[0_18px_38px_rgba(124,58,237,0.2)]">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/70">Readiness</p>
+                  <p className="mt-3 text-base font-semibold">{sellerReadinessScore}% ready</p>
+                </div>
+                <div className="rounded-[1.2rem] border border-[var(--portal-border)] bg-white/80 p-4 shadow-[0_14px_28px_rgba(15,23,32,0.05)]">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--portal-muted)]">Location</p>
+                  <p className="portal-heading mt-3 text-sm font-semibold leading-6">
+                    {formData.locationAddress || (hasValidLocation ? `${formData.locationLat}, ${formData.locationLng}` : 'Add address or map pin')}
+                  </p>
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.08fr)_340px]">
             <section className="portal-card overflow-hidden">
               <div className="border-b border-[var(--portal-border)] bg-[linear-gradient(135deg,#18232f,#283749)] px-5 py-4 sm:px-6">
-                <h2 className="text-lg font-semibold text-white">Profile Information</h2>
+                <h2 className="text-lg font-semibold text-white">
+                  {isSeller ? 'Business Profile Studio' : 'Profile Information'}
+                </h2>
                 <p className="mt-1 text-sm text-slate-300">
-                  Keep your personal and business details accurate for orders, invoices, and account flows.
+                  {isSeller
+                    ? 'Keep your business identity sharp, trustworthy, and easy for buyers to understand.'
+                    : 'Keep your personal details accurate for orders, invoices, and account flows.'}
                 </p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-6 p-5 sm:p-6">
-                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                  <FormField
-                    id="name"
-                    label="Full Name"
-                    value={formData.name}
-                    onChange={(e) => setField('name', e.target.value)}
-                    required
-                    placeholder="Enter your full name"
-                  />
-
-                  <FormField
-                    id="email"
-                    label="Email Address"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setField('email', e.target.value)}
-                    required
-                    placeholder="Enter your email address"
-                  />
-
-                  <FormField
-                    id="phone"
-                    label="Phone Number"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setField('phone', e.target.value)}
-                    placeholder="Enter your phone number"
-                  />
-
-                  <FormField id="userType" label="Account Type" hint="Locked">
-                    <select
-                      id="userType"
-                      name="userType"
-                      value={formData.userType}
-                      disabled
-                      className="portal-input !border-[#E2E8F0] !bg-[#F8FAFC] !text-[#7A818C] dark:!border-[#33414f] dark:!bg-[#17212c] dark:!text-[#8f99a6]"
-                    >
-                      <option value="buyer">Buyer</option>
-                      <option value="seller">Seller</option>
-                    </select>
-                  </FormField>
-
-                  {formData.userType === 'seller' ? (
-                    <>
+                <div className="space-y-6">
+                  <div className="rounded-[1.25rem] border border-[var(--portal-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(255,255,255,0.72))] p-4 sm:p-5">
+                    <SectionHeading
+                      eyebrow="Identity"
+                      title={isSeller ? 'Owner and account details' : 'Personal details'}
+                      description={
+                        isSeller
+                          ? 'These details support trust, account recovery, and buyer communication.'
+                          : 'These details identify your account across the portal.'
+                      }
+                    />
+                    <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
                       <FormField
-                        id="companyName"
-                        label="Company Name"
-                        value={formData.companyName}
-                        onChange={(e) => setField('companyName', e.target.value)}
-                        placeholder="Enter your company name"
+                        id="name"
+                        label="Full Name"
+                        value={formData.name}
+                        onChange={(e) => setField('name', e.target.value)}
+                        required
+                        placeholder="Enter your full name"
                       />
 
-                      <FormField id="businessType" label="Business Type">
+                      <FormField
+                        id="email"
+                        label="Email Address"
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => setField('email', e.target.value)}
+                        required
+                        placeholder="Enter your email address"
+                      />
+
+                      <FormField
+                        id="phone"
+                        label="Phone Number"
+                        type="tel"
+                        value={formData.phone}
+                        onChange={(e) => setField('phone', e.target.value)}
+                        placeholder="Enter your phone number"
+                      />
+
+                      <FormField id="userType" label="Account Type" hint="Locked">
                         <select
-                          id="businessType"
-                          name="businessType"
-                          value={formData.businessType}
-                          onChange={(e) => setField('businessType', e.target.value)}
-                          className="portal-input"
+                          id="userType"
+                          name="userType"
+                          value={formData.userType}
+                          disabled
+                          className="portal-input !border-[#E2E8F0] !bg-[#F8FAFC] !text-[#7A818C] dark:!border-[#33414f] dark:!bg-[#17212c] dark:!text-[#8f99a6]"
                         >
-                          {sellerBusinessTypes.map((option) => (
-                            <option key={option.value || 'empty'} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
+                          <option value="buyer">Buyer</option>
+                          <option value="seller">Seller</option>
                         </select>
                       </FormField>
+                    </div>
+                  </div>
 
-                      <FormField
-                        id="locationAddress"
-                        label="Business Address"
-                        value={formData.locationAddress}
-                        onChange={(e) => setField('locationAddress', e.target.value)}
-                        placeholder="Enter your address or pick on map"
-                      />
+                  {isSeller ? (
+                    <>
+                      <div className="rounded-[1.25rem] border border-[var(--portal-border)] bg-[radial-gradient(circle_at_top_left,rgba(251,113,133,0.08),transparent_22%),radial-gradient(circle_at_top_right,rgba(59,130,246,0.08),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.94),rgba(255,255,255,0.78))] p-4 sm:p-5">
+                        <SectionHeading
+                          eyebrow="Shop Identity"
+                          title="Business details buyers should trust"
+                          description="Give the shop a clear name, category, and location so it feels credible at first glance."
+                        />
+                        <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+                          <FormField
+                            id="companyName"
+                            label="Company Name"
+                            value={formData.companyName}
+                            onChange={(e) => setField('companyName', e.target.value)}
+                            placeholder="Enter your company name"
+                          />
 
-                      <FormField
-                        id="locationLat"
-                        label="Latitude"
-                        value={formData.locationLat}
-                        onChange={(e) => setField('locationLat', e.target.value)}
-                        placeholder="e.g. 9.030000"
-                      />
-
-                      <FormField
-                        id="locationLng"
-                        label="Longitude"
-                        value={formData.locationLng}
-                        onChange={(e) => setField('locationLng', e.target.value)}
-                        placeholder="e.g. 38.740000"
-                      />
-
-                      <div className="md:col-span-2">
-                        <div className="mb-2 flex items-center justify-between">
-                          <p className="text-[13px] font-medium text-[var(--auth-label)]">Business Location Map</p>
-                          {locationMapLink ? (
-                            <a
-                              href={locationMapLink}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-xs font-semibold text-[var(--portal-accent-strong)] hover:underline"
+                          <FormField id="businessType" label="Business Type">
+                            <select
+                              id="businessType"
+                              name="businessType"
+                              value={formData.businessType}
+                              onChange={(e) => setField('businessType', e.target.value)}
+                              className="portal-input"
                             >
-                              Open in Google Maps
-                            </a>
+                              {sellerBusinessTypes.map((option) => (
+                                <option key={option.value || 'empty'} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </FormField>
+
+                          <div className="md:col-span-2">
+                            <FormField
+                              id="locationAddress"
+                              label="Business Address"
+                              value={formData.locationAddress}
+                              onChange={(e) => setField('locationAddress', e.target.value)}
+                              placeholder="Enter your address or pick on map"
+                            />
+                          </div>
+
+                          <FormField
+                            id="locationLat"
+                            label="Latitude"
+                            value={formData.locationLat}
+                            onChange={(e) => setField('locationLat', e.target.value)}
+                            placeholder="e.g. 9.030000"
+                          />
+
+                          <FormField
+                            id="locationLng"
+                            label="Longitude"
+                            value={formData.locationLng}
+                            onChange={(e) => setField('locationLng', e.target.value)}
+                            placeholder="e.g. 38.740000"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="rounded-[1.25rem] border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] p-4 sm:p-5">
+                        <SectionHeading
+                          eyebrow="Location Studio"
+                          title="Pin the exact business location"
+                          description="A precise location helps buyers verify where the shop operates and improves logistics clarity."
+                        />
+                        <div className="mt-5">
+                          <div className="mb-2 flex items-center justify-between">
+                            <p className="text-[13px] font-medium text-[var(--auth-label)]">Business Location Map</p>
+                            {locationMapLink ? (
+                              <a
+                                href={locationMapLink}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs font-semibold text-[var(--portal-accent-strong)] hover:underline"
+                              >
+                                Open in Google Maps
+                              </a>
+                            ) : null}
+                          </div>
+                          <div className="overflow-hidden rounded-[1rem] border border-[var(--portal-border)] bg-[var(--portal-surface)]">
+                            <div ref={mapContainerRef} className="h-64 w-full" />
+                          </div>
+                          <p className="mt-2 text-xs text-[var(--portal-muted)]">
+                            Click the map or drag the marker to set your exact seller location.
+                          </p>
+                          {!mapReady && !mapError ? (
+                            <p className="mt-1 text-xs text-[var(--portal-muted)]">Loading map...</p>
+                          ) : null}
+                          {mapError ? (
+                            <p className="mt-1 text-xs text-red-600">{mapError}</p>
                           ) : null}
                         </div>
-                        <div className="overflow-hidden rounded-[1rem] border border-[var(--portal-border)] bg-[var(--portal-surface-muted)]">
-                          <div ref={mapContainerRef} className="h-64 w-full" />
-                        </div>
-                        <p className="mt-2 text-xs text-[var(--portal-muted)]">
-                          Click the map or drag the marker to set your exact seller location.
-                        </p>
-                        {!mapReady && !mapError ? (
-                          <p className="mt-1 text-xs text-[var(--portal-muted)]">Loading map...</p>
-                        ) : null}
-                        {mapError ? (
-                          <p className="mt-1 text-xs text-red-600">{mapError}</p>
-                        ) : null}
                       </div>
                     </>
                   ) : null}
@@ -641,13 +788,15 @@ export default function Profile() {
             <aside className="space-y-6">
               <section className="portal-card overflow-hidden">
                 <div className="border-b border-[var(--portal-border)] px-5 py-4">
-                  <h2 className="portal-heading text-base font-semibold">Account Snapshot</h2>
+                  <h2 className="portal-heading text-base font-semibold">
+                    {isSeller ? 'Seller Snapshot' : 'Account Snapshot'}
+                  </h2>
                 </div>
                 <div className="space-y-3 p-5">
                   <InfoField label="Name" value={formData.name} />
                   <InfoField label="Email" value={formData.email} />
                   <InfoField label="Phone" value={formData.phone} />
-                  {formData.userType === 'seller' ? (
+                  {isSeller ? (
                     <>
                       <InfoField label="Company" value={formData.companyName} />
                       <InfoField label="Business Type" value={formData.businessType} />
@@ -656,6 +805,36 @@ export default function Profile() {
                   ) : null}
                 </div>
               </section>
+
+              {isSeller ? (
+                <section className="portal-card overflow-hidden">
+                  <div className="border-b border-[var(--portal-border)] px-5 py-4">
+                    <h2 className="portal-heading text-base font-semibold">Readiness Checklist</h2>
+                    <p className="portal-muted mt-1 text-xs">
+                      Simple profile tasks that improve trust and make the seller workspace more complete.
+                    </p>
+                  </div>
+                  <div className="space-y-3 p-5">
+                    <div className="rounded-[1rem] border border-[var(--portal-border)] bg-[linear-gradient(135deg,rgba(255,255,255,0.92),rgba(250,232,255,0.7),rgba(239,246,255,0.82))] p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--portal-accent-strong)]">
+                        Seller Readiness
+                      </p>
+                      <div className="mt-3 flex items-end justify-between gap-3">
+                        <p className="text-3xl font-semibold text-[var(--portal-heading)]">{sellerReadinessScore}%</p>
+                        <p className="text-sm font-medium text-[var(--portal-muted)]">{sellerProfileTone}</p>
+                      </div>
+                    </div>
+                    {sellerReadinessItems.map((item) => (
+                      <ChecklistItem key={item.label} label={item.label} complete={item.complete} />
+                    ))}
+                    {publicShopHref ? (
+                      <Link href={publicShopHref} className="portal-outline-button w-full text-center">
+                        Preview Public Shop
+                      </Link>
+                    ) : null}
+                  </div>
+                </section>
+              ) : null}
 
               <section className="portal-card overflow-hidden">
                 <div className="border-b border-[var(--portal-border)] px-5 py-4">

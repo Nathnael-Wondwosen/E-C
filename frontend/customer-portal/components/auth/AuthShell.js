@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-function resolveThemeClasses(isDarkMode) {
+function resolveThemeClasses (isDarkMode) {
   if (isDarkMode) {
     return {
       page: 'bg-[#091018] text-[#F5E7C2]',
@@ -24,7 +24,7 @@ function resolveThemeClasses(isDarkMode) {
       link: 'text-[#D4B06A] hover:text-[#E7C98D]',
       toggle: 'border-[#324153] bg-[#111B26] text-[#E7D3A5]',
       grid:
-        '[background-image:linear-gradient(to_right,rgba(200,169,107,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(200,169,107,0.05)_1px,transparent_1px)]',
+        '[background-image:linear-gradient(to_right,rgba(200,169,107,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(200,169,107,0.05)_1px,transparent_1px)]'
     };
   }
 
@@ -50,7 +50,7 @@ function resolveThemeClasses(isDarkMode) {
     link: 'text-[#C026D3] hover:text-[#DB2777]',
     toggle: 'border-white/90 bg-white/96 text-[#7C3AED]',
     grid:
-      '[background-image:linear-gradient(to_right,rgba(148,163,184,0.07)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.07)_1px,transparent_1px)]',
+      '[background-image:linear-gradient(to_right,rgba(148,163,184,0.07)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.07)_1px,transparent_1px)]'
   };
 }
 
@@ -65,7 +65,7 @@ const defaultMetrics = [
   { label: 'Design Tone', value: 'Editorial' }
 ];
 
-export default function AuthShell({
+export default function AuthShell ({
   badge = 'Customer Access',
   title,
   description,
@@ -78,7 +78,7 @@ export default function AuthShell({
   panelDescription = 'Authentication should feel connected to the flagship experience, not like a detached utility screen.',
   highlights = defaultHighlights,
   metrics = defaultMetrics,
-  hidePanelOnMobile = false,
+  hidePanelOnMobile = false
 }) {
   const [isDarkMode, setIsDarkMode] = useState(false);
 
@@ -107,7 +107,7 @@ export default function AuthShell({
   const formWidthClass = size === 'wide' ? 'max-w-[560px]' : 'max-w-[520px]';
 
   return (
-    <div className={`${isDarkMode ? 'dark' : ''} relative min-h-screen overflow-hidden px-4 py-4 sm:px-6 sm:py-6 ${theme.page}`}>
+    <div className={`${isDarkMode ? 'dark' : ''} relative min-h-screen overflow-hidden px-3 py-3 sm:px-6 sm:py-6 ${theme.page}`}>
       <div className={`pointer-events-none absolute inset-0 ${theme.background}`} />
       <div className={`pointer-events-none absolute -left-20 top-8 h-64 w-64 rounded-full blur-3xl ${theme.glowA}`} />
       <div className={`pointer-events-none absolute right-8 top-1/4 h-72 w-72 rounded-full blur-3xl ${theme.glowB}`} />
@@ -126,15 +126,15 @@ export default function AuthShell({
       <button
         type="button"
         onClick={() => setIsDarkMode((prev) => !prev)}
-        className={`absolute right-4 top-4 z-20 inline-flex h-10 min-w-10 items-center justify-center rounded-full border px-3 text-[11px] font-semibold backdrop-blur-md sm:right-6 sm:top-6 ${theme.toggle}`}
+        className={`absolute right-3 top-3 z-20 inline-flex h-9 min-w-9 items-center justify-center rounded-full border px-3 text-[10px] font-semibold backdrop-blur-md sm:right-6 sm:top-6 sm:h-10 sm:min-w-10 sm:text-[11px] ${theme.toggle}`}
         aria-label="Toggle theme"
       >
         {isDarkMode ? 'Light' : 'Dark'}
       </button>
 
-      <div className="relative z-10 mx-auto flex min-h-[calc(100vh-2rem)] w-full items-center justify-center">
+      <div className="relative z-10 mx-auto flex min-h-[calc(100vh-1.5rem)] w-full items-center justify-center sm:min-h-[calc(100vh-2rem)]">
         <section
-          className={`group relative w-full overflow-hidden rounded-[1.6rem] border p-3 backdrop-blur-xl transition duration-300 ease-out hover:-translate-y-0.5 hover:shadow-[0_34px_90px_rgba(15,23,42,0.14)] focus-within:-translate-y-1 focus-within:shadow-[0_38px_110px_rgba(15,23,42,0.18)] sm:p-4 ${theme.shell} ${shellWidthClass}`}
+          className={`group relative w-full overflow-hidden rounded-[1.35rem] border p-2.5 backdrop-blur-xl transition duration-300 ease-out hover:-translate-y-0.5 hover:shadow-[0_34px_90px_rgba(15,23,42,0.14)] focus-within:-translate-y-1 focus-within:shadow-[0_38px_110px_rgba(15,23,42,0.18)] sm:rounded-[1.6rem] sm:p-4 ${theme.shell} ${shellWidthClass}`}
         >
           <div className={`pointer-events-none absolute -inset-6 -z-10 hidden rounded-[2rem] blur-3xl transition duration-300 lg:block ${theme.shellGlow}`} />
           {!isDarkMode ? (
@@ -188,13 +188,13 @@ export default function AuthShell({
             </aside>
 
             <div className="flex items-center justify-center">
-              <div className={`relative w-full rounded-[1.25rem] px-3 py-4 sm:px-5 sm:py-6 ${formWidthClass}`}>
-                <div className="mb-6 text-center">
+              <div className={`relative w-full rounded-[1.15rem] px-2 py-3 sm:rounded-[1.25rem] sm:px-5 sm:py-6 ${formWidthClass}`}>
+                <div className="mb-5 text-center sm:mb-6">
                   <p className={`mx-auto mb-2 w-max rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${theme.badge}`}>
                     {badge}
                   </p>
-                  <h1 className={`text-[1.5rem] font-semibold tracking-[-0.03em] sm:text-[1.8rem] ${theme.title}`}>{title}</h1>
-                  <p className={`mx-auto mt-2 max-w-md text-[12.5px] leading-6 sm:text-[13px] ${theme.text}`}>{description}</p>
+                  <h1 className={`text-[1.35rem] font-semibold tracking-[-0.03em] sm:text-[1.8rem] ${theme.title}`}>{title}</h1>
+                  <p className={`mx-auto mt-2 max-w-md text-[12px] leading-5 sm:text-[13px] sm:leading-6 ${theme.text}`}>{description}</p>
                 </div>
 
                 <div className="flex-1">{children}</div>

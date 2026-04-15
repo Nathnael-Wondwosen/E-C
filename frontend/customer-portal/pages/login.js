@@ -8,7 +8,7 @@ import { hydrateCustomerSessionFromToken, setCustomerSession } from '../utils/se
 import AuthShell from '../components/auth/AuthShell';
 import { AuthAlert, AuthDivider } from '../components/auth/AuthPrimitives';
 
-export default function CustomerLogin() {
+export default function CustomerLogin () {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -17,7 +17,9 @@ export default function CustomerLogin() {
   const [googleReady, setGoogleReady] = useState(false);
   const [googleWarning, setGoogleWarning] = useState('');
   const [resolvedGoogleClientId, setResolvedGoogleClientId] = useState(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '');
+  const [googleButtonWidth, setGoogleButtonWidth] = useState(320);
   const googleInitRef = useRef({ initialized: false, clientId: '' });
+  const googleButtonWrapRef = useRef(null);
   const router = useRouter();
   const googleClientId = resolvedGoogleClientId;
 
@@ -69,7 +71,7 @@ export default function CustomerLogin() {
     setCustomerSession({
       user: result.user,
       token: result.token,
-      fallbackEmail,
+      fallbackEmail
     });
 
     const redirectDestination = localStorage.getItem('redirectAfterLogin');
@@ -145,7 +147,7 @@ export default function CustomerLogin() {
       ) {
         window.google.accounts.id.initialize({
           client_id: googleClientId,
-          callback: handleGoogleCredential,
+          callback: handleGoogleCredential
         });
         googleInitRef.current = { initialized: true, clientId: googleClientId };
         window.__customerPortalGoogleInitClientId = googleClientId;
@@ -159,16 +161,30 @@ export default function CustomerLogin() {
         window.google.accounts.id.renderButton(googleButton, {
           theme: 'outline',
           size: 'large',
-          width: 320,
+          width: googleButtonWidth,
           text: 'continue_with',
-          shape: 'rectangular',
+          shape: 'rectangular'
         });
       }
     } catch (err) {
       console.error('Google button initialization failed:', err);
       setGoogleWarning('Google sign-in is unavailable for this environment. Check the OAuth client authorized origins if the problem continues.');
     }
-  }, [googleClientId, googleReady, handleGoogleCredential]);
+  }, [googleButtonWidth, googleClientId, googleReady, handleGoogleCredential]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const updateGoogleWidth = () => {
+      const containerWidth = googleButtonWrapRef.current?.offsetWidth || 0;
+      if (!containerWidth) return;
+      setGoogleButtonWidth(Math.max(220, Math.min(360, Math.floor(containerWidth))));
+    };
+
+    updateGoogleWidth();
+    window.addEventListener('resize', updateGoogleWidth);
+    return () => window.removeEventListener('resize', updateGoogleWidth);
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -288,7 +304,7 @@ export default function CustomerLogin() {
 
           {error ? <AuthAlert>{error}</AuthAlert> : null}
 
-          <div className="flex items-center justify-between gap-3 text-sm">
+          <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
             <label htmlFor="remember-me" className="flex items-center gap-2 text-[var(--auth-muted)]">
               <input
                 id="remember-me"
@@ -299,7 +315,7 @@ export default function CustomerLogin() {
               Remember me
             </label>
 
-            <Link href="/forgot-password" className="font-semibold text-[#8E6A2F] hover:text-[#A8823E]">
+            <Link href="/forgot-password" className="font-semibold text-[#8E6A2F] hover:text-[#A8823E] sm:text-right">
               Forgot password?
             </Link>
           </div>
@@ -312,7 +328,9 @@ export default function CustomerLogin() {
             <div className="pt-1">
               <AuthDivider>or continue with</AuthDivider>
               <div className="mt-3 flex justify-center">
-                <div id="google-signin-button" />
+                <div ref={googleButtonWrapRef} className="w-full max-w-[360px] overflow-hidden rounded-[1rem]">
+                  <div id="google-signin-button" />
+                </div>
               </div>
               {googleWarning ? <p className="mt-2 text-center text-xs text-amber-700">{googleWarning}</p> : null}
             </div>

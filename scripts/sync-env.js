@@ -89,6 +89,8 @@ function ensureRootEnv() {
 
 function parseEnvFile(content) {
   const env = {};
+  const duplicates = [];
+  const seenKeys = new Set();
 
   for (const rawLine of content.split(/\r?\n/)) {
     const line = rawLine.trim();
@@ -103,10 +105,14 @@ function parseEnvFile(content) {
 
     const key = line.slice(0, separatorIndex).trim();
     const value = line.slice(separatorIndex + 1);
+    if (seenKeys.has(key)) {
+      duplicates.push(key);
+    }
+    seenKeys.add(key);
     env[key] = value;
   }
 
-  return env;
+  return { env, duplicates };
 }
 
 function serializeEnv(title, sourceEnv, keys) {
@@ -132,22 +138,53 @@ function writeTarget(target, sourceEnv) {
   fs.writeFileSync(target.path, content, 'utf8');
 }
 
+function validateEnv(sourceEnv, duplicates) {
+  const warnings = [];
+  const requiredKeys = ['MONGODB_URI', 'JWT_SECRET', 'NEXT_PUBLIC_API_BASE_URL'];
+  const missingKeys = requiredKeys.filter((key) => !sourceEnv[key]);
+
+  if (duplicates.length) {
+    warnings.push(`Duplicate keys found in .env: ${Array.from(new Set(duplicates)).join(', ')}`);
+  }
+
+  if (sourceEnv.IDENTITY_SERVICE_PORT && sourceEnv.IDENTITY_SERVICE_PORT !== '3015') {
+    warnings.push(`IDENTITY_SERVICE_PORT is ${sourceEnv.IDENTITY_SERVICE_PORT}; expected 3015`);
+  }
+
+  if (sourceEnv.IDENTITY_SERVICE_URL && !sourceEnv.IDENTITY_SERVICE_URL.includes(':3015')) {
+    warnings.push(`IDENTITY_SERVICE_URL is ${sourceEnv.IDENTITY_SERVICE_URL}; expected port 3015`);
+  }
+
+  if (sourceEnv.NEXT_PUBLIC_API_BASE_URL && /^http:\/\/localhost\b|^http:\/\/127\.0\.0\.1\b/.test(sourceEnv.NEXT_PUBLIC_API_BASE_URL)) {
+    warnings.push(`NEXT_PUBLIC_API_BASE_URL is ${sourceEnv.NEXT_PUBLIC_API_BASE_URL}; use your public domain on AWS`);
+  }
+
+  if (sourceEnv.CORS_ORIGIN && /^http:\/\/localhost\b|^http:\/\/127\.0\.0\.1\b/.test(sourceEnv.CORS_ORIGIN)) {
+    warnings.push(`CORS_ORIGIN is ${sourceEnv.CORS_ORIGIN}; use your public domain on AWS`);
+  }
+
+  return { missingKeys, warnings };
+}
+
 function main() {
   const createdRootEnv = ensureRootEnv();
-  const sourceEnv = parseEnvFile(fs.readFileSync(rootEnvPath, 'utf8'));
+  const { env: sourceEnv, duplicates } = parseEnvFile(fs.readFileSync(rootEnvPath, 'utf8'));
 
   for (const target of TARGETS) {
     writeTarget(target, sourceEnv);
   }
 
-  const requiredKeys = ['MONGODB_URI', 'JWT_SECRET', 'NEXT_PUBLIC_API_BASE_URL'];
-  const missingKeys = requiredKeys.filter((key) => !sourceEnv[key]);
+  const { missingKeys, warnings } = validateEnv(sourceEnv, duplicates);
 
   if (createdRootEnv) {
     console.log('Created .env from .env.example.');
   }
 
   console.log('Synced frontend environment files from the root .env.');
+
+  for (const warning of warnings) {
+    console.log(`Warning: ${warning}`);
+  }
 
   if (missingKeys.length) {
     console.log(`Still missing required values in .env: ${missingKeys.join(', ')}`);
