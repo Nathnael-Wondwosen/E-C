@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    color-scheme: light;
     --auth-surface: rgba(255, 255, 255, 0.92);
     --auth-surface-strong: #ffffff;
     --auth-border: rgba(224, 229, 239, 0.95);
@@ -30,6 +31,7 @@
   }
 
   .dark {
+    color-scheme: dark;
     --auth-surface: rgba(19, 28, 38, 0.92);
     --auth-surface-strong: rgba(15, 23, 32, 0.98);
     --auth-border: rgba(54, 67, 82, 0.95);

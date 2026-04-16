@@ -4,7 +4,10 @@ export const CUSTOMER_SESSION_KEYS = [
   'userType',
   'userId',
   'userToken',
+  'customerSessionSnapshot'
 ];
+
+const CUSTOMER_SESSION_SNAPSHOT_KEY = 'customerSessionSnapshot';
 
 const decodeJwtPayload = (token = '') => {
   try {
@@ -34,6 +37,19 @@ const resolveUserType = (user = {}, fallback = 'buyer') =>
   fallback ||
   'buyer';
 
+const readSessionSnapshot = () => {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const raw = localStorage.getItem(CUSTOMER_SESSION_SNAPSHOT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
 export const setCustomerSession = ({ user = {}, token = '', fallbackEmail = '', fallbackUserType = 'buyer' }) => {
   if (typeof window === 'undefined') return '';
 
@@ -50,17 +66,32 @@ export const setCustomerSession = ({ user = {}, token = '', fallbackEmail = '', 
     localStorage.setItem('userToken', String(token).trim());
   }
 
+  localStorage.setItem(CUSTOMER_SESSION_SNAPSHOT_KEY, JSON.stringify({
+    loggedIn: true,
+    userId,
+    userEmail,
+    userType,
+    userToken: token && String(token).trim() ? String(token).trim() : String(localStorage.getItem('userToken') || '').trim()
+  }));
+
   window.dispatchEvent(new CustomEvent('loginStatusChanged'));
   return userType;
 };
 
 export const hydrateCustomerSessionFromToken = () => {
   if (typeof window === 'undefined') return false;
-  const token = String(localStorage.getItem('userToken') || '').trim();
-  if (!token) return false;
+  const snapshot = readSessionSnapshot();
+  const token = String(localStorage.getItem('userToken') || snapshot?.userToken || '').trim();
+  const snapshotLoggedIn = snapshot?.loggedIn === true;
 
-  const payload = decodeJwtPayload(token);
-  if (!payload) return false;
+  if (!token && !snapshotLoggedIn) return false;
+
+  if (token && !localStorage.getItem('userToken')) {
+    localStorage.setItem('userToken', token);
+  }
+
+  const payload = token ? decodeJwtPayload(token) : null;
+  if (token && !payload) return false;
 
   const expiresAtMs = Number(payload?.exp || 0) * 1000;
   if (Number.isFinite(expiresAtMs) && expiresAtMs > 0 && Date.now() >= expiresAtMs) {
@@ -69,9 +100,9 @@ export const hydrateCustomerSessionFromToken = () => {
   }
 
   const currentLoggedIn = localStorage.getItem('userLoggedIn') === 'true';
-  const userId = String(localStorage.getItem('userId') || payload?.sub || payload?.id || '').trim();
-  const userType = String(localStorage.getItem('userType') || getTypeFromPayload(payload) || 'buyer').trim();
-  const userEmail = String(localStorage.getItem('userEmail') || payload?.email || '').trim();
+  const userId = String(localStorage.getItem('userId') || snapshot?.userId || payload?.sub || payload?.id || '').trim();
+  const userType = String(localStorage.getItem('userType') || snapshot?.userType || getTypeFromPayload(payload) || 'buyer').trim();
+  const userEmail = String(localStorage.getItem('userEmail') || snapshot?.userEmail || payload?.email || '').trim();
 
   if (!currentLoggedIn || !localStorage.getItem('userId') || !localStorage.getItem('userType')) {
     localStorage.setItem('userLoggedIn', 'true');
@@ -80,6 +111,14 @@ export const hydrateCustomerSessionFromToken = () => {
     if (userEmail) localStorage.setItem('userEmail', userEmail);
     window.dispatchEvent(new CustomEvent('loginStatusChanged'));
   }
+
+  localStorage.setItem(CUSTOMER_SESSION_SNAPSHOT_KEY, JSON.stringify({
+    loggedIn: true,
+    userId,
+    userEmail,
+    userType: userType || 'buyer',
+    userToken: token
+  }));
 
   return true;
 };

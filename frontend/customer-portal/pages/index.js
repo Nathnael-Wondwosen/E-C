@@ -294,7 +294,8 @@ function ParticleBackground({ isDarkMode }) {
 
 export default function Home() {
   const router = useRouter();
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isThemeManagedBySystem, setIsThemeManagedBySystem] = useState(true);
   const [activeNode, setActiveNode] = useState('b2b');
   const [activeModal, setActiveModal] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -311,6 +312,30 @@ export default function Home() {
     document.body.classList.remove('dark-mode', 'light-mode');
     document.body.classList.add(isDarkMode ? 'dark-mode' : 'light-mode');
   }, [isDarkMode]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      setIsDarkMode(false);
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const applySystemTheme = () => {
+      if (isThemeManagedBySystem) {
+        setIsDarkMode(mediaQuery.matches);
+      }
+    };
+
+    applySystemTheme();
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', applySystemTheme);
+      return () => mediaQuery.removeEventListener('change', applySystemTheme);
+    }
+
+    mediaQuery.addListener(applySystemTheme);
+    return () => mediaQuery.removeListener(applySystemTheme);
+  }, [isThemeManagedBySystem]);
 
   useEffect(() => {
     const updateViewportMode = () => {
@@ -389,6 +414,7 @@ export default function Home() {
           content="A futuristic, investor-ready gateway for the TradeEthiopia Business Group ecosystem."
         />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="color-scheme" content={isDarkMode ? 'dark' : 'light'} />
       </Head>
 
       <style jsx global>{`
@@ -784,7 +810,10 @@ export default function Home() {
 
             <div className="flex items-center gap-2 sm:gap-3">
               <button
-                onClick={() => setIsDarkMode((prev) => !prev)}
+                onClick={() => {
+                  setIsThemeManagedBySystem(false);
+                  setIsDarkMode((prev) => !prev);
+                }}
                 className={`w-11 h-11 rounded-2xl flex items-center justify-center text-lg ${
                   isDarkMode ? 'bg-white/5 text-yellow-300' : 'bg-slate-900 text-white'
                 }`}
@@ -872,6 +901,8 @@ export default function Home() {
 
                 <div className="flex flex-col sm:flex-row gap-4">
                   <button
+                    type="button"
+                    onClick={() => router.push('/marketplace')}
                     className={`px-7 py-4 rounded-2xl font-bold ${
                       isDarkMode
                         ? 'bg-gradient-to-r from-indigo-600 to-cyan-600 text-white'
