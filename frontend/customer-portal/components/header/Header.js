@@ -12,22 +12,16 @@ import {
 import { getCategories } from '../../utils/heroDataService';
 import { STATIC_NAVBAR_LINKS } from '../../constants/navbarLinks';
 import AccountDropdown from './AccountDropdown';
-import { clearCustomerSession } from '../../utils/session';
+import { clearCustomerSession, getCustomerSessionState } from '../../utils/session';
 
 const supportedLocales = ['en', 'es', 'fr', 'de'];
 
 const isLoggedIn = () => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('userLoggedIn') === 'true';
-  }
-  return false;
+  return getCustomerSessionState().loggedIn;
 };
 
 const getUserType = () => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('userType') || 'buyer';
-  }
-  return 'buyer';
+  return getCustomerSessionState().userType;
 };
 
 const protectRoute = (route) => {

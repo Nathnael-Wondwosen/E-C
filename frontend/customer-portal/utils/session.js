@@ -50,6 +50,11 @@ const readSessionSnapshot = () => {
   }
 };
 
+const normalizeSessionUserType = (value, fallback = 'buyer') => {
+  const normalized = String(value || '').trim().toLowerCase();
+  return normalized || fallback;
+};
+
 export const setCustomerSession = ({ user = {}, token = '', fallbackEmail = '', fallbackUserType = 'buyer' }) => {
   if (typeof window === 'undefined') return '';
 
@@ -83,15 +88,16 @@ export const hydrateCustomerSessionFromToken = () => {
   const snapshot = readSessionSnapshot();
   const token = String(localStorage.getItem('userToken') || snapshot?.userToken || '').trim();
   const snapshotLoggedIn = snapshot?.loggedIn === true;
+  const currentLoggedIn = localStorage.getItem('userLoggedIn') === 'true';
+  const hasRecoverableSession = snapshotLoggedIn || currentLoggedIn;
 
-  if (!token && !snapshotLoggedIn) return false;
+  if (!token && !hasRecoverableSession) return false;
 
   if (token && !localStorage.getItem('userToken')) {
     localStorage.setItem('userToken', token);
   }
 
   const payload = token ? decodeJwtPayload(token) : null;
-  if (token && !payload) return false;
 
   const expiresAtMs = Number(payload?.exp || 0) * 1000;
   if (Number.isFinite(expiresAtMs) && expiresAtMs > 0 && Date.now() >= expiresAtMs) {
@@ -99,15 +105,15 @@ export const hydrateCustomerSessionFromToken = () => {
     return false;
   }
 
-  const currentLoggedIn = localStorage.getItem('userLoggedIn') === 'true';
   const userId = String(localStorage.getItem('userId') || snapshot?.userId || payload?.sub || payload?.id || '').trim();
-  const userType = String(localStorage.getItem('userType') || snapshot?.userType || getTypeFromPayload(payload) || 'buyer').trim();
+  const userType = normalizeSessionUserType(localStorage.getItem('userType') || snapshot?.userType || getTypeFromPayload(payload) || 'buyer');
   const userEmail = String(localStorage.getItem('userEmail') || snapshot?.userEmail || payload?.email || '').trim();
+  const shouldHydrate = hasRecoverableSession || Boolean(token);
 
-  if (!currentLoggedIn || !localStorage.getItem('userId') || !localStorage.getItem('userType')) {
+  if (shouldHydrate && (!currentLoggedIn || !localStorage.getItem('userId') || !localStorage.getItem('userType'))) {
     localStorage.setItem('userLoggedIn', 'true');
     localStorage.setItem('userId', userId);
-    localStorage.setItem('userType', userType || 'buyer');
+    localStorage.setItem('userType', userType);
     if (userEmail) localStorage.setItem('userEmail', userEmail);
     window.dispatchEvent(new CustomEvent('loginStatusChanged'));
   }
@@ -116,11 +122,61 @@ export const hydrateCustomerSessionFromToken = () => {
     loggedIn: true,
     userId,
     userEmail,
-    userType: userType || 'buyer',
+    userType,
     userToken: token
   }));
 
-  return true;
+  return shouldHydrate;
+};
+
+export const getCustomerSessionState = () => {
+  if (typeof window === 'undefined') {
+    return {
+      loggedIn: false,
+      userId: '',
+      userType: 'buyer',
+      userEmail: '',
+      userName: 'User'
+    };
+  }
+
+  hydrateCustomerSessionFromToken();
+
+  const loggedIn = localStorage.getItem('userLoggedIn') === 'true';
+  const userId = String(localStorage.getItem('userId') || '').trim();
+  const userType = String(localStorage.getItem('userType') || 'buyer').trim() || 'buyer';
+  const userEmail = String(localStorage.getItem('userEmail') || '').trim();
+  const userName = userEmail ? userEmail.split('@')[0] : 'User';
+
+  return {
+    loggedIn,
+    userId,
+    userType,
+    userEmail,
+    userName
+  };
+};
+
+export const getRequiredCustomerSession = (expectedUserType = '') => {
+  if (typeof window === 'undefined') {
+    return {
+      loggedIn: false,
+      userId: '',
+      userType: '',
+      userEmail: ''
+    };
+  }
+
+  const state = getCustomerSessionState();
+  const expected = normalizeSessionUserType(expectedUserType, '');
+  const userType = normalizeSessionUserType(state.userType, 'buyer');
+  const typeMatches = !expected || userType === expected;
+
+  return {
+    ...state,
+    userType,
+    loggedIn: Boolean(state.loggedIn && state.userId && typeMatches)
+  };
 };
 
 export const clearCustomerSession = ({ preserveRedirect = false } = {}) => {

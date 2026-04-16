@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import NetworkCore from '../components/NetworkCore';
 import AccountDropdown from '../components/header/AccountDropdown';
+import { getCustomerSessionState } from '../utils/session';
 
 const sectorEcosystem = [
   {
@@ -344,11 +345,9 @@ export default function Home() {
     if (typeof window === 'undefined') return undefined;
 
     const syncHomepageLoginState = () => {
-      const loggedIn = localStorage.getItem('userLoggedIn') === 'true';
-      const email = String(localStorage.getItem('userEmail') || '').trim();
-      const name = email ? email.split('@')[0] : 'User';
-      setIsUserLoggedIn(loggedIn);
-      setHomepageUserName(name);
+      const session = getCustomerSessionState();
+      setIsUserLoggedIn(session.loggedIn);
+      setHomepageUserName(session.userName);
     };
 
     syncHomepageLoginState();

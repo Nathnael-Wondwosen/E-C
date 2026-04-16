@@ -1,5 +1,5 @@
 import { requestJson } from './httpClient';
-import { clearCustomerSession } from './session';
+import { clearCustomerSession, hydrateCustomerSessionFromToken } from './session';
 const ALLOW_MOCK_FALLBACKS = process.env.NEXT_PUBLIC_ALLOW_MOCK_FALLBACKS === 'true';
 
 const unwrapUserPayload = (payload = {}) => payload?.user || payload;
@@ -36,6 +36,7 @@ const getAuthHeaders = (extraHeaders = {}) => {
   if (typeof window === 'undefined') {
     return extraHeaders;
   }
+  hydrateCustomerSessionFromToken();
   const token = localStorage.getItem('userToken');
   return {
     ...extraHeaders,

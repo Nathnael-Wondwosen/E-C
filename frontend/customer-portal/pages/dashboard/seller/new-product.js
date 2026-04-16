@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
 import { createSellerProduct, getMarketplaceCategories, uploadSellerProductImage } from '../../../utils/userService';
+import { getRequiredCustomerSession } from '../../../utils/session';
 
 function SellerFieldLabel ({ children, hint }) {
   return (
@@ -56,9 +57,8 @@ export default function SellerNewProductPage () {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const isLoggedIn = localStorage.getItem('userLoggedIn') === 'true';
-    const userType = localStorage.getItem('userType');
-    if (!isLoggedIn || userType !== 'seller') {
+    const session = getRequiredCustomerSession('seller');
+    if (!session.loggedIn) {
       router.replace('/login');
       return;
     }

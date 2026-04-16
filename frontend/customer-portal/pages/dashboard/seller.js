@@ -12,7 +12,7 @@ import {
   uploadSellerProductImage,
   updateUserInquiryStatus
 } from '../../utils/userService';
-import { clearCustomerSession } from '../../utils/session';
+import { clearCustomerSession, getRequiredCustomerSession } from '../../utils/session';
 
 const THREADS_PER_PAGE = 6;
 const CUSTOMER_PORTAL_THEME_KEY = 'customerPortalThemePreference';
@@ -270,16 +270,15 @@ export default function SellerDashboard () {
   const router = useRouter();
 
   useEffect(() => {
-    const isLoggedIn = localStorage.getItem('userLoggedIn');
-    const userType = localStorage.getItem('userType');
-    if (!isLoggedIn || userType !== 'seller') {
+    const session = getRequiredCustomerSession('seller');
+    if (!session.loggedIn) {
       router.push('/login');
       return;
     }
 
     const loadUserData = async () => {
       try {
-        const userId = localStorage.getItem('userId');
+        const userId = String(session.userId || '').trim();
         if (!userId) {
           router.push('/login');
           return;
@@ -655,7 +654,7 @@ export default function SellerDashboard () {
     { href: '/dashboard/seller/new-product', label: 'Advanced Product Form' },
     { href: '/profile', label: 'Business Profile' },
     { href: '/inquiries', label: 'Messages' },
-    { href: '/settlements', label: 'Transactions' }
+    { href: '/dashboard/seller/products', label: 'Store' }
   ];
 
   const handleLogout = () => {
@@ -1006,7 +1005,8 @@ export default function SellerDashboard () {
   };
 
   const handleStatusUpdate = async (inquiryId, nextStatus) => {
-    const userId = localStorage.getItem('userId');
+    const session = getRequiredCustomerSession('seller');
+    const userId = String(session.userId || '').trim();
     if (!userId || !inquiryId) return;
 
     setStatusActionState((prev) => ({ ...prev, [inquiryId]: true }));
@@ -2139,7 +2139,7 @@ export default function SellerDashboard () {
           style={{ paddingBottom: 'max(0px, env(safe-area-inset-bottom))' }}
         >
           <div className="mx-auto grid max-w-md grid-cols-5">
-            <MobileBottomNavItem href="/dashboard/seller" active label="Store">
+            <MobileBottomNavItem href="/dashboard/seller" active label="Home">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="h-5 w-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 10.5 12 4l8 6.5" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6.5 10v8.5h11V10" />
@@ -2165,10 +2165,10 @@ export default function SellerDashboard () {
                 Post
               </span>
             </button>
-            <MobileBottomNavItem href="/settlements" label="Transaction">
+            <MobileBottomNavItem href="/dashboard/seller/products" label="Store">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="h-5 w-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h6M7 16h10" />
-                <rect x="4" y="5" width="16" height="14" rx="2.5" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 7h14l-1 11H6L5 7Z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 7a3 3 0 1 1 6 0" />
               </svg>
             </MobileBottomNavItem>
             <MobileBottomNavItem href="/profile" label="Account">

@@ -1,14 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { clearCustomerSession } from '../../utils/session';
+import { clearCustomerSession, getCustomerSessionState } from '../../utils/session';
 
 const getLoginState = () => {
-  if (typeof window === 'undefined') return { loggedIn: false, userType: 'buyer', userName: 'User' };
-  const loggedIn = localStorage.getItem('userLoggedIn') === 'true';
-  const userType = localStorage.getItem('userType') || 'buyer';
-  const email = localStorage.getItem('userEmail') || '';
-  const userName = email ? email.split('@')[0] : 'User';
+  const { loggedIn, userType, userName } = getCustomerSessionState();
   return { loggedIn, userType, userName };
 };
 
