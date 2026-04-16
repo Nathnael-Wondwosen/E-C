@@ -381,9 +381,9 @@ export default function SellerProductsManagementPage () {
             </div>
           </div>
 
-          <div className="mt-3 px-4">
+          <div className="mt-3">
             {message.text ? (
-              <div className={`rounded-[1rem] border px-3 py-2.5 text-sm ${
+              <div className={`mx-4 rounded-[1rem] border px-3 py-2.5 text-sm ${
                 message.tone === 'success'
                   ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                   : 'border-red-200 bg-red-50 text-red-700'
@@ -393,16 +393,16 @@ export default function SellerProductsManagementPage () {
             ) : null}
 
             {loading ? (
-              <div className="rounded-[1.2rem] border border-white/70 bg-white/78 px-4 py-8 text-center text-sm text-[#667085] shadow-[0_14px_32px_rgba(15,23,42,0.05)]">
+              <div className="mx-4 rounded-[1.2rem] border border-white/70 bg-white/78 px-4 py-8 text-center text-sm text-[#667085] shadow-[0_14px_32px_rgba(15,23,42,0.05)]">
                 Loading store products...
               </div>
             ) : totalProducts === 0 ? (
-              <div className="rounded-[1.2rem] border border-dashed border-[#D5DDE8] bg-white/78 px-4 py-10 text-center shadow-[0_14px_32px_rgba(15,23,42,0.05)]">
+              <div className="mx-4 rounded-[1.2rem] border border-dashed border-[#D5DDE8] bg-white/78 px-4 py-10 text-center shadow-[0_14px_32px_rgba(15,23,42,0.05)]">
                 <p className="text-base font-semibold text-[#111827]">No products found</p>
                 <p className="mt-2 text-sm text-[#667085]">Post a product and it will appear in your store here.</p>
               </div>
             ) : (
-              <div className={mobileViewType === 'grid' ? 'grid grid-cols-2 gap-2.5' : 'space-y-2.5'}>
+              <div className={mobileViewType === 'grid' ? 'grid grid-cols-2 gap-2.5 px-4' : 'space-y-2'}>
                 {filteredItems.map((item) => {
                   const productId = item?.id || item?._id;
                   const normalizedProductId = String(productId || '');
@@ -414,6 +414,13 @@ export default function SellerProductsManagementPage () {
                   const stockTone = stockCount > 10 ? 'text-emerald-700' : stockCount > 0 ? 'text-amber-700' : 'text-rose-700';
                   const stockDotTone = stockCount > 10 ? 'bg-emerald-500' : stockCount > 0 ? 'bg-amber-400' : 'bg-rose-500';
                   const stockLabel = stockCount > 10 ? 'In Stock' : stockCount > 0 ? 'Low Stock' : 'Out of Stock';
+                  const ratingValue = Number(
+                    item?.averageRating ??
+                    item?.rating ??
+                    item?.reviewAverage ??
+                    item?.reviewsSummary?.averageRating ??
+                    0
+                  );
 
                   return (
                     mobileViewType === 'grid' ? (
@@ -442,14 +449,23 @@ export default function SellerProductsManagementPage () {
                           <h2 className="line-clamp-2 text-[13px] font-semibold leading-5 text-[#111827]">
                             {item?.name || 'Untitled Product'}
                           </h2>
-                          <p className="mt-0.5 line-clamp-1 text-[11px] text-[#667085]">{item?.category || 'General'}</p>
+                          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10.5px] text-[#667085]">
+                            <span className="line-clamp-1">{item?.category || 'General'}</span>
+                            <span className={`inline-flex items-center gap-1 font-medium ${stockTone}`}>
+                              <span className={`h-2 w-2 rounded-full ${stockDotTone}`} />
+                              {stockLabel}
+                            </span>
+                            <span>{stockCount} pcs</span>
+                          </div>
                           <div className="mt-2 flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <p className="text-[0.95rem] font-semibold text-[#111827]">{formatPrice(item?.price)}</p>
-                              <span className={`mt-1 inline-flex items-center gap-1 text-[10px] font-medium ${stockTone}`}>
-                                <span className={`h-2 w-2 rounded-full ${stockDotTone}`} />
-                                {stockLabel}
-                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-[0.95rem] font-semibold text-[#111827]">{formatPrice(item?.price)}</p>
+                                <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF7ED] px-2 py-0.5 text-[9.5px] font-semibold text-[#C2410C]">
+                                  <span className="text-[10px]">★</span>
+                                  {ratingValue > 0 ? ratingValue.toFixed(1) : '-'}
+                                </span>
+                              </div>
                             </div>
                             <p className="text-[10px] text-[#8A94A6]">{formatDate(item?.updatedAt || item?.createdAt)}</p>
                           </div>
@@ -470,7 +486,7 @@ export default function SellerProductsManagementPage () {
                         </div>
                       </article>
                     ) : (
-                      <article key={String(productId)} className={`overflow-hidden rounded-[0.95rem] border bg-white/92 p-2.25 shadow-[0_10px_20px_rgba(15,23,42,0.045)] backdrop-blur-xl ${isSelected ? 'border-[#8B5CF6] ring-1 ring-[#C4B5FD]' : 'border-white/85'}`}>
+                      <article key={String(productId)} className={`overflow-hidden rounded-[0.95rem] border bg-white/92 px-4 py-2.5 shadow-[0_10px_20px_rgba(15,23,42,0.045)] backdrop-blur-xl ${isSelected ? 'border-[#8B5CF6] ring-1 ring-[#C4B5FD]' : 'border-white/85'}`}>
                         <div className="flex gap-2.5">
                           <div className="relative h-[4.45rem] w-[4.45rem] shrink-0 overflow-hidden rounded-[0.8rem] border border-[#E2E8F0] bg-[#F8FAFC]">
                             <button
@@ -495,9 +511,14 @@ export default function SellerProductsManagementPage () {
                                 <h2 className="line-clamp-1 text-[13.5px] font-semibold leading-5 text-[#111827]">
                                   {item?.name || 'Untitled Product'}
                                 </h2>
-                                <p className="mt-0.5 line-clamp-1 text-[11px] text-[#667085]">
-                                  {item?.category || 'General'} | SKU: {item?.sku || '-'}
-                                </p>
+                                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10.75px] text-[#667085]">
+                                  <span className="line-clamp-1">{item?.category || 'General'}</span>
+                                  <span className={`inline-flex items-center gap-1 font-medium ${stockTone}`}>
+                                    <span className={`h-2 w-2 rounded-full ${stockDotTone}`} />
+                                    {stockLabel}
+                                  </span>
+                                  <span>{stockCount} pcs</span>
+                                </div>
                               </div>
                               <span className="shrink-0 rounded-full bg-[#EEF2FF] px-2 py-1 text-[8.5px] font-semibold uppercase tracking-[0.12em] text-[#6D28D9]">
                                 {String(item?.marketScope || item?.scope || 'store')}
@@ -506,13 +527,12 @@ export default function SellerProductsManagementPage () {
 
                             <div className="mt-2 flex items-end justify-between gap-2">
                               <div className="min-w-0">
-                                <p className="text-[0.96rem] font-semibold text-[#111827]">{formatPrice(item?.price)}</p>
-                                <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[10.5px] text-[#667085]">
-                                  <span className={`inline-flex items-center gap-1 font-medium ${stockTone}`}>
-                                    <span className={`h-2 w-2 rounded-full ${stockDotTone}`} />
-                                    {stockLabel}
+                                <div className="flex items-center gap-1.5">
+                                  <p className="text-[0.96rem] font-semibold text-[#111827]">{formatPrice(item?.price)}</p>
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF7ED] px-2 py-0.5 text-[9.5px] font-semibold text-[#C2410C]">
+                                    <span className="text-[10px]">★</span>
+                                    {ratingValue > 0 ? ratingValue.toFixed(1) : '-'}
                                   </span>
-                                  <span>{stockCount} pcs</span>
                                 </div>
                               </div>
                               <p className="shrink-0 text-[10px] text-[#8A94A6]">
