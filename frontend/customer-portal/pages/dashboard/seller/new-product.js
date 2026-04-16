@@ -4,7 +4,24 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { createSellerProduct, getMarketplaceCategories, uploadSellerProductImage } from '../../../utils/userService';
 
-export default function SellerNewProductPage() {
+function SellerFieldLabel ({ children, hint }) {
+  return (
+    <div className="mb-2 flex items-center justify-between gap-3">
+      <span className="block text-sm font-semibold text-[#111827]">{children}</span>
+      {hint ? <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-[#8A94A6]">{hint}</span> : null}
+    </div>
+  );
+}
+
+function SellerInputShell ({ children, className = '' }) {
+  return (
+    <div className={`rounded-[0.95rem] border border-[#E7ECF5] bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.04)] ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+export default function SellerNewProductPage () {
   const router = useRouter();
   const [form, setForm] = useState({
     name: '',
@@ -18,7 +35,7 @@ export default function SellerNewProductPage() {
     marketScope: 'local',
     countryOfOrigin: '',
     isMadeInEthiopia: false,
-    isNewArrival: true,
+    isNewArrival: true
   });
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
@@ -126,7 +143,7 @@ export default function SellerNewProductPage() {
         .map((entry) => entry.trim())
         .filter(Boolean),
       marketScope: String(form.marketScope || 'local'),
-      scope: String(form.marketScope || 'local'),
+      scope: String(form.marketScope || 'local')
     });
     setSaving(false);
 
@@ -184,255 +201,231 @@ export default function SellerNewProductPage() {
     setImageUrls((prev) => prev.filter((entry) => entry !== url));
   };
 
+  const normalizedPrice = Number(form.price) || 0;
+  const normalizedDiscount = Number(form.discountPercentage) || 0;
+  const finalPrice = normalizedPrice > 0
+    ? Math.max(0, normalizedPrice - ((normalizedPrice * normalizedDiscount) / 100))
+    : 0;
+
   return (
-    <div className="portal-page min-h-screen">
+    <div className="portal-page min-h-screen bg-[linear-gradient(180deg,#F8FAFF_0%,#F3F6FF_36%,#EEF3FF_100%)]">
       <Head>
         <title>Post Product | Seller Dashboard</title>
       </Head>
 
-      <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 lg:py-8">
-        <section className="portal-card overflow-hidden rounded-[1.35rem]">
-          <div className="border-b border-[var(--portal-border)] px-5 py-4 sm:px-6">
-            <p className="portal-badge">Seller Tools</p>
-            <h1 className="portal-heading mt-2 text-2xl font-semibold">Post New Product</h1>
-            <p className="portal-muted mt-1 text-sm">Publish a product directly from your seller dashboard.</p>
+      <main className="mx-auto max-w-6xl px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
+        <section className="rounded-[1.4rem] border border-[#E7ECF5] bg-[#F8FAFF] p-3 shadow-[0_18px_40px_rgba(15,23,42,0.05)] sm:p-4">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 px-1">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7C3AED]">Seller Product</p>
+              <h1 className="mt-2 text-[1.8rem] font-semibold tracking-[-0.05em] text-[#111827]">Post New Product</h1>
+            </div>
+            <Link href="/dashboard/seller" className="inline-flex rounded-full border border-[#D9E0FF] bg-white px-4 py-2 text-xs font-semibold text-[#374151]">
+              Back to Dashboard
+            </Link>
           </div>
 
-          <form className="space-y-4 p-5 sm:p-6" onSubmit={handleSubmit}>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block sm:col-span-2">
-                <span className="mb-1.5 block text-sm font-medium text-[var(--auth-label)]">Product Name</span>
-                <input
-                  value={form.name}
-                  onChange={(e) => setField('name', e.target.value)}
-                  className="portal-input"
-                  placeholder="Example: Premium Coffee Beans"
-                  required
-                />
-              </label>
+          <form className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]" onSubmit={handleSubmit}>
+            <div className="space-y-5">
+              <section className="rounded-[1rem] border border-[#E7ECF5] bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.04)] sm:p-5">
+                <div className="mb-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7C3AED]">Product Basics</p>
+                  <h2 className="mt-2 text-xl font-semibold tracking-[-0.04em] text-[#111827]">Identity and Market</h2>
+                </div>
 
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium text-[var(--auth-label)]">Post To Market</span>
-                <select
-                  value={form.marketScope}
-                  onChange={(e) => {
-                    const nextScope = e.target.value;
-                    setForm((prev) => ({ ...prev, marketScope: nextScope, category: '' }));
-                  }}
-                  className="portal-input"
-                >
-                  <option value="local">Local Market</option>
-                  <option value="global">Global Market</option>
-                  <option value="africa">Africa Market</option>
-                  <option value="china">China Market</option>
-                  <option value="b2b">B2B Market</option>
-                </select>
-              </label>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block sm:col-span-2">
+                    <SellerFieldLabel hint="Required">Product Name</SellerFieldLabel>
+                    <input value={form.name} onChange={(e) => setField('name', e.target.value)} className="portal-input h-[52px] rounded-[0.8rem]" placeholder="Example: Premium Coffee Beans" required />
+                  </label>
 
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium text-[var(--auth-label)]">Category</span>
-                <select
-                  value={form.category}
-                  onChange={(e) => setField('category', e.target.value)}
-                  className="portal-input"
-                  required
-                  disabled={categoriesLoading}
-                >
-                  <option value="">
-                    {categoriesLoading ? 'Loading categories...' : 'Select category'}
-                  </option>
-                  {categories.map((entry) => (
-                    <option key={entry.value} value={entry.value}>
-                      {entry.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  <label className="block">
+                    <SellerFieldLabel>Post To Market</SellerFieldLabel>
+                    <select
+                      value={form.marketScope}
+                      onChange={(e) => {
+                        const nextScope = e.target.value;
+                        setForm((prev) => ({ ...prev, marketScope: nextScope, category: '' }));
+                      }}
+                      className="portal-input h-[52px] rounded-[0.8rem]"
+                    >
+                      <option value="local">Local Market</option>
+                      <option value="global">Global Market</option>
+                      <option value="africa">Africa Market</option>
+                      <option value="china">China Market</option>
+                      <option value="b2b">B2B Market</option>
+                    </select>
+                  </label>
 
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium text-[var(--auth-label)]">Country of Origin</span>
-                <input
-                  value={form.countryOfOrigin}
-                  onChange={(e) => setField('countryOfOrigin', e.target.value)}
-                  className="portal-input"
-                  placeholder="Example: Ethiopia"
-                />
-              </label>
+                  <label className="block">
+                    <SellerFieldLabel hint={categoriesLoading ? 'Loading' : 'Required'}>Category</SellerFieldLabel>
+                    <select value={form.category} onChange={(e) => setField('category', e.target.value)} className="portal-input h-[52px] rounded-[0.8rem]" required disabled={categoriesLoading}>
+                      <option value="">{categoriesLoading ? 'Loading categories...' : 'Select category'}</option>
+                      {categories.map((entry) => (
+                        <option key={entry.value} value={entry.value}>{entry.label}</option>
+                      ))}
+                    </select>
+                  </label>
 
-              <label className="flex items-center gap-2 rounded-[0.8rem] border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-3 py-2.5">
-                <input
-                  type="checkbox"
-                  checked={Boolean(form.isMadeInEthiopia)}
-                  onChange={(e) => setField('isMadeInEthiopia', e.target.checked)}
-                  className="h-4 w-4"
-                />
-                <span className="text-sm text-[var(--auth-label)]">Made in Ethiopia</span>
-              </label>
+                  <label className="block">
+                    <SellerFieldLabel>Country of Origin</SellerFieldLabel>
+                    <input value={form.countryOfOrigin} onChange={(e) => setField('countryOfOrigin', e.target.value)} className="portal-input h-[52px] rounded-[0.8rem]" placeholder="Example: Ethiopia" />
+                  </label>
 
-              <label className="flex items-center gap-2 rounded-[0.8rem] border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-3 py-2.5">
-                <input
-                  type="checkbox"
-                  checked={Boolean(form.isNewArrival)}
-                  onChange={(e) => setField('isNewArrival', e.target.checked)}
-                  className="h-4 w-4"
-                />
-                <span className="text-sm text-[var(--auth-label)]">Highlight as New Arrival</span>
-              </label>
+                  <label className="block">
+                    <SellerFieldLabel>SKU</SellerFieldLabel>
+                    <input value={form.sku} onChange={(e) => setField('sku', e.target.value)} className="portal-input h-[52px] rounded-[0.8rem]" placeholder="Example: AGR-COF-001" />
+                  </label>
 
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium text-[var(--auth-label)]">SKU (Optional)</span>
-                <input
-                  value={form.sku}
-                  onChange={(e) => setField('sku', e.target.value)}
-                  className="portal-input"
-                  placeholder="Example: AGR-COF-001"
-                />
-              </label>
+                  <div className="sm:col-span-2 grid gap-3 sm:grid-cols-2">
+                    <label className="flex items-center gap-3 rounded-[0.8rem] border border-[#E7ECF5] bg-[#FCFDFF] px-4 py-3">
+                      <input type="checkbox" checked={Boolean(form.isMadeInEthiopia)} onChange={(e) => setField('isMadeInEthiopia', e.target.checked)} className="h-4 w-4" />
+                      <span className="text-sm font-medium text-[#374151]">Made in Ethiopia</span>
+                    </label>
+                    <label className="flex items-center gap-3 rounded-[0.8rem] border border-[#E7ECF5] bg-[#FCFDFF] px-4 py-3">
+                      <input type="checkbox" checked={Boolean(form.isNewArrival)} onChange={(e) => setField('isNewArrival', e.target.checked)} className="h-4 w-4" />
+                      <span className="text-sm font-medium text-[#374151]">Highlight as New Arrival</span>
+                    </label>
+                  </div>
+                </div>
+              </section>
 
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium text-[var(--auth-label)]">Price</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.price}
-                  onChange={(e) => setField('price', e.target.value)}
-                  className="portal-input"
-                  placeholder="0.00"
-                  required
-                />
-              </label>
+              <section className="rounded-[1rem] border border-[#E7ECF5] bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.04)] sm:p-5">
+                <div className="mb-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7C3AED]">Pricing</p>
+                  <h2 className="mt-2 text-xl font-semibold tracking-[-0.04em] text-[#111827]">Commercial Details</h2>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <label className="block">
+                    <SellerFieldLabel hint="Required">Price</SellerFieldLabel>
+                    <input type="number" min="0" step="0.01" value={form.price} onChange={(e) => setField('price', e.target.value)} className="portal-input h-[52px] rounded-[0.8rem]" placeholder="0.00" required />
+                  </label>
+                  <label className="block">
+                    <SellerFieldLabel hint="Required">Stock</SellerFieldLabel>
+                    <input type="number" min="0" step="1" value={form.stock} onChange={(e) => setField('stock', e.target.value)} className="portal-input h-[52px] rounded-[0.8rem]" placeholder="0" required />
+                  </label>
+                  <label className="block">
+                    <SellerFieldLabel>Discount %</SellerFieldLabel>
+                    <input type="number" min="0" max="90" step="0.1" value={form.discountPercentage} onChange={(e) => setField('discountPercentage', e.target.value)} className="portal-input h-[52px] rounded-[0.8rem]" placeholder="0" />
+                  </label>
+                </div>
+              </section>
 
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium text-[var(--auth-label)]">Stock</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={form.stock}
-                  onChange={(e) => setField('stock', e.target.value)}
-                  className="portal-input"
-                  placeholder="0"
-                  required
-                />
-              </label>
+              <section className="rounded-[1rem] border border-[#E7ECF5] bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.04)] sm:p-5">
+                <div className="mb-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7C3AED]">Gallery</p>
+                  <h2 className="mt-2 text-xl font-semibold tracking-[-0.04em] text-[#111827]">Images and Media</h2>
+                </div>
+                <div className="grid gap-4">
+                  <label className="block">
+                    <SellerFieldLabel>Upload Product Images</SellerFieldLabel>
+                    <SellerInputShell>
+                      <input type="file" accept="image/*" multiple onChange={handleImageFileChange} className="portal-input file:mr-3 file:rounded-md file:border-0 file:bg-[#F3E8FF] file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-[#7E22CE]" />
+                      {uploadStatus !== 'idle' ? (
+                        <div className={`mt-3 inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] ${
+                          uploadStatus === 'verified'
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                            : uploadStatus === 'not_public'
+                              ? 'border-amber-200 bg-amber-50 text-amber-700'
+                              : uploadStatus === 'uploading'
+                                ? 'border-sky-200 bg-sky-50 text-sky-700'
+                                : 'border-red-200 bg-red-50 text-red-700'
+                        }`}>
+                          {uploadStatusText || uploadStatus}
+                        </div>
+                      ) : null}
+                      {uploadingImage ? <p className="mt-2 text-xs text-[#5F6773]">Uploading images...</p> : null}
+                    </SellerInputShell>
+                  </label>
 
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium text-[var(--auth-label)]">Discount % (Optional)</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="90"
-                  step="0.1"
-                  value={form.discountPercentage}
-                  onChange={(e) => setField('discountPercentage', e.target.value)}
-                  className="portal-input"
-                  placeholder="0"
-                />
-              </label>
+                  <div>
+                    <SellerFieldLabel>Add Image URL</SellerFieldLabel>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <input value={manualImageUrl} onChange={(e) => setManualImageUrl(e.target.value)} className="portal-input h-[52px] rounded-[0.8rem]" placeholder="https://..." />
+                      <button type="button" onClick={addManualImage} className="portal-outline-button px-5 py-3">Add</button>
+                    </div>
+                  </div>
 
-              <label className="block sm:col-span-2">
-                <span className="mb-1.5 block text-sm font-medium text-[var(--auth-label)]">Upload Product Images (Optional)</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleImageFileChange}
-                  className="portal-input file:mr-3 file:rounded-md file:border-0 file:bg-[#F3E8FF] file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-[#7E22CE]"
-                />
-                {uploadStatus !== 'idle' ? (
-                  <div
-                    className={`mt-2 inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] ${
-                      uploadStatus === 'verified'
-                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                        : uploadStatus === 'not_public'
-                          ? 'border-amber-200 bg-amber-50 text-amber-700'
-                          : uploadStatus === 'uploading'
-                            ? 'border-sky-200 bg-sky-50 text-sky-700'
-                            : 'border-red-200 bg-red-50 text-red-700'
-                    }`}
-                  >
-                    {uploadStatusText || uploadStatus}
+                  <div>
+                    <SellerFieldLabel hint={`${imageUrls.length} Added`}>Product Images</SellerFieldLabel>
+                    {imageUrls.length === 0 ? (
+                      <div className="rounded-[0.9rem] border border-dashed border-[#D6DEEE] bg-[#FCFDFF] px-4 py-10 text-center text-sm text-[#64748B]">
+                          No images added yet.
+                      </div>
+                    ) : (
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        {imageUrls.map((url, index) => (
+                          <div key={`${url}-${index}`} className="overflow-hidden rounded-[0.9rem] border border-[#E7ECF5] bg-white p-2 shadow-[0_8px_18px_rgba(15,23,42,0.04)]">
+                            <img src={url} alt={`Product ${index + 1}`} className="h-32 w-full rounded-[0.65rem] object-cover" />
+                            <div className="mt-2 flex items-center justify-between gap-2 px-1 pb-1">
+                              <span className="text-xs font-medium text-[#64748B]">{index === 0 ? 'Primary' : `Image ${index + 1}`}</span>
+                              <button type="button" onClick={() => removeImage(url)} className="text-xs font-semibold text-red-600 hover:text-red-700">Remove</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-[1rem] border border-[#E7ECF5] bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.04)] sm:p-5">
+                <div className="mb-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7C3AED]">Content</p>
+                  <h2 className="mt-2 text-xl font-semibold tracking-[-0.04em] text-[#111827]">Description and Search</h2>
+                </div>
+                <div className="grid gap-4">
+                  <label className="block">
+                    <SellerFieldLabel>Tags</SellerFieldLabel>
+                    <input value={form.tags} onChange={(e) => setField('tags', e.target.value)} className="portal-input h-[52px] rounded-[0.8rem]" placeholder="organic, wholesale, export" />
+                  </label>
+                  <label className="block">
+                    <SellerFieldLabel>Description</SellerFieldLabel>
+                    <textarea value={form.description} onChange={(e) => setField('description', e.target.value)} className="portal-input min-h-[140px] rounded-[0.8rem]" placeholder="Write a concise product description..." />
+                  </label>
+                </div>
+              </section>
+            </div>
+
+            <aside className="space-y-5">
+              <section className="rounded-[1rem] border border-[#E7ECF5] bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.04)] sm:p-5">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7C3AED]">Live Preview</p>
+                <h2 className="mt-2 text-xl font-semibold tracking-[-0.04em] text-[#111827]">Listing Snapshot</h2>
+                <div className="mt-4 overflow-hidden rounded-[0.95rem] border border-[#E7ECF5] bg-[#FCFDFF] p-3 shadow-[0_8px_18px_rgba(15,23,42,0.04)]">
+                  <div className="h-44 overflow-hidden rounded-[0.7rem] bg-[#EDEFF5]">
+                    {imageUrls[0] ? <img src={imageUrls[0]} alt="Primary preview" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-sm font-medium text-[#8A94A6]">Product preview</div>}
+                  </div>
+                  <div className="mt-3">
+                    <p className="text-lg font-semibold tracking-[-0.04em] text-[#111827]">{form.name || 'Your product name'}</p>
+                    <p className="mt-1 text-sm text-[#667085]">{form.category || 'Category not selected'}</p>
+                    <div className="mt-3 flex items-end gap-2">
+                      <span className="text-xl font-semibold tracking-[-0.04em] text-[#111827]">${finalPrice.toFixed(2)}</span>
+                      {normalizedDiscount > 0 ? <span className="text-sm text-[#8A94A6] line-through">${normalizedPrice.toFixed(2)}</span> : null}
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-[1rem] border border-[#E7ECF5] bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.04)] sm:p-5">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7C3AED]">Publish</p>
+                <h2 className="mt-2 text-xl font-semibold tracking-[-0.04em] text-[#111827]">Final Actions</h2>
+                {message.text ? (
+                  <div className={`mt-4 rounded-[0.95rem] border px-3 py-2.5 text-sm ${
+                    message.tone === 'success'
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                      : 'border-red-200 bg-red-50 text-red-700'
+                  }`}>
+                    {message.text}
                   </div>
                 ) : null}
-                {uploadingImage ? <p className="mt-1 text-xs text-[#5F6773]">Uploading images...</p> : null}
-              </label>
-
-              <div className="sm:col-span-2">
-                <span className="mb-1.5 block text-sm font-medium text-[var(--auth-label)]">Add Image URL (Optional)</span>
-                <div className="flex gap-2">
-                  <input
-                    value={manualImageUrl}
-                    onChange={(e) => setManualImageUrl(e.target.value)}
-                    className="portal-input"
-                    placeholder="https://..."
-                  />
-                  <button type="button" onClick={addManualImage} className="portal-outline-button px-4 py-2">Add</button>
+                <div className="mt-4 space-y-3">
+                  <Link href="/dashboard/seller" className="portal-outline-button block w-full px-4 py-3 text-center">Cancel</Link>
+                  <button type="submit" disabled={saving || uploadingImage} className="portal-primary-button w-full px-4 py-3">
+                    {uploadingImage ? 'Uploading Images...' : saving ? 'Posting...' : 'Post Product'}
+                  </button>
                 </div>
-              </div>
-
-              <div className="sm:col-span-2">
-                <span className="mb-1.5 block text-sm font-medium text-[var(--auth-label)]">Product Images ({imageUrls.length})</span>
-                {imageUrls.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-3 py-6 text-center text-sm text-[#64748B]">
-                    No images added yet.
-                  </div>
-                ) : (
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    {imageUrls.map((url, index) => (
-                      <div key={`${url}-${index}`} className="rounded-lg border border-[var(--portal-border)] bg-white p-2">
-                        <img src={url} alt={`Product ${index + 1}`} className="h-28 w-full rounded object-cover" />
-                        <div className="mt-2 flex items-center justify-between gap-2">
-                          <span className="text-xs text-[#64748B]">{index === 0 ? 'Primary' : `Image ${index + 1}`}</span>
-                          <button type="button" onClick={() => removeImage(url)} className="text-xs font-semibold text-red-600 hover:text-red-700">Remove</button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <label className="block sm:col-span-2">
-                <span className="mb-1.5 block text-sm font-medium text-[var(--auth-label)]">Tags (Optional)</span>
-                <input
-                  value={form.tags}
-                  onChange={(e) => setField('tags', e.target.value)}
-                  className="portal-input"
-                  placeholder="organic, wholesale, export"
-                />
-              </label>
-
-              <label className="block sm:col-span-2">
-                <span className="mb-1.5 block text-sm font-medium text-[var(--auth-label)]">Description</span>
-                <textarea
-                  value={form.description}
-                  onChange={(e) => setField('description', e.target.value)}
-                  className="portal-input min-h-[120px]"
-                  placeholder="Write a concise product description..."
-                />
-              </label>
-            </div>
-
-            {message.text ? (
-              <div
-                className={`rounded-[0.9rem] border px-3 py-2.5 text-sm ${
-                  message.tone === 'success'
-                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                    : 'border-red-200 bg-red-50 text-red-700'
-                }`}
-              >
-                {message.text}
-              </div>
-            ) : null}
-
-            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-              <Link href="/dashboard/seller" className="portal-outline-button px-4 py-2 text-center">
-                Cancel
-              </Link>
-              <button type="submit" disabled={saving || uploadingImage} className="portal-primary-button px-4 py-2">
-                {uploadingImage ? 'Uploading Images...' : saving ? 'Posting...' : 'Post Product'}
-              </button>
-            </div>
+              </section>
+            </aside>
           </form>
         </section>
       </main>

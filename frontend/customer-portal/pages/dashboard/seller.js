@@ -1,12 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
 import {
+  createSellerProduct,
+  getMarketplaceCategories,
   getSellerProducts,
   getUserInquiryInbox,
   getUserProfile,
   replyToProductInquiry,
+  uploadSellerProductImage,
   updateUserInquiryStatus
 } from '../../utils/userService';
 import { clearCustomerSession } from '../../utils/session';
@@ -185,6 +188,18 @@ function MobileBottomNavItem ({ href, label, active = false, primary = false, ch
   );
 }
 
+function QuickPostField ({ label, children, hint }) {
+  return (
+    <label className="block">
+      <div className="mb-1.5 flex items-center justify-between gap-3">
+        <span className="text-[15px] font-semibold text-[#111827]">{label}</span>
+        {hint ? <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#8A94A6]">{hint}</span> : null}
+      </div>
+      {children}
+    </label>
+  );
+}
+
 export default function SellerDashboard () {
   const [user, setUser] = useState(null);
   const [inquiries, setInquiries] = useState([]);
@@ -202,6 +217,28 @@ export default function SellerDashboard () {
   const [inquiryPage, setInquiryPage] = useState(1);
   const [mobileTopBarVisible, setMobileTopBarVisible] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [quickPostOpen, setQuickPostOpen] = useState(false);
+  const [quickPostScrolled, setQuickPostScrolled] = useState(false);
+  const [quickPostSaving, setQuickPostSaving] = useState(false);
+  const [quickPostImageUploading, setQuickPostImageUploading] = useState(false);
+  const [quickPostMessage, setQuickPostMessage] = useState({ tone: '', text: '' });
+  const [quickPostCategories, setQuickPostCategories] = useState([]);
+  const [quickPostCategoriesLoading, setQuickPostCategoriesLoading] = useState(false);
+  const [quickPostImageUrls, setQuickPostImageUrls] = useState([]);
+  const [quickPostCameraOpen, setQuickPostCameraOpen] = useState(false);
+  const [quickPostCameraError, setQuickPostCameraError] = useState('');
+  const [quickPostCameraFacingMode, setQuickPostCameraFacingMode] = useState('environment');
+  const [quickPostCameraDeviceCount, setQuickPostCameraDeviceCount] = useState(0);
+  const [quickPostForm, setQuickPostForm] = useState({
+    name: '',
+    category: '',
+    marketScope: 'local',
+    price: '',
+    stock: '',
+    description: ''
+  });
+  const quickPostCameraVideoRef = useRef(null);
+  const quickPostCameraStreamRef = useRef(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -398,6 +435,58 @@ export default function SellerDashboard () {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    if (!quickPostOpen) return;
+
+    let mounted = true;
+    const loadCategories = async () => {
+      setQuickPostCategoriesLoading(true);
+      const result = await getMarketplaceCategories(quickPostForm.marketScope);
+      if (!mounted) return;
+      setQuickPostCategories(result?.success ? (result.categories || []) : []);
+      setQuickPostCategoriesLoading(false);
+    };
+
+    loadCategories();
+    return () => {
+      mounted = false;
+    };
+  }, [quickPostForm.marketScope, quickPostOpen]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+
+    if (quickPostOpen) {
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    }
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, [quickPostOpen]);
+
+  useEffect(() => {
+    if (!quickPostCameraOpen || !quickPostCameraVideoRef.current || !quickPostCameraStreamRef.current) return;
+
+    quickPostCameraVideoRef.current.srcObject = quickPostCameraStreamRef.current;
+    quickPostCameraVideoRef.current.play().catch(() => {});
+  }, [quickPostCameraOpen]);
+
+  useEffect(() => () => {
+    if (quickPostCameraStreamRef.current) {
+      quickPostCameraStreamRef.current.getTracks().forEach((track) => track.stop());
+      quickPostCameraStreamRef.current = null;
+    }
+  }, []);
+
   const newInquiryCount = useMemo(
     () => inquiries.filter((entry) => String(entry.status || 'new') === 'new').length,
     [inquiries]
@@ -517,7 +606,7 @@ export default function SellerDashboard () {
   const mobileMenuLinks = [
     { href: '/dashboard/seller', label: 'Dashboard Home' },
     { href: '/dashboard/seller/products', label: 'My Products' },
-    { href: '/dashboard/seller/new-product', label: 'Post Product' },
+    { href: '/dashboard/seller/new-product', label: 'Advanced Product Form' },
     { href: '/profile', label: 'Business Profile' },
     { href: '/inquiries', label: 'Messages' },
     { href: '/settlements', label: 'Transactions' }
@@ -526,6 +615,315 @@ export default function SellerDashboard () {
   const handleLogout = () => {
     clearCustomerSession();
     router.push('/login');
+  };
+
+  const quickPostPreview = useMemo(() => {
+    const price = Number(quickPostForm.price) || 0;
+    return {
+      category: quickPostForm.category || 'No category',
+      priceLabel: price > 0 ? `$${price.toFixed(2)}` : '$0.00',
+      imageCount: quickPostImageUrls.length
+    };
+  }, [quickPostForm.category, quickPostForm.price, quickPostImageUrls.length]);
+
+  const handleOpenQuickPost = () => {
+    setMobileMenuOpen(false);
+    setQuickPostMessage({ tone: '', text: '' });
+    setQuickPostScrolled(false);
+    setQuickPostOpen(true);
+  };
+
+  const handleCloseQuickPost = () => {
+    if (quickPostSaving || quickPostImageUploading) return;
+    stopQuickPostCameraStream();
+    setQuickPostCameraOpen(false);
+    setQuickPostCameraError('');
+    setQuickPostScrolled(false);
+    setQuickPostOpen(false);
+  };
+
+  const setQuickPostField = (key, value) => {
+    setQuickPostForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const stopQuickPostCameraStream = () => {
+    if (quickPostCameraStreamRef.current) {
+      quickPostCameraStreamRef.current.getTracks().forEach((track) => track.stop());
+      quickPostCameraStreamRef.current = null;
+    }
+  };
+
+  const syncQuickPostCameraDevices = async () => {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.enumerateDevices) return;
+
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoInputs = devices.filter((device) => device.kind === 'videoinput');
+      setQuickPostCameraDeviceCount(videoInputs.length);
+    } catch (error) {
+      console.error('Could not inspect available cameras:', error);
+    }
+  };
+
+  const uploadQuickPostFiles = async (files) => {
+    if (!files.length) return;
+
+    setQuickPostMessage({ tone: '', text: '' });
+    setQuickPostImageUploading(true);
+
+    const nextUrls = [];
+    for (const file of files) {
+      let preparedFile = file;
+
+      if (typeof window !== 'undefined' && String(file?.type || '').startsWith('image/')) {
+        try {
+          const bitmap = await createImageBitmap(file);
+          const maxDimension = 1800;
+          const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+          const width = Math.max(1, Math.round(bitmap.width * scale));
+          const height = Math.max(1, Math.round(bitmap.height * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const context = canvas.getContext('2d', { alpha: false });
+
+          if (context) {
+            context.imageSmoothingEnabled = true;
+            context.imageSmoothingQuality = 'high';
+            context.fillStyle = '#ffffff';
+            context.fillRect(0, 0, width, height);
+            context.drawImage(bitmap, 0, 0, width, height);
+
+            const optimizedBlob = await new Promise((resolve) => {
+              canvas.toBlob(resolve, 'image/jpeg', 0.92);
+            });
+
+            if (optimizedBlob) {
+              preparedFile = new File(
+                [optimizedBlob],
+                `${String(file.name || 'product-image').replace(/\.[^.]+$/, '') || 'product-image'}.jpg`,
+                { type: 'image/jpeg' }
+              );
+            }
+          }
+
+          bitmap.close();
+        } catch (error) {
+          console.error('Could not optimize quick post image before upload:', error);
+        }
+      }
+
+      // eslint-disable-next-line no-await-in-loop
+      const result = await uploadSellerProductImage(preparedFile);
+      if (!result?.success || !result?.url) {
+        setQuickPostImageUploading(false);
+        setQuickPostMessage({ tone: 'error', text: result?.message || `Failed to upload ${file.name}` });
+        return;
+      }
+      nextUrls.push(result.url);
+    }
+
+    setQuickPostImageUrls((prev) => [...new Set([...prev, ...nextUrls])].slice(0, 4));
+    setQuickPostImageUploading(false);
+    setQuickPostMessage({ tone: 'success', text: 'Product image added.' });
+  };
+
+  const handleQuickPostImageChange = async (event) => {
+    const files = Array.from(event.target.files || []);
+    await uploadQuickPostFiles(files);
+    event.target.value = '';
+  };
+
+  const startQuickPostCamera = async (facingMode) => {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      const unsupportedMessage = 'Camera access is not supported on this device or browser.';
+      setQuickPostCameraOpen(false);
+      setQuickPostCameraError(unsupportedMessage);
+      setQuickPostMessage({ tone: 'error', text: unsupportedMessage });
+      return;
+    }
+
+    stopQuickPostCameraStream();
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: facingMode },
+          width: { ideal: 1920 },
+          height: { ideal: 1440 }
+        },
+        audio: false
+      });
+
+      quickPostCameraStreamRef.current = stream;
+      setQuickPostCameraFacingMode(facingMode);
+      setQuickPostCameraError('');
+      setQuickPostCameraOpen(true);
+      setQuickPostMessage({ tone: '', text: '' });
+      await syncQuickPostCameraDevices();
+    } catch (error) {
+      console.error('Could not open quick post camera:', error);
+      const permissionDenied =
+        error?.name === 'NotAllowedError' ||
+        error?.name === 'PermissionDeniedError' ||
+        error?.name === 'SecurityError';
+
+      const message = permissionDenied
+        ? 'Camera access is blocked. Please enable camera permission in your browser or device settings, then try again.'
+        : 'Could not start the camera on this device. Try again or use Choose Image.';
+
+      setQuickPostCameraOpen(false);
+      setQuickPostCameraError(message);
+      setQuickPostMessage({ tone: 'error', text: message });
+    }
+  };
+
+  const handleOpenQuickPostCamera = async () => {
+    const prefersMobileCamera =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(max-width: 767px)').matches;
+
+    const preferredFacingMode = prefersMobileCamera ? 'environment' : 'user';
+
+    if (typeof navigator !== 'undefined' && navigator.permissions?.query) {
+      try {
+        const permission = await navigator.permissions.query({ name: 'camera' });
+        if (permission.state === 'denied') {
+          const deniedMessage = 'Camera access is blocked. Please enable it in browser or device settings, then try again.';
+          setQuickPostCameraOpen(false);
+          setQuickPostCameraError(deniedMessage);
+          setQuickPostMessage({ tone: 'error', text: deniedMessage });
+          return;
+        }
+      } catch (error) {
+        console.error('Could not inspect camera permission state:', error);
+      }
+    }
+
+    await startQuickPostCamera(preferredFacingMode);
+  };
+
+  const handleCloseQuickPostCamera = () => {
+    stopQuickPostCameraStream();
+    setQuickPostCameraOpen(false);
+    setQuickPostCameraError('');
+  };
+
+  const handleSwitchQuickPostCamera = async () => {
+    const nextFacingMode = quickPostCameraFacingMode === 'environment' ? 'user' : 'environment';
+    await startQuickPostCamera(nextFacingMode);
+  };
+
+  const handleCaptureQuickPostPhoto = async () => {
+    const video = quickPostCameraVideoRef.current;
+    if (!video || !video.videoWidth || !video.videoHeight) {
+      setQuickPostCameraError('Camera is not ready yet. Try again.');
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext('2d');
+    if (!context) {
+      setQuickPostCameraError('Could not capture the camera image.');
+      return;
+    }
+
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const blob = await new Promise((resolve) => {
+      canvas.toBlob(resolve, 'image/jpeg', 0.95);
+    });
+
+    if (!blob) {
+      setQuickPostCameraError('Could not capture the camera image.');
+      return;
+    }
+
+    const imageFile = new File([blob], `quick-post-${Date.now()}.jpg`, { type: 'image/jpeg' });
+    handleCloseQuickPostCamera();
+    await uploadQuickPostFiles([imageFile]);
+  };
+
+  const removeQuickPostImage = (url) => {
+    setQuickPostImageUrls((prev) => prev.filter((entry) => entry !== url));
+  };
+
+  const handleQuickPostSubmit = async (event) => {
+    event.preventDefault();
+    setQuickPostMessage({ tone: '', text: '' });
+
+    const normalizedName = String(quickPostForm.name || '').trim();
+    const normalizedCategory = String(quickPostForm.category || '').trim();
+    const normalizedPrice = Number(quickPostForm.price);
+    const normalizedStock = Number(quickPostForm.stock);
+
+    if (!normalizedName) {
+      setQuickPostMessage({ tone: 'error', text: 'Product name is required.' });
+      return;
+    }
+    if (!normalizedCategory) {
+      setQuickPostMessage({ tone: 'error', text: 'Category is required.' });
+      return;
+    }
+    if (!Number.isFinite(normalizedPrice) || normalizedPrice <= 0) {
+      setQuickPostMessage({ tone: 'error', text: 'Price must be greater than 0.' });
+      return;
+    }
+    if (!Number.isFinite(normalizedStock) || normalizedStock < 0) {
+      setQuickPostMessage({ tone: 'error', text: 'Stock must be 0 or more.' });
+      return;
+    }
+    if (quickPostImageUploading) {
+      setQuickPostMessage({ tone: 'error', text: 'Please wait for image upload to finish.' });
+      return;
+    }
+
+    setQuickPostSaving(true);
+    const normalizedImages = quickPostImageUrls.map((entry) => String(entry || '').trim()).filter(Boolean);
+    const primaryImage = normalizedImages[0] || '';
+    const result = await createSellerProduct({
+      name: normalizedName,
+      description: String(quickPostForm.description || '').trim(),
+      category: normalizedCategory,
+      price: normalizedPrice,
+      discountPercentage: 0,
+      stock: normalizedStock,
+      sku: '',
+      image: primaryImage,
+      images: normalizedImages,
+      thumbnail: primaryImage,
+      tags: [],
+      marketScope: String(quickPostForm.marketScope || 'local'),
+      scope: String(quickPostForm.marketScope || 'local'),
+      isMadeInEthiopia: false,
+      isNewArrival: true,
+      countryOfOrigin: ''
+    });
+    setQuickPostSaving(false);
+
+    if (!result?.success) {
+      setQuickPostMessage({ tone: 'error', text: result?.message || 'Failed to post product.' });
+      return;
+    }
+
+    setQuickPostMessage({ tone: 'success', text: 'Product posted successfully.' });
+    setProductCount((prev) => prev + 1);
+    setQuickPostForm({
+      name: '',
+      category: '',
+      marketScope: 'local',
+      price: '',
+      stock: '',
+      description: ''
+    });
+    setQuickPostImageUrls([]);
+    setTimeout(() => {
+      setQuickPostOpen(false);
+      router.replace(router.asPath);
+    }, 700);
   };
 
   const handleCopyBuyerId = async (buyerId) => {
@@ -717,39 +1115,39 @@ export default function SellerDashboard () {
         </aside>
 
         <section className="w-full md:hidden">
-          <div className="relative min-h-screen bg-[linear-gradient(180deg,#F8FAFF_0%,#F3F6FF_30%,#EEF3FF_100%)] pb-8 pt-5">
+          <div className="relative min-h-screen bg-[linear-gradient(180deg,#F8FAFF_0%,#F3F6FF_30%,#EEF3FF_100%)] pb-8 pt-3">
             <div className="pointer-events-none absolute inset-0 overflow-hidden">
               <div className="absolute -left-12 top-10 h-44 w-44 rounded-full bg-[radial-gradient(circle,rgba(99,102,241,0.18),transparent_70%)]" />
               <div className="absolute right-[-30px] top-32 h-48 w-48 rounded-full bg-[radial-gradient(circle,rgba(168,85,247,0.16),transparent_70%)]" />
               <div className="absolute bottom-20 left-1/3 h-40 w-40 rounded-full bg-[radial-gradient(circle,rgba(14,165,233,0.12),transparent_70%)]" />
             </div>
 
-            <div className="relative px-4">
-              <GlassShell className="overflow-hidden px-4 pb-4 pt-4">
+            <div className={`relative px-4 transition duration-300 ${quickPostOpen ? 'scale-[0.985] opacity-60' : 'scale-100 opacity-100'}`}>
+              <GlassShell className={`overflow-hidden px-4 transition-all duration-300 ${quickPostOpen ? 'pb-3 pt-3' : 'pb-4 pt-4'}`}>
                 <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-[radial-gradient(circle,rgba(168,85,247,0.18),transparent_68%)]" />
                 <div className="relative flex items-start justify-between gap-3">
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#98A2B3]">
                       {formatShortDate(new Date())}
                     </p>
-                    <h1 className="mt-3 text-[2rem] font-semibold tracking-[-0.06em] text-[#111827]">
+                    <h1 className={`font-semibold tracking-[-0.06em] text-[#111827] transition-all duration-300 ${quickPostOpen ? 'mt-2 text-[1.55rem]' : 'mt-3 text-[2rem]'}`}>
                       Hi, {shopTitle}
                     </h1>
-                    <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/70 px-3 py-1.5 text-[11px] font-semibold text-[#667085] shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
+                    <div className={`inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/70 px-3 py-1.5 text-[11px] font-semibold text-[#667085] shadow-[0_8px_20px_rgba(15,23,42,0.05)] transition-all duration-300 ${quickPostOpen ? 'mt-1.5 scale-[0.97]' : 'mt-2 scale-100'}`}>
                       <span className="h-2 w-2 rounded-full bg-emerald-500" />
                       Seller workspace is active
                     </div>
                   </div>
                   <Link
                     href="/profile"
-                    className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-[linear-gradient(135deg,#312E81,#6366F1,#A855F7)] text-sm font-semibold text-white shadow-[0_14px_30px_rgba(99,102,241,0.35)]"
+                    className={`relative flex items-center justify-center overflow-hidden rounded-full bg-[linear-gradient(135deg,#312E81,#6366F1,#A855F7)] text-sm font-semibold text-white shadow-[0_14px_30px_rgba(99,102,241,0.35)] transition-all duration-300 ${quickPostOpen ? 'h-10 w-10' : 'h-12 w-12'}`}
                   >
                     <span className="absolute inset-[2px] rounded-full border border-white/20" />
                     <span className="relative">{initials}</span>
                   </Link>
                 </div>
 
-                <div className="relative mt-5 overflow-hidden rounded-[1.6rem] bg-[linear-gradient(135deg,#FFFFFF_0%,#EEF2FF_45%,#F5F3FF_100%)] p-[1px] shadow-[0_18px_40px_rgba(99,102,241,0.12)]">
+                <div className={`relative overflow-hidden rounded-[1.45rem] bg-[linear-gradient(135deg,#FFFFFF_0%,#EEF2FF_45%,#F5F3FF_100%)] p-[1px] shadow-[0_18px_40px_rgba(99,102,241,0.12)] transition-all duration-300 ${quickPostOpen ? 'mt-3' : 'mt-5'}`}>
                   <div className="rounded-[1.55rem] bg-[linear-gradient(135deg,rgba(255,255,255,0.92),rgba(255,255,255,0.74))] px-4 py-4 backdrop-blur-xl">
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -762,7 +1160,7 @@ export default function SellerDashboard () {
                       </span>
                     </div>
 
-                    <div className="mt-4">
+                    <div className={`transition-all duration-300 ${quickPostOpen ? 'mt-3' : 'mt-4'}`}>
                       <div className="mb-2 flex items-center justify-between text-[11px] font-semibold text-[#667085]">
                         <span>Completion</span>
                         <span>{profileReadiness}%</span>
@@ -775,10 +1173,14 @@ export default function SellerDashboard () {
                       </div>
                     </div>
 
-                    <div className="mt-4 flex items-center gap-2">
-                      <Link href="/dashboard/seller/new-product" className="inline-flex rounded-full bg-[linear-gradient(135deg,#6366F1,#8B5CF6)] px-4 py-2.5 text-xs font-semibold text-white shadow-[0_14px_28px_rgba(99,102,241,0.25)]">
+                    <div className={`flex items-center gap-2 transition-all duration-300 ${quickPostOpen ? 'mt-3' : 'mt-4'}`}>
+                      <button
+                        type="button"
+                        onClick={handleOpenQuickPost}
+                        className="inline-flex rounded-full bg-[linear-gradient(135deg,#6366F1,#8B5CF6)] px-4 py-2.5 text-xs font-semibold text-white shadow-[0_14px_28px_rgba(99,102,241,0.25)]"
+                      >
                         Add Product
-                      </Link>
+                      </button>
                       <Link href="/profile" className="inline-flex rounded-full border border-[#D9E0FF] bg-white/80 px-4 py-2.5 text-xs font-semibold text-[#374151]">
                         Edit Shop
                       </Link>
@@ -788,7 +1190,7 @@ export default function SellerDashboard () {
               </GlassShell>
             </div>
 
-            <div className="mt-7 px-4">
+            <div className={`px-4 transition-all duration-300 ${quickPostOpen ? 'mt-4 opacity-45' : 'mt-7 opacity-100'}`}>
               <div className="flex items-center justify-between">
                 <h2 className="text-[1.25rem] font-semibold text-[#111827]">Analytics</h2>
                 <button
@@ -803,7 +1205,7 @@ export default function SellerDashboard () {
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-2.5 px-4">
+            <div className={`grid grid-cols-2 gap-2.5 px-4 transition-all duration-300 ${quickPostOpen ? 'mt-3 opacity-40' : 'mt-4 opacity-100'}`}>
               {analyticsCards.map((card, index) => (
                 <DashboardStatCard
                   key={card.label}
@@ -1311,8 +1713,321 @@ export default function SellerDashboard () {
           </section>
         </section>
 
+        <div
+          className={`fixed inset-0 z-[70] bg-[rgba(15,23,32,0.38)] transition-opacity duration-300 md:hidden ${
+            quickPostOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
+          }`}
+          onClick={handleCloseQuickPost}
+        />
+        <section
+          className={`fixed inset-x-0 bottom-0 z-[80] overflow-hidden border-x-0 border-b-0 border-t border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(243,246,255,0.98))] shadow-[0_-18px_60px_rgba(15,23,42,0.16)] backdrop-blur-xl transition-transform duration-300 md:hidden ${
+            quickPostOpen ? 'translate-y-0' : 'translate-y-full'
+          }`}
+          style={{ height: '90dvh', maxHeight: '90vh', touchAction: 'pan-y' }}
+        >
+          <div className="mx-auto flex h-full min-h-0 w-full max-w-md flex-col">
+            <div className="px-3 pt-3">
+              <div className="mx-auto h-1.5 w-14 rounded-full bg-[#D7DEEB]" />
+            </div>
+
+            <div
+              className={`sticky top-0 z-10 mt-2 flex items-center justify-between border-b px-3 py-2.5 transition-all duration-300 ${
+                quickPostScrolled
+                  ? 'border-[#E7ECF5] bg-white/94 shadow-[0_14px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl'
+                  : 'border-transparent bg-transparent'
+              }`}
+            >
+              <button
+                type="button"
+                onClick={handleCloseQuickPost}
+                className="inline-flex items-center gap-2 rounded-full px-1.5 py-1 text-sm font-semibold text-[#111827]"
+                aria-label="Back to dashboard"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 18 9 12l6-6" />
+                </svg>
+                Back to dashboard
+              </button>
+
+              <div className="flex items-center gap-2">
+                <Link
+                  href="#seller-inbox"
+                  onClick={() => setQuickPostOpen(false)}
+                  className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#111827] shadow-[0_10px_24px_rgba(15,23,42,0.08)]"
+                  aria-label="Open notifications"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="h-5 w-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.5 16.5h11l-1.2-1.8a4.5 4.5 0 0 1-.8-2.5V10a3.5 3.5 0 1 0-7 0v2.2a4.5 4.5 0 0 1-.8 2.5L6.5 16.5Z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M10 18.5a2 2 0 0 0 4 0" />
+                  </svg>
+                  {pendingReplyNotificationCount > 0 ? (
+                    <span className="absolute right-1.5 top-1.5 inline-flex min-w-[16px] items-center justify-center rounded-full bg-[#7C3AED] px-1 text-[9px] font-semibold text-white">
+                      {pendingReplyNotificationCount > 9 ? '9+' : pendingReplyNotificationCount}
+                    </span>
+                  ) : null}
+                </Link>
+              </div>
+            </div>
+
+            <div
+              className="scrollbar-hide min-h-0 flex-1 overflow-y-auto px-3 pb-4 pt-3"
+              style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
+              onScroll={(event) => setQuickPostScrolled(event.currentTarget.scrollTop > 24)}
+            >
+              <form id="__quick-post-form" className="space-y-4" onSubmit={handleQuickPostSubmit}>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-[0.9rem] border border-[#E5EAF4] bg-white px-3 py-2.5 shadow-[0_8px_20px_rgba(15,23,42,0.04)]">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#8A94A6]">Category</p>
+                    <p className="mt-1 truncate text-[13px] font-semibold text-[#111827]">{quickPostPreview.category}</p>
+                  </div>
+                  <div className="rounded-[0.9rem] border border-[#E5EAF4] bg-white px-3 py-2.5 shadow-[0_8px_20px_rgba(15,23,42,0.04)]">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#8A94A6]">Price</p>
+                    <p className="mt-1 text-[13px] font-semibold text-[#111827]">{quickPostPreview.priceLabel}</p>
+                  </div>
+                  <div className="rounded-[0.9rem] border border-[#E5EAF4] bg-white px-3 py-2.5 shadow-[0_8px_20px_rgba(15,23,42,0.04)]">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#8A94A6]">Images</p>
+                    <p className="mt-1 text-[13px] font-semibold text-[#111827]">{quickPostPreview.imageCount}/4</p>
+                  </div>
+                </div>
+
+                <QuickPostField label="Product Name" hint="Required">
+                  <input
+                    value={quickPostForm.name}
+                    onChange={(event) => setQuickPostField('name', event.target.value)}
+                    className="portal-input h-[50px] rounded-[0.8rem] px-4 text-[15px]"
+                    placeholder="Example: Premium Coffee Beans"
+                    required
+                  />
+                </QuickPostField>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <QuickPostField label="Market">
+                    <select
+                      value={quickPostForm.marketScope}
+                      onChange={(event) => setQuickPostForm((prev) => ({ ...prev, marketScope: event.target.value, category: '' }))}
+                      className="portal-input h-[50px] rounded-[0.8rem] px-4 text-[15px]"
+                    >
+                      <option value="local">Local</option>
+                      <option value="global">Global</option>
+                      <option value="africa">Africa</option>
+                      <option value="china">China</option>
+                      <option value="b2b">B2B</option>
+                    </select>
+                  </QuickPostField>
+
+                  <QuickPostField label="Category" hint={quickPostCategoriesLoading ? 'Loading' : ''}>
+                    <select
+                      value={quickPostForm.category}
+                      onChange={(event) => setQuickPostField('category', event.target.value)}
+                      className="portal-input h-[50px] rounded-[0.8rem] px-4 text-[15px]"
+                      disabled={quickPostCategoriesLoading}
+                      required
+                    >
+                      <option value="">{quickPostCategoriesLoading ? 'Loading...' : 'Select'}</option>
+                      {quickPostCategories.map((entry) => (
+                        <option key={entry.value} value={entry.value}>{entry.label}</option>
+                      ))}
+                    </select>
+                  </QuickPostField>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <QuickPostField label="Price" hint="Required">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={quickPostForm.price}
+                      onChange={(event) => setQuickPostField('price', event.target.value)}
+                      className="portal-input h-[50px] rounded-[0.8rem] px-4 text-[15px]"
+                      placeholder="0.00"
+                      required
+                    />
+                  </QuickPostField>
+
+                  <QuickPostField label="Stock" hint="Required">
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={quickPostForm.stock}
+                      onChange={(event) => setQuickPostField('stock', event.target.value)}
+                      className="portal-input h-[50px] rounded-[0.8rem] px-4 text-[15px]"
+                      placeholder="0"
+                      required
+                    />
+                  </QuickPostField>
+                </div>
+
+                <QuickPostField label="Description">
+                  <textarea
+                    value={quickPostForm.description}
+                    onChange={(event) => setQuickPostField('description', event.target.value)}
+                    className="portal-input min-h-[112px] rounded-[0.8rem] px-4 py-3 text-[15px]"
+                    placeholder="Write a short buyer-facing description..."
+                  />
+                </QuickPostField>
+
+                <QuickPostField label="Product Image" hint={quickPostImageUploading ? 'Uploading' : `${quickPostImageUrls.length}/4`}>
+                  <div className="space-y-2.5">
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="flex items-center justify-center rounded-[0.8rem] border border-[#D7DEEB] bg-white px-3 py-3 text-sm font-semibold text-[#374151] shadow-[0_8px_18px_rgba(15,23,42,0.04)]">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleQuickPostImageChange}
+                          className="hidden"
+                        />
+                        Choose Image
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleOpenQuickPostCamera}
+                        disabled={quickPostImageUploading}
+                        className="flex items-center justify-center rounded-[0.8rem] border border-[#D7DEEB] bg-white px-3 py-3 text-sm font-semibold text-[#374151] shadow-[0_8px_18px_rgba(15,23,42,0.04)] disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        Take Picture
+                      </button>
+                    </div>
+
+                    {quickPostCameraOpen ? (
+                      <div className="overflow-hidden rounded-[1rem] border border-[#D7DEEB] bg-[#0F172A] shadow-[0_12px_28px_rgba(15,23,42,0.12)]">
+                        <div className="aspect-[4/3] w-full bg-black">
+                          <video
+                            ref={quickPostCameraVideoRef}
+                            className="h-full w-full object-cover"
+                            autoPlay
+                            muted
+                            playsInline
+                          />
+                        </div>
+                        <div className="space-y-3 bg-white px-3 py-3">
+                          {quickPostCameraError ? (
+                            <p className="text-xs font-medium text-red-600">{quickPostCameraError}</p>
+                          ) : (
+                            <p className="text-xs text-[#667085]">
+                              Frame the product clearly, then capture the image. Back camera is preferred on phones by default.
+                            </p>
+                          )}
+                          <div className={`grid gap-3 ${quickPostCameraDeviceCount > 1 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                            <button
+                              type="button"
+                              onClick={handleCloseQuickPostCamera}
+                              className="rounded-[0.8rem] border border-[#D7DEEB] bg-white px-3 py-2.5 text-sm font-semibold text-[#374151]"
+                            >
+                              Cancel
+                            </button>
+                            {quickPostCameraDeviceCount > 1 ? (
+                              <button
+                                type="button"
+                                onClick={handleSwitchQuickPostCamera}
+                                className="rounded-[0.8rem] border border-[#D7DEEB] bg-white px-3 py-2.5 text-sm font-semibold text-[#374151]"
+                              >
+                                Switch
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              onClick={handleCaptureQuickPostPhoto}
+                              className="rounded-[0.8rem] bg-[linear-gradient(135deg,#6D28D9,#8B5CF6,#F97316)] px-3 py-2.5 text-sm font-semibold text-white"
+                            >
+                              Capture
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : quickPostCameraError ? (
+                      <div className="rounded-[0.95rem] border border-amber-200 bg-amber-50 px-3 py-3">
+                        <p className="text-xs font-medium text-amber-700">{quickPostCameraError}</p>
+                        <button
+                          type="button"
+                          onClick={handleOpenQuickPostCamera}
+                          className="mt-2 inline-flex rounded-full border border-amber-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-amber-700"
+                        >
+                          Retry Camera Access
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {quickPostImageUrls.length ? (
+                      <div className="grid grid-cols-3 gap-2">
+                        {quickPostImageUrls.map((url, index) => (
+                          <div
+                            key={`${url}-${index}`}
+                            className={`overflow-hidden rounded-[0.9rem] border border-[#E4EAF4] bg-white p-1.5 shadow-[0_8px_18px_rgba(15,23,42,0.05)] ${index === 0 ? 'col-span-2 row-span-2' : ''}`}
+                          >
+                            <div className="relative overflow-hidden rounded-[0.75rem] bg-[#F8FAFC]">
+                              <img
+                                src={url}
+                                alt={`Quick product ${index + 1}`}
+                                className={`${index === 0 ? 'h-32' : 'h-20'} w-full object-cover`}
+                              />
+                              {index === 0 ? (
+                                <span className="absolute left-2 top-2 rounded-full bg-[rgba(17,24,39,0.72)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-white">
+                                  Cover
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="mt-1.5 flex items-center justify-between px-1">
+                              <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#8A94A6]">
+                                {index === 0 ? 'Main image' : `Image ${index + 1}`}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => removeQuickPostImage(url)}
+                                className="text-[11px] font-semibold text-red-600"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </QuickPostField>
+
+                {quickPostMessage.text ? (
+                  <div className={`rounded-[0.95rem] border px-3 py-2.5 text-sm ${
+                    quickPostMessage.tone === 'success'
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                      : 'border-red-200 bg-red-50 text-red-700'
+                  }`}>
+                    {quickPostMessage.text}
+                  </div>
+                ) : null}
+              </form>
+            </div>
+
+            <div
+              className="border-t border-[#E7ECF5] bg-white/98 px-3 py-2.5 shadow-[0_-10px_28px_rgba(15,23,42,0.06)]"
+              style={{ paddingBottom: 'calc(0.625rem + env(safe-area-inset-bottom, 0px))' }}
+            >
+              <div className="flex gap-3">
+                <Link
+                  href="/dashboard/seller/new-product"
+                  className="flex flex-1 items-center justify-center rounded-[0.95rem] border border-[#D8DFEB] bg-white px-4 py-3 text-center text-sm font-semibold text-[#374151] shadow-[0_8px_18px_rgba(15,23,42,0.04)]"
+                  onClick={() => setQuickPostOpen(false)}
+                >
+                  Advanced
+                </Link>
+                <button
+                  type="submit"
+                  form="__quick-post-form"
+                  disabled={quickPostSaving}
+                  className="flex-1 rounded-[0.95rem] bg-[linear-gradient(135deg,#6D28D9,#8B5CF6,#F97316)] px-4 py-3 text-sm font-semibold text-white shadow-[0_16px_30px_rgba(124,58,237,0.28)] transition disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {quickPostSaving ? 'Posting...' : 'Post Now'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <nav
-          className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 shadow-[0_-10px_35px_rgba(15,23,32,0.08)] backdrop-blur md:hidden"
+          className={`fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 shadow-[0_-10px_35px_rgba(15,23,32,0.08)] backdrop-blur transition-transform md:hidden ${
+            quickPostOpen ? 'translate-y-full' : 'translate-y-0'
+          }`}
           style={{ paddingBottom: 'max(0px, env(safe-area-inset-bottom))' }}
         >
           <div className="mx-auto grid max-w-md grid-cols-5">
@@ -1327,11 +2042,21 @@ export default function SellerDashboard () {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 6.5h16v10H8l-4 3V6.5Z" />
               </svg>
             </MobileBottomNavItem>
-            <MobileBottomNavItem href="/dashboard/seller/new-product" label="Add Post" primary>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="h-5 w-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
-              </svg>
-            </MobileBottomNavItem>
+            <button
+              type="button"
+              onClick={handleOpenQuickPost}
+              className="relative flex flex-col items-center justify-center gap-0 py-1"
+              aria-label="Open quick post"
+            >
+              <span className="flex h-12 w-12 -translate-y-3 items-center justify-center rounded-full bg-[linear-gradient(135deg,#6D28D9,#8B5CF6,#A855F7)] text-white shadow-[0_18px_36px_rgba(124,58,237,0.34)] transition">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="h-5 w-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
+                </svg>
+              </span>
+              <span className="mt-[-6px] text-[9px] font-semibold uppercase tracking-[0.1em] text-[#7C3AED]">
+                Post
+              </span>
+            </button>
             <MobileBottomNavItem href="/settlements" label="Transaction">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="h-5 w-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h6M7 16h10" />
@@ -1346,6 +2071,16 @@ export default function SellerDashboard () {
             </MobileBottomNavItem>
           </div>
         </nav>
+
+        <style jsx global>{`
+          .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+          .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+          }
+        `}</style>
       </main>
     </div>
   );
