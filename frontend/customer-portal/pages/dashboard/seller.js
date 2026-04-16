@@ -15,6 +15,7 @@ import {
 import { clearCustomerSession } from '../../utils/session';
 
 const THREADS_PER_PAGE = 6;
+const CUSTOMER_PORTAL_THEME_KEY = 'customerPortalThemePreference';
 
 const formatDateTime = (value) => {
   const date = value ? new Date(value) : null;
@@ -200,6 +201,31 @@ function QuickPostField ({ label, children, hint }) {
   );
 }
 
+function ThemeToggleButton ({ isDarkMode, onToggle, compact = false }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={`inline-flex items-center justify-center rounded-full border border-white/70 bg-white/88 text-[#111827] shadow-[0_10px_24px_rgba(15,23,42,0.08)] backdrop-blur-xl transition hover:-translate-y-0.5 ${
+        compact ? 'h-10 w-10' : 'h-11 w-11'
+      }`}
+      aria-label={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'}
+      title={isDarkMode ? 'Light theme' : 'Dark theme'}
+    >
+      {isDarkMode ? (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className={`${compact ? 'h-4 w-4' : 'h-5 w-5'}`}>
+          <circle cx="12" cy="12" r="4.5" />
+          <path strokeLinecap="round" d="M12 2.5v2.2M12 19.3v2.2M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className={`${compact ? 'h-4 w-4' : 'h-5 w-5'}`}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.8 6.8 0 0 0 9.8 9.8Z" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
 export default function SellerDashboard () {
   const [user, setUser] = useState(null);
   const [inquiries, setInquiries] = useState([]);
@@ -229,6 +255,8 @@ export default function SellerDashboard () {
   const [quickPostCameraError, setQuickPostCameraError] = useState('');
   const [quickPostCameraFacingMode, setQuickPostCameraFacingMode] = useState('environment');
   const [quickPostCameraDeviceCount, setQuickPostCameraDeviceCount] = useState(0);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [themePreference, setThemePreference] = useState('system');
   const [quickPostForm, setQuickPostForm] = useState({
     name: '',
     category: '',
@@ -436,6 +464,24 @@ export default function SellerDashboard () {
   }, []);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const syncThemeState = () => {
+      const storedPreference = String(localStorage.getItem(CUSTOMER_PORTAL_THEME_KEY) || 'system').trim().toLowerCase();
+      setThemePreference(storedPreference === 'dark' || storedPreference === 'light' ? storedPreference : 'system');
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    };
+
+    syncThemeState();
+    window.addEventListener('customerPortalThemePreferenceChanged', syncThemeState);
+    window.addEventListener('storage', syncThemeState);
+    return () => {
+      window.removeEventListener('customerPortalThemePreferenceChanged', syncThemeState);
+      window.removeEventListener('storage', syncThemeState);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!quickPostOpen) return;
 
     let mounted = true;
@@ -615,6 +661,28 @@ export default function SellerDashboard () {
   const handleLogout = () => {
     clearCustomerSession();
     router.push('/login');
+  };
+
+  const applyThemePreference = (nextPreference) => {
+    if (typeof window === 'undefined') return;
+
+    const normalizedPreference = nextPreference === 'dark' || nextPreference === 'light' ? nextPreference : 'system';
+    if (normalizedPreference === 'system') {
+      localStorage.removeItem(CUSTOMER_PORTAL_THEME_KEY);
+    } else {
+      localStorage.setItem(CUSTOMER_PORTAL_THEME_KEY, normalizedPreference);
+    }
+
+    const prefersDark = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const resolvedDarkMode = normalizedPreference === 'system' ? prefersDark : normalizedPreference === 'dark';
+    document.documentElement.classList.toggle('dark', resolvedDarkMode);
+    setThemePreference(normalizedPreference);
+    setIsDarkMode(resolvedDarkMode);
+    window.dispatchEvent(new CustomEvent('customerPortalThemePreferenceChanged'));
+  };
+
+  const handleToggleTheme = () => {
+    applyThemePreference(isDarkMode ? 'light' : 'dark');
   };
 
   const quickPostPreview = useMemo(() => {
@@ -1031,6 +1099,7 @@ export default function SellerDashboard () {
             </div>
 
             <div className="flex items-center gap-2">
+              <ThemeToggleButton isDarkMode={isDarkMode} onToggle={handleToggleTheme} compact />
               <Link
                 href="#seller-inbox"
                 className="relative flex h-10 w-10 items-center justify-center rounded-full bg-[#F3F4F6] text-[#111827]"
@@ -1099,6 +1168,39 @@ export default function SellerDashboard () {
             </div>
           </div>
 
+          <div className="mt-5 rounded-[1.2rem] border border-[rgba(226,232,240,0.9)] bg-white/92 p-4 shadow-[0_12px_28px_rgba(15,23,32,0.05)]">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#7C3AED]">Theme</p>
+                <p className="mt-1 text-sm font-semibold text-[#111827]">Color appearance</p>
+              </div>
+              <ThemeToggleButton isDarkMode={isDarkMode} onToggle={handleToggleTheme} compact />
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {[
+                { value: 'light', label: 'Light' },
+                { value: 'dark', label: 'Dark' },
+                { value: 'system', label: 'System' }
+              ].map((option) => {
+                const active = themePreference === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => applyThemePreference(option.value)}
+                    className={`rounded-[0.9rem] border px-3 py-2.5 text-xs font-semibold transition ${
+                      active
+                        ? 'border-[#C4B5FD] bg-[linear-gradient(135deg,rgba(124,58,237,0.12),rgba(99,102,241,0.1))] text-[#6D28D9]'
+                        : 'border-[#E5EAF4] bg-[#F8FAFC] text-[#475467]'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <nav className="mt-6 space-y-2">
             {mobileMenuLinks.map((item) => (
               <Link
@@ -1138,13 +1240,16 @@ export default function SellerDashboard () {
                       Seller workspace is active
                     </div>
                   </div>
-                  <Link
-                    href="/profile"
-                    className={`relative flex items-center justify-center overflow-hidden rounded-full bg-[linear-gradient(135deg,#312E81,#6366F1,#A855F7)] text-sm font-semibold text-white shadow-[0_14px_30px_rgba(99,102,241,0.35)] transition-all duration-300 ${quickPostOpen ? 'h-10 w-10' : 'h-12 w-12'}`}
-                  >
-                    <span className="absolute inset-[2px] rounded-full border border-white/20" />
-                    <span className="relative">{initials}</span>
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    <ThemeToggleButton isDarkMode={isDarkMode} onToggle={handleToggleTheme} />
+                    <Link
+                      href="/profile"
+                      className={`relative flex items-center justify-center overflow-hidden rounded-full bg-[linear-gradient(135deg,#312E81,#6366F1,#A855F7)] text-sm font-semibold text-white shadow-[0_14px_30px_rgba(99,102,241,0.35)] transition-all duration-300 ${quickPostOpen ? 'h-10 w-10' : 'h-12 w-12'}`}
+                    >
+                      <span className="absolute inset-[2px] rounded-full border border-white/20" />
+                      <span className="relative">{initials}</span>
+                    </Link>
+                  </div>
                 </div>
 
                 <div className={`relative overflow-hidden rounded-[1.45rem] bg-[linear-gradient(135deg,#FFFFFF_0%,#EEF2FF_45%,#F5F3FF_100%)] p-[1px] shadow-[0_18px_40px_rgba(99,102,241,0.12)] transition-all duration-300 ${quickPostOpen ? 'mt-3' : 'mt-5'}`}>
@@ -1315,8 +1420,11 @@ export default function SellerDashboard () {
                   Run your shop from one cleaner seller workspace with better visibility, faster actions, and a stronger profile presence.
                   </p>
                 </div>
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#0F172A,#312E81,#7C3AED)] text-sm font-semibold text-white shadow-[0_12px_28px_rgba(79,70,229,0.35)]">
-                  {initials}
+                <div className="flex items-center gap-3">
+                  <ThemeToggleButton isDarkMode={isDarkMode} onToggle={handleToggleTheme} />
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#0F172A,#312E81,#7C3AED)] text-sm font-semibold text-white shadow-[0_12px_28px_rgba(79,70,229,0.35)]">
+                    {initials}
+                  </div>
                 </div>
               </div>
 

@@ -106,7 +106,106 @@ const getContactDetails = (entry, userType) => {
   return { phone: phone.trim(), email: email.trim() };
 };
 
-export default function InquiryCenterPage() {
+function SellerMessagesHeader ({
+  title,
+  unreadCount,
+  onBack,
+  onRefresh,
+  isRefreshing = false,
+  threadContactName = '',
+  threadContactInitials = '',
+  showThreadHeader = false
+}) {
+  return (
+    <header className="sticky top-0 z-50 border-b border-[#D5DEE7] bg-white/96 backdrop-blur-sm">
+      <div className="mx-auto flex h-14 max-w-[1450px] items-center justify-between px-3 sm:px-4 lg:px-6">
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[#334155]"
+          aria-label="Go back"
+        >
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+
+        {showThreadHeader ? (
+          <>
+            <div className="flex min-w-0 flex-1 items-center gap-3 px-2">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#9FD3A4] bg-[#8DD490] text-xs font-semibold text-white">
+                {threadContactInitials || 'U'}
+              </div>
+              <p className="truncate text-[15px] font-semibold text-[#2A3D50]">{threadContactName || title}</p>
+            </div>
+            <button
+              type="button"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[#1AA347]"
+              aria-label="Chat options"
+              title="Chat options"
+            >
+              <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 4a2 2 0 110-4 2 2 0 010 4Zm0 8a2 2 0 110-4 2 2 0 010 4Zm0 8a2 2 0 110-4 2 2 0 010 4Z" />
+              </svg>
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="max-w-[58vw] truncate text-base font-semibold text-[#0F172A] sm:text-lg">{title}</p>
+
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={onRefresh}
+                disabled={isRefreshing}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[#334155] disabled:opacity-60"
+                aria-label="Refresh messages"
+                title="Refresh messages"
+              >
+                <svg className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v6h6M20 20v-6h-6" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 9a8 8 0 0 0-13.66-3.66L4 10m16 4-2.34 4.66A8 8 0 0 1 4 15" />
+                </svg>
+              </button>
+
+              <button
+                type="button"
+                className="relative inline-flex h-9 w-9 items-center justify-center rounded-full text-[#334155]"
+                aria-label="Notifications"
+                title="Notifications"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6.5 16.5h11l-1.2-1.8a4.5 4.5 0 0 1-.8-2.5V10a3.5 3.5 0 1 0-7 0v2.2a4.5 4.5 0 0 1-.8 2.5L6.5 16.5Z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 18.5a2 2 0 0 0 4 0" />
+                </svg>
+                {unreadCount > 0 ? (
+                  <span className="absolute right-0.5 top-0.5 inline-flex min-w-[16px] items-center justify-center rounded-full bg-[#16A34A] px-1 text-[9px] font-semibold text-white">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                ) : null}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </header>
+  );
+}
+
+function SellerMessagesNavItem ({ href, label, active = false, children }) {
+  return (
+    <Link href={href} className="relative flex flex-col items-center justify-center gap-0.5 py-2">
+      <span className={`flex h-8 w-8 items-center justify-center rounded-full ${
+        active ? 'bg-[rgba(124,58,237,0.12)] text-[#7C3AED]' : 'text-slate-400'
+      }`}>
+        {children}
+      </span>
+      <span className={`text-[10px] font-semibold ${active ? 'text-[#7C3AED]' : 'text-slate-700'}`}>{label}</span>
+    </Link>
+  );
+}
+
+export default function InquiryCenterPage () {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState([]);
@@ -405,6 +504,22 @@ export default function InquiryCenterPage() {
     () => (activeInquiry ? getContactDetails(activeInquiry, userType) : { phone: '', email: '' }),
     [activeInquiry, userType]
   );
+  const unreadNotificationCount = useMemo(
+    () => conversationThreads.reduce((sum, entry) => sum + Number(entry?.unreadCount || 0), 0),
+    [conversationThreads]
+  );
+  const sellerHeaderTitle = userType === 'seller' && isMobileThreadOpen && activeInquiry
+    ? String(activeInquiry?.counterpartName || 'Messages')
+    : 'Messages';
+  const activeInquiryInitials = useMemo(
+    () => String(activeInquiry?.counterpartName || 'U')
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((piece) => piece[0]?.toUpperCase())
+      .join('') || 'U',
+    [activeInquiry]
+  );
 
   useEffect(() => {
     if (!activeInquiryId) return;
@@ -539,11 +654,24 @@ export default function InquiryCenterPage() {
         <title>Inquiry Center | B2B E-Commerce Platform</title>
         <meta name="description" content="Inquiry center with separated inquiry detail and message thread views" />
       </Head>
-      <Header />
+      {userType === 'seller'
+        ? (
+          <SellerMessagesHeader
+            title={sellerHeaderTitle}
+            unreadCount={unreadNotificationCount}
+            onBack={handleGoBack}
+            onRefresh={() => loadInquiries({ silent: true })}
+            isRefreshing={isRefreshing}
+            showThreadHeader={Boolean(userType === 'seller' && isMobileThreadOpen && activeInquiry)}
+            threadContactName={activeInquiry?.counterpartName || ''}
+            threadContactInitials={activeInquiryInitials}
+          />
+          )
+        : <Header />}
 
-      <main className="mx-auto h-[calc(100vh-56px)] max-w-[1450px] px-3 py-3 sm:px-4 sm:py-3 lg:px-6">
+      <main className="mx-auto h-[calc(100vh-56px)] max-w-[1450px] px-0 py-0 pb-24 sm:px-4 sm:py-3 sm:pb-3 lg:px-6">
         {sortedRows.length === 0 ? (
-          <section className="rounded-2xl border border-[var(--portal-border)] bg-white p-10 text-center shadow-[0_16px_42px_rgba(15,23,42,0.08)]">
+          <section className="mx-3 mt-3 rounded-2xl border border-[var(--portal-border)] bg-white p-10 text-center shadow-[0_16px_42px_rgba(15,23,42,0.08)] sm:mx-0 sm:mt-0">
             <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)]">
               <svg className="h-10 w-10 text-[#94A3B8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-4 4v-4z" />
@@ -556,22 +684,12 @@ export default function InquiryCenterPage() {
             </div>
           </section>
         ) : (
-          <section className="grid h-full min-h-0 overflow-hidden rounded-none border border-[#BFD0DB] bg-[#DDE6EC] shadow-[0_10px_32px_rgba(15,23,42,0.12)] grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
+          <section className="grid h-full min-h-0 overflow-hidden rounded-none border-0 bg-[#DDE6EC] shadow-none grid-cols-1 sm:mx-0 sm:rounded-none sm:border sm:border-[#BFD0DB] sm:shadow-[0_10px_32px_rgba(15,23,42,0.12)] lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
             <aside className={`min-h-0 flex-col border-r border-[#BFD0DB] bg-[#F6F8FA] ${isMobileThreadOpen ? 'hidden lg:flex' : 'flex'}`}>
               <div className="border-b border-[#CAD6DF] px-3 py-1.5 sm:px-4 sm:py-2">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleGoBack}
-                      className="inline-flex h-7 items-center gap-1 rounded-md border border-[#BFCFDC] bg-white px-2 text-[11px] font-semibold text-[#40617B]"
-                    >
-                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-                      </svg>
-                      Back
-                    </button>
-                    <h2 className="text-lg font-semibold tracking-[-0.01em] text-[#2B3D50] sm:text-xl">My messages</h2>
+                    <h2 className="text-base font-semibold tracking-[-0.01em] text-[#2B3D50] sm:text-lg">{userType === 'seller' ? 'Messages' : 'My messages'}</h2>
                   </div>
                   <button
                     type="button"
@@ -690,37 +808,6 @@ export default function InquiryCenterPage() {
 
             {activeInquiry ? (
               <div className={`min-h-0 flex-col bg-[#D4DEE5] ${isMobileThreadOpen ? 'flex' : 'hidden lg:flex'}`}>
-                <div className="border-b border-[#BFD0DB] bg-[#F2F4F6] px-3 py-1.5 sm:px-4 sm:py-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setIsMobileThreadOpen(false)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#BFCFDC] bg-white text-[#40617B] lg:hidden"
-                        aria-label="Back to chats"
-                      >
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-                        </svg>
-                      </button>
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[#9FD3A4] bg-[#8DD490] text-xs font-semibold text-white">
-                        {String(activeInquiry?.counterpartName || 'U')
-                          .split(' ')
-                          .filter(Boolean)
-                          .slice(0, 2)
-                          .map((piece) => piece[0]?.toUpperCase())
-                          .join('') || 'U'}
-                      </div>
-                      <p className="text-[15px] font-semibold text-[#2A3D50] sm:text-base">{activeInquiry?.counterpartName || 'Unknown'}</p>
-                    </div>
-                    <button type="button" className="text-[#1AA347]">
-                      <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M10 4a2 2 0 110-4 2 2 0 010 4Zm0 8a2 2 0 110-4 2 2 0 010 4Zm0 8a2 2 0 110-4 2 2 0 010 4Z" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-
                 <div className="border-b border-[#BFD0DB] bg-[#F7F8F9] px-2 py-1 sm:py-1.5">
                   <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
                     <div className="flex min-w-0 items-center gap-2">

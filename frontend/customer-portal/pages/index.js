@@ -2,6 +2,7 @@ import Head from 'next/head';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import NetworkCore from '../components/NetworkCore';
+import AccountDropdown from '../components/header/AccountDropdown';
 
 const sectorEcosystem = [
   {
@@ -296,6 +297,8 @@ export default function Home() {
   const router = useRouter();
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isThemeManagedBySystem, setIsThemeManagedBySystem] = useState(true);
+  const [isUserLoggedIn, setIsUserLoggedIn] = useState(false);
+  const [homepageUserName, setHomepageUserName] = useState('User');
   const [activeNode, setActiveNode] = useState('b2b');
   const [activeModal, setActiveModal] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -336,6 +339,29 @@ export default function Home() {
     mediaQuery.addListener(applySystemTheme);
     return () => mediaQuery.removeListener(applySystemTheme);
   }, [isThemeManagedBySystem]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const syncHomepageLoginState = () => {
+      const loggedIn = localStorage.getItem('userLoggedIn') === 'true';
+      const email = String(localStorage.getItem('userEmail') || '').trim();
+      const name = email ? email.split('@')[0] : 'User';
+      setIsUserLoggedIn(loggedIn);
+      setHomepageUserName(name);
+    };
+
+    syncHomepageLoginState();
+    window.addEventListener('storage', syncHomepageLoginState);
+    window.addEventListener('loginStatusChanged', syncHomepageLoginState);
+    window.addEventListener('focus', syncHomepageLoginState);
+
+    return () => {
+      window.removeEventListener('storage', syncHomepageLoginState);
+      window.removeEventListener('loginStatusChanged', syncHomepageLoginState);
+      window.removeEventListener('focus', syncHomepageLoginState);
+    };
+  }, []);
 
   useEffect(() => {
     const updateViewportMode = () => {
@@ -832,16 +858,43 @@ export default function Home() {
                 ☰
               </button>
 
-              <button
-                onClick={() => router.push('/signup')}
-                className={`hidden sm:inline-flex px-5 py-3 rounded-2xl text-sm font-bold ${
-                  isDarkMode
-                    ? 'bg-gradient-to-r from-indigo-600 to-cyan-600 text-white'
-                    : 'bg-gradient-to-r from-fuchsia-500 via-rose-500 to-orange-400 text-white'
-                }`}
-              >
-                Sign Up
-              </button>
+              {isUserLoggedIn ? (
+                <AccountDropdown
+                  buttonClassName={`hidden sm:inline-flex h-12 min-w-[48px] items-center justify-center rounded-2xl px-3 transition ${
+                    isDarkMode
+                      ? 'bg-white/5 text-white hover:bg-white/10'
+                      : 'border border-slate-200 bg-white text-slate-900 hover:bg-slate-50'
+                  }`}
+                  menuClassName={`absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-2xl border shadow-xl z-40 ${
+                    isDarkMode ? 'border-white/10 bg-slate-950 text-white' : 'border-slate-200 bg-white text-slate-900'
+                  }`}
+                  buttonContent={(
+                    <div className="flex items-center gap-2">
+                      <span className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-black ${
+                        isDarkMode
+                          ? 'bg-gradient-to-br from-indigo-500 to-cyan-500 text-white'
+                          : 'bg-gradient-to-br from-fuchsia-500 via-rose-500 to-orange-400 text-white'
+                      }`}>
+                        {homepageUserName.slice(0, 2).toUpperCase()}
+                      </span>
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  )}
+                />
+              ) : (
+                <button
+                  onClick={() => router.push('/signup')}
+                  className={`hidden sm:inline-flex px-5 py-3 rounded-2xl text-sm font-bold ${
+                    isDarkMode
+                      ? 'bg-gradient-to-r from-indigo-600 to-cyan-600 text-white'
+                      : 'bg-gradient-to-r from-fuchsia-500 via-rose-500 to-orange-400 text-white'
+                  }`}
+                >
+                  Sign Up
+                </button>
+              )}
             </div>
           </div>
 
