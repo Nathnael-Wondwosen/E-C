@@ -3,6 +3,7 @@ export const CUSTOMER_SESSION_KEYS = [
   'userEmail',
   'userType',
   'userId',
+  'userName',
   'userToken',
   'customerSessionSnapshot'
 ];
@@ -61,11 +62,18 @@ export const setCustomerSession = ({ user = {}, token = '', fallbackEmail = '', 
   const userId = String(user?.id || user?._id || '');
   const userEmail = String(user?.email || fallbackEmail || '').trim();
   const userType = resolveUserType(user, fallbackUserType);
+  const userName = String(
+    user?.name ||
+    user?.fullName ||
+    user?.profile?.name ||
+    (userEmail ? userEmail.split('@')[0] : 'User')
+  ).trim() || 'User';
 
   localStorage.setItem('userLoggedIn', 'true');
   localStorage.setItem('userEmail', userEmail);
   localStorage.setItem('userType', userType);
   localStorage.setItem('userId', userId);
+  localStorage.setItem('userName', userName);
 
   if (token && String(token).trim()) {
     localStorage.setItem('userToken', String(token).trim());
@@ -76,6 +84,7 @@ export const setCustomerSession = ({ user = {}, token = '', fallbackEmail = '', 
     userId,
     userEmail,
     userType,
+    userName,
     userToken: token && String(token).trim() ? String(token).trim() : String(localStorage.getItem('userToken') || '').trim()
   }));
 
@@ -108,13 +117,18 @@ export const hydrateCustomerSessionFromToken = () => {
   const userId = String(localStorage.getItem('userId') || snapshot?.userId || payload?.sub || payload?.id || '').trim();
   const userType = normalizeSessionUserType(localStorage.getItem('userType') || snapshot?.userType || getTypeFromPayload(payload) || 'buyer');
   const userEmail = String(localStorage.getItem('userEmail') || snapshot?.userEmail || payload?.email || '').trim();
+  const userName = String(localStorage.getItem('userName') || snapshot?.userName || payload?.name || (userEmail ? userEmail.split('@')[0] : 'User')).trim() || 'User';
   const shouldHydrate = hasRecoverableSession || Boolean(token);
 
-  if (shouldHydrate && (!currentLoggedIn || !localStorage.getItem('userId') || !localStorage.getItem('userType'))) {
+  if (
+    shouldHydrate &&
+    (!currentLoggedIn || !localStorage.getItem('userId') || !localStorage.getItem('userType') || !localStorage.getItem('userName'))
+  ) {
     localStorage.setItem('userLoggedIn', 'true');
     localStorage.setItem('userId', userId);
     localStorage.setItem('userType', userType);
     if (userEmail) localStorage.setItem('userEmail', userEmail);
+    localStorage.setItem('userName', userName);
     window.dispatchEvent(new CustomEvent('loginStatusChanged'));
   }
 
@@ -123,6 +137,7 @@ export const hydrateCustomerSessionFromToken = () => {
     userId,
     userEmail,
     userType,
+    userName,
     userToken: token
   }));
 
@@ -136,25 +151,39 @@ export const getCustomerSessionState = () => {
       userId: '',
       userType: 'buyer',
       userEmail: '',
-      userName: 'User'
+      userName: 'User',
+      userToken: ''
     };
   }
 
+  const snapshot = readSessionSnapshot();
   hydrateCustomerSessionFromToken();
 
-  const loggedIn = localStorage.getItem('userLoggedIn') === 'true';
-  const userId = String(localStorage.getItem('userId') || '').trim();
-  const userType = String(localStorage.getItem('userType') || 'buyer').trim() || 'buyer';
-  const userEmail = String(localStorage.getItem('userEmail') || '').trim();
-  const userName = userEmail ? userEmail.split('@')[0] : 'User';
+  const loggedIn =
+    localStorage.getItem('userLoggedIn') === 'true' ||
+    snapshot?.loggedIn === true;
+  const userId = String(localStorage.getItem('userId') || snapshot?.userId || '').trim();
+  const userType = String(localStorage.getItem('userType') || snapshot?.userType || 'buyer').trim() || 'buyer';
+  const userEmail = String(localStorage.getItem('userEmail') || snapshot?.userEmail || '').trim();
+  const userName =
+    String(localStorage.getItem('userName') || snapshot?.userName || '').trim() ||
+    (userEmail ? userEmail.split('@')[0] : 'User');
+  const userToken = String(localStorage.getItem('userToken') || snapshot?.userToken || '').trim();
 
   return {
-    loggedIn,
+    loggedIn: Boolean(loggedIn && (userId || userEmail)),
     userId,
     userType,
     userEmail,
-    userName
+    userName,
+    userToken
   };
+};
+
+export const hasCustomerAuthToken = () => {
+  if (typeof window === 'undefined') return false;
+  const snapshot = readSessionSnapshot();
+  return Boolean(String(localStorage.getItem('userToken') || snapshot?.userToken || '').trim());
 };
 
 export const getRequiredCustomerSession = (expectedUserType = '') => {
@@ -163,7 +192,8 @@ export const getRequiredCustomerSession = (expectedUserType = '') => {
       loggedIn: false,
       userId: '',
       userType: '',
-      userEmail: ''
+      userEmail: '',
+      userName: 'User'
     };
   }
 

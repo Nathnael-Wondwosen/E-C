@@ -125,6 +125,21 @@ function ChecklistItem ({ label, complete }) {
   );
 }
 
+function SellerProfileNavItem ({ href, label, active = false, children }) {
+  return (
+    <Link href={href} className="relative flex flex-col items-center justify-center gap-0.5 py-2">
+      <span className={`flex h-8 w-8 items-center justify-center rounded-full ${
+        active ? 'bg-[rgba(124,58,237,0.12)] text-[#7C3AED]' : 'text-slate-400'
+      }`}>
+        {children}
+      </span>
+      <span className={`text-[10px] font-semibold ${active ? 'text-[#7C3AED]' : 'text-slate-700'}`}>
+        {label}
+      </span>
+    </Link>
+  );
+}
+
 export default function Profile () {
   const router = useRouter();
   const [user, setUser] = useState(null);
@@ -155,6 +170,7 @@ export default function Profile () {
   const mapMarkerRef = useRef(null);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState('');
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
   useEffect(() => {
@@ -167,6 +183,22 @@ export default function Profile () {
     window.addEventListener('sessionExpired', handleSessionExpired);
     return () => window.removeEventListener('sessionExpired', handleSessionExpired);
   }, [router]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const mediaQuery = window.matchMedia('(max-width: 767px)');
+    const syncViewport = () => setIsMobileViewport(mediaQuery.matches);
+
+    syncViewport();
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', syncViewport);
+      return () => mediaQuery.removeEventListener('change', syncViewport);
+    }
+
+    mediaQuery.addListener(syncViewport);
+    return () => mediaQuery.removeListener(syncViewport);
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -514,96 +546,393 @@ export default function Profile () {
 
       <div className="portal-page min-h-screen">
         <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:py-8">
-          <section className="portal-hero relative">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_20%,rgba(251,113,133,0.16),transparent_28%),radial-gradient(circle_at_88%_22%,rgba(59,130,246,0.14),transparent_30%),linear-gradient(120deg,rgba(255,255,255,0.74),rgba(255,255,255,0.28))]" />
-            <div className="relative grid gap-5 p-5 sm:p-6 lg:grid-cols-[1fr_auto] lg:items-center">
-              <div className="flex items-start gap-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[1rem] border border-[var(--portal-border-strong)] bg-[var(--portal-surface-muted)] text-lg font-bold text-[var(--portal-accent-strong)] sm:h-16 sm:w-16 sm:text-xl">
-                  {initials || 'U'}
-                </div>
-                <div>
-                  <p className="portal-badge">{isSeller ? 'Seller Studio' : 'Account Center'}</p>
-                  <h1 className="portal-heading mt-2 text-[1.75rem] font-semibold tracking-[-0.03em] sm:text-[2.25rem]">
-                    {isSeller ? 'Seller Profile Command' : 'Profile Dashboard'}
-                  </h1>
-                  <p className="portal-text mt-1 text-sm leading-6 sm:text-[15px]">
-                    {isSeller
-                      ? 'Shape how your business appears across the seller dashboard, public shop, and inquiry flows from one cleaner workspace.'
-                      : 'Update identity details, account information, and security settings in one polished workspace.'}
-                  </p>
-                </div>
+          {isSeller && isMobileViewport ? (
+            <section className="-mx-4 pb-24 md:hidden">
+              <div className="px-4 pt-2">
+                <section className="relative overflow-hidden rounded-[1.8rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(243,246,255,0.9))] px-4 pb-4 pt-4 shadow-[0_18px_40px_rgba(15,23,32,0.08)]">
+                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(124,58,237,0.18),transparent_34%),radial-gradient(circle_at_top_right,rgba(59,130,246,0.12),transparent_28%)]" />
+                  <div className="relative flex items-start justify-between gap-3">
+                    <button
+                      type="button"
+                      onClick={handleGoBack}
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/80 bg-white/90 text-[#111827] shadow-[0_10px_24px_rgba(15,23,32,0.06)]"
+                      aria-label="Go back"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 18 9 12l6-6" />
+                      </svg>
+                    </button>
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[linear-gradient(135deg,#4F46E5,#8B5CF6)] text-sm font-semibold text-white shadow-[0_16px_28px_rgba(124,58,237,0.28)]">
+                      {initials || 'U'}
+                    </div>
+                  </div>
+
+                  <div className="relative mt-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8A94A6]">Seller Profile</p>
+                    <h1 className="mt-2 text-[2rem] font-semibold tracking-[-0.06em] text-[#111827]">
+                      {formData.companyName || formData.name || 'Seller account'}
+                    </h1>
+                    <p className="mt-2 max-w-[19rem] text-[13px] leading-6 text-[#667085]">
+                      Keep your seller identity, shop trust, and public storefront details clean in one mobile workspace.
+                    </p>
+                  </div>
+
+                  <div className="relative mt-5 grid grid-cols-3 gap-2">
+                    <div className="rounded-[1rem] border border-white/80 bg-white/90 px-3 py-2.5 shadow-[0_8px_20px_rgba(15,23,32,0.04)]">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#98A2B3]">Profile</p>
+                      <p className="mt-1 text-[1.15rem] font-semibold text-[#111827]">{profileCompletion}%</p>
+                    </div>
+                    <div className="rounded-[1rem] border border-white/80 bg-white/90 px-3 py-2.5 shadow-[0_8px_20px_rgba(15,23,32,0.04)]">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#98A2B3]">Readiness</p>
+                      <p className="mt-1 text-[1.15rem] font-semibold text-[#111827]">{sellerReadinessScore}%</p>
+                    </div>
+                    <div className="rounded-[1rem] border border-white/80 bg-white/90 px-3 py-2.5 shadow-[0_8px_20px_rgba(15,23,32,0.04)]">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#98A2B3]">Status</p>
+                      <p className="mt-1 truncate text-[13px] font-semibold text-[#7C3AED]">{sellerProfileTone}</p>
+                    </div>
+                  </div>
+
+                  <div className="relative mt-4 rounded-[1.2rem] border border-white/80 bg-white/88 p-4 shadow-[0_10px_24px_rgba(15,23,32,0.05)]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#98A2B3]">Shop profile</p>
+                        <p className="mt-2 text-base font-semibold text-[#111827]">{formData.businessType || 'Select business type'}</p>
+                        <p className="mt-1 text-xs leading-5 text-[#667085]">
+                          {formData.locationAddress || 'Add business address and map pin'}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-[rgba(124,58,237,0.12)] px-3 py-1 text-[11px] font-semibold text-[#7C3AED]">
+                        {sellerReadinessScore}% ready
+                      </span>
+                    </div>
+                    <div className="mt-4 h-2 rounded-full bg-[#E8EDFF]">
+                      <div
+                        className="h-2 rounded-full bg-[linear-gradient(90deg,#6366F1,#8B5CF6,#A855F7)]"
+                        style={{ width: `${Math.max(sellerReadinessScore, 8)}%` }}
+                      />
+                    </div>
+                    <div className="mt-4 flex gap-2">
+                      <Link href="/dashboard/seller" className="flex-1 rounded-[0.95rem] border border-[#D8E1F0] bg-white px-4 py-2.5 text-center text-sm font-semibold text-[#374151]">
+                        Dashboard
+                      </Link>
+                      {publicShopHref ? (
+                        <Link href={publicShopHref} className="flex-1 rounded-[0.95rem] bg-[linear-gradient(135deg,#6D28D9,#8B5CF6)] px-4 py-2.5 text-center text-sm font-semibold text-white shadow-[0_12px_24px_rgba(124,58,237,0.22)]">
+                          Preview Shop
+                        </Link>
+                      ) : null}
+                    </div>
+                  </div>
+                </section>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-2">
-                <StatTile label="Completion" value={`${profileCompletion}%`} tone="accent" />
-                <StatTile label="Status" value={accountBadge} tone="success" />
-                <StatTile label={isSeller ? 'Shop Readiness' : 'Role'} value={isSeller ? `${sellerReadinessScore}%` : formData.userType} />
-                <StatTile label={isSeller ? 'Profile Mode' : 'Security'} value={isSeller ? sellerProfileTone : 'Password'} />
-              </div>
-            </div>
-          </section>
-
-          {message.text ? (
-            <div
-              className={`mt-5 rounded-[1rem] border px-4 py-3 text-sm shadow-[0_12px_30px_rgba(15,23,32,0.05)] ${
-                message.tone === 'success'
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                  : 'border-red-200 bg-red-50 text-red-700'
-              }`}
-            >
-              {message.text}
-            </div>
-          ) : null}
-
-          {isSeller ? (
-            <section className="mt-6 rounded-[1.7rem] border border-[rgba(255,255,255,0.7)] bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(242,246,255,0.88))] p-4 shadow-[0_22px_54px_rgba(15,23,32,0.08)] sm:p-5">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--portal-accent-strong)]">Shop Preview</p>
-                  <h2 className="portal-heading mt-2 text-[1.45rem] font-semibold tracking-[-0.03em] sm:text-[1.75rem]">
-                    {formData.companyName || 'Your seller identity'}
-                  </h2>
-                  <p className="portal-muted mt-2 max-w-2xl text-sm leading-6">
-                    A cleaner summary of how buyers will read your business. Keep this section clear, trustworthy, and easy to scan.
-                  </p>
+              {message.text ? (
+                <div
+                  className={`mx-4 mt-4 rounded-[1rem] border px-4 py-3 text-sm shadow-[0_10px_24px_rgba(15,23,32,0.05)] ${
+                    message.tone === 'success'
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                      : 'border-red-200 bg-red-50 text-red-700'
+                  }`}
+                >
+                  {message.text}
                 </div>
+              ) : null}
 
-                <div className="flex flex-wrap gap-2">
-                  <Link href="/dashboard/seller" className="portal-outline-button px-4 py-2 text-sm">
-                    Seller Dashboard
+              <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+                <section className="border-y border-[var(--portal-border)] bg-white/92 px-4 py-5 shadow-[0_10px_28px_rgba(15,23,32,0.04)]">
+                  <SectionHeading
+                    eyebrow="Identity"
+                    title="Owner and account details"
+                    description="Keep the main account owner details accurate for trust, recovery, and buyer communication."
+                  />
+                  <div className="mt-4 space-y-4">
+                    <FormField
+                      id="name"
+                      label="Full Name"
+                      value={formData.name}
+                      onChange={(e) => setField('name', e.target.value)}
+                      required
+                      placeholder="Enter your full name"
+                    />
+                    <FormField
+                      id="email"
+                      label="Email Address"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setField('email', e.target.value)}
+                      required
+                      placeholder="Enter your email address"
+                    />
+                    <FormField
+                      id="phone"
+                      label="Phone Number"
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setField('phone', e.target.value)}
+                      placeholder="Enter your phone number"
+                    />
+                    <FormField id="userType" label="Account Type" hint="Locked">
+                      <select
+                        id="userType"
+                        name="userType"
+                        value={formData.userType}
+                        disabled
+                        className="portal-input !border-[#E2E8F0] !bg-[#F8FAFC] !text-[#7A818C] dark:!border-[#33414f] dark:!bg-[#17212c] dark:!text-[#8f99a6]"
+                      >
+                        <option value="buyer">Buyer</option>
+                        <option value="seller">Seller</option>
+                      </select>
+                    </FormField>
+                  </div>
+                </section>
+
+                <section className="border-y border-[var(--portal-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(246,248,255,0.9))] px-4 py-5 shadow-[0_10px_28px_rgba(15,23,32,0.04)]">
+                  <SectionHeading
+                    eyebrow="Shop Identity"
+                    title="Business details buyers should trust"
+                    description="Keep the store name, business type, and address sharp so the public shop reads clearly on first view."
+                  />
+                  <div className="mt-4 space-y-4">
+                    <FormField
+                      id="companyName"
+                      label="Company Name"
+                      value={formData.companyName}
+                      onChange={(e) => setField('companyName', e.target.value)}
+                      placeholder="Enter your company name"
+                    />
+                    <FormField id="businessType" label="Business Type">
+                      <select
+                        id="businessType"
+                        name="businessType"
+                        value={formData.businessType}
+                        onChange={(e) => setField('businessType', e.target.value)}
+                        className="portal-input"
+                      >
+                        {sellerBusinessTypes.map((option) => (
+                          <option key={option.value || 'empty'} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </FormField>
+                    <FormField
+                      id="locationAddress"
+                      label="Business Address"
+                      value={formData.locationAddress}
+                      onChange={(e) => setField('locationAddress', e.target.value)}
+                      placeholder="Enter your address or pick on map"
+                    />
+                    <div className="grid grid-cols-2 gap-3">
+                      <FormField
+                        id="locationLat"
+                        label="Latitude"
+                        value={formData.locationLat}
+                        onChange={(e) => setField('locationLat', e.target.value)}
+                        placeholder="9.030000"
+                      />
+                      <FormField
+                        id="locationLng"
+                        label="Longitude"
+                        value={formData.locationLng}
+                        onChange={(e) => setField('locationLng', e.target.value)}
+                        placeholder="38.740000"
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                <section className="border-y border-[var(--portal-border)] bg-white/92 px-4 py-5 shadow-[0_10px_28px_rgba(15,23,32,0.04)]">
+                  <SectionHeading
+                    eyebrow="Location Studio"
+                    title="Pin the exact business location"
+                    description="A precise seller location helps buyers verify the shop and improves logistics clarity."
+                  />
+                  <div className="mt-4">
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <p className="text-[13px] font-medium text-[var(--auth-label)]">Business Location Map</p>
+                      {locationMapLink ? (
+                        <a
+                          href={locationMapLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs font-semibold text-[var(--portal-accent-strong)] hover:underline"
+                        >
+                          Open in Maps
+                        </a>
+                      ) : null}
+                    </div>
+                    <div className="overflow-hidden rounded-[1rem] border border-[var(--portal-border)] bg-[var(--portal-surface)]">
+                      <div ref={mapContainerRef} className="h-56 w-full" />
+                    </div>
+                    <p className="mt-2 text-xs text-[var(--portal-muted)]">
+                      Click the map or drag the marker to set your exact seller location.
+                    </p>
+                    {!mapReady && !mapError ? (
+                      <p className="mt-1 text-xs text-[var(--portal-muted)]">Loading map...</p>
+                    ) : null}
+                    {mapError ? (
+                      <p className="mt-1 text-xs text-red-600">{mapError}</p>
+                    ) : null}
+                  </div>
+                </section>
+
+                <section className="px-4">
+                  <div className="grid gap-3">
+                    <div className="rounded-[1.15rem] border border-[var(--portal-border)] bg-white/92 p-4 shadow-[0_10px_24px_rgba(15,23,32,0.05)]">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--portal-accent-strong)]">Seller Snapshot</p>
+                          <p className="mt-2 text-sm font-semibold text-[var(--portal-heading)]">{formData.name || 'Seller name'}</p>
+                          <p className="mt-1 text-xs leading-5 text-[var(--portal-muted)]">{formData.email || 'No email added'}</p>
+                        </div>
+                        <span className="rounded-full bg-[rgba(124,58,237,0.1)] px-3 py-1 text-[11px] font-semibold text-[#7C3AED]">
+                          {accountBadge}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="rounded-[1.15rem] border border-[var(--portal-border)] bg-white/92 p-4 shadow-[0_10px_24px_rgba(15,23,32,0.05)]">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <h2 className="portal-heading text-base font-semibold">Readiness Checklist</h2>
+                          <p className="portal-muted mt-1 text-xs">Simple seller tasks that improve trust and storefront quality.</p>
+                        </div>
+                        <span className="text-lg font-semibold text-[var(--portal-heading)]">{sellerReadinessScore}%</span>
+                      </div>
+                      <div className="mt-4 space-y-3">
+                        {sellerReadinessItems.map((item) => (
+                          <ChecklistItem key={item.label} label={item.label} complete={item.complete} />
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-[1.15rem] border border-[var(--portal-border)] bg-white/92 p-4 shadow-[0_10px_24px_rgba(15,23,32,0.05)]">
+                      <h2 className="portal-heading text-base font-semibold">Security</h2>
+                      <p className="portal-muted mt-1 text-xs leading-5">
+                        Rotate your password regularly and sign out only when needed.
+                      </p>
+                      <div className="mt-4 grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={openPasswordModal}
+                          className="rounded-[0.95rem] bg-[linear-gradient(135deg,#6D28D9,#8B5CF6)] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(124,58,237,0.22)]"
+                        >
+                          Change Password
+                        </button>
+                        <button type="button" onClick={handleLogout} className="rounded-[0.95rem] border border-[#D8E1F0] bg-white px-4 py-3 text-sm font-semibold text-[#374151]">
+                          Logout
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <div className="grid gap-3 px-4 pt-1">
+                  <button type="button" onClick={handleGoBack} className="portal-outline-button">
+                    Back
+                  </button>
+                  <Link href={accountHome} className="portal-outline-button text-center">
+                    Dashboard
                   </Link>
-                  {publicShopHref ? (
-                    <Link href={publicShopHref} className="portal-primary-button px-4 py-2 text-sm">
-                      Preview Public Shop
-                    </Link>
-                  ) : null}
+                  <button type="submit" disabled={saving} className="portal-primary-button">
+                    {saving ? 'Saving...' : 'Save Changes'}
+                  </button>
                 </div>
-              </div>
-
-              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-[1.2rem] bg-[linear-gradient(135deg,#0F172A,#1D4ED8)] p-4 text-white shadow-[0_18px_38px_rgba(29,78,216,0.22)]">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/70">Company</p>
-                  <p className="mt-3 text-base font-semibold">{formData.companyName || 'Add company name'}</p>
-                </div>
-                <div className="rounded-[1.2rem] bg-[linear-gradient(135deg,#0B4D63,#0F766E)] p-4 text-white shadow-[0_18px_38px_rgba(15,118,110,0.2)]">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/70">Business Type</p>
-                  <p className="mt-3 text-base font-semibold">{formData.businessType || 'Select type'}</p>
-                </div>
-                <div className="rounded-[1.2rem] bg-[linear-gradient(135deg,#5B21B6,#7C3AED)] p-4 text-white shadow-[0_18px_38px_rgba(124,58,237,0.2)]">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/70">Readiness</p>
-                  <p className="mt-3 text-base font-semibold">{sellerReadinessScore}% ready</p>
-                </div>
-                <div className="rounded-[1.2rem] border border-[var(--portal-border)] bg-white/80 p-4 shadow-[0_14px_28px_rgba(15,23,32,0.05)]">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--portal-muted)]">Location</p>
-                  <p className="portal-heading mt-3 text-sm font-semibold leading-6">
-                    {formData.locationAddress || (hasValidLocation ? `${formData.locationLat}, ${formData.locationLng}` : 'Add address or map pin')}
-                  </p>
-                </div>
-              </div>
+              </form>
             </section>
           ) : null}
 
-          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.08fr)_340px]">
+          {!isSeller || !isMobileViewport ? (
+            <div className={isSeller ? 'hidden md:block' : ''}>
+            <section className="portal-hero relative">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_20%,rgba(251,113,133,0.16),transparent_28%),radial-gradient(circle_at_88%_22%,rgba(59,130,246,0.14),transparent_30%),linear-gradient(120deg,rgba(255,255,255,0.74),rgba(255,255,255,0.28))]" />
+              <div className="relative grid gap-5 p-5 sm:p-6 lg:grid-cols-[1fr_auto] lg:items-center">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[1rem] border border-[var(--portal-border-strong)] bg-[var(--portal-surface-muted)] text-lg font-bold text-[var(--portal-accent-strong)] sm:h-16 sm:w-16 sm:text-xl">
+                    {initials || 'U'}
+                  </div>
+                  <div>
+                    <p className="portal-badge">{isSeller ? 'Seller Studio' : 'Account Center'}</p>
+                    <h1 className="portal-heading mt-2 text-[1.75rem] font-semibold tracking-[-0.03em] sm:text-[2.25rem]">
+                      {isSeller ? 'Seller Profile Command' : 'Profile Dashboard'}
+                    </h1>
+                    <p className="portal-text mt-1 text-sm leading-6 sm:text-[15px]">
+                      {isSeller
+                        ? 'Shape how your business appears across the seller dashboard, public shop, and inquiry flows from one cleaner workspace.'
+                        : 'Update identity details, account information, and security settings in one polished workspace.'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-2">
+                  <StatTile label="Completion" value={`${profileCompletion}%`} tone="accent" />
+                  <StatTile label="Status" value={accountBadge} tone="success" />
+                  <StatTile label={isSeller ? 'Shop Readiness' : 'Role'} value={isSeller ? `${sellerReadinessScore}%` : formData.userType} />
+                  <StatTile label={isSeller ? 'Profile Mode' : 'Security'} value={isSeller ? sellerProfileTone : 'Password'} />
+                </div>
+              </div>
+            </section>
+
+            {message.text ? (
+              <div
+                className={`mt-5 rounded-[1rem] border px-4 py-3 text-sm shadow-[0_12px_30px_rgba(15,23,32,0.05)] ${
+                  message.tone === 'success'
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : 'border-red-200 bg-red-50 text-red-700'
+                }`}
+              >
+                {message.text}
+              </div>
+            ) : null}
+
+            {isSeller ? (
+              <section className="mt-6 rounded-[1.7rem] border border-[rgba(255,255,255,0.7)] bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(242,246,255,0.88))] p-4 shadow-[0_22px_54px_rgba(15,23,32,0.08)] sm:p-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--portal-accent-strong)]">Shop Preview</p>
+                    <h2 className="portal-heading mt-2 text-[1.45rem] font-semibold tracking-[-0.03em] sm:text-[1.75rem]">
+                      {formData.companyName || 'Your seller identity'}
+                    </h2>
+                    <p className="portal-muted mt-2 max-w-2xl text-sm leading-6">
+                      A cleaner summary of how buyers will read your business. Keep this section clear, trustworthy, and easy to scan.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Link href="/dashboard/seller" className="portal-outline-button px-4 py-2 text-sm">
+                      Seller Dashboard
+                    </Link>
+                    {publicShopHref ? (
+                      <Link href={publicShopHref} className="portal-primary-button px-4 py-2 text-sm">
+                        Preview Public Shop
+                      </Link>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="rounded-[1.2rem] bg-[linear-gradient(135deg,#0F172A,#1D4ED8)] p-4 text-white shadow-[0_18px_38px_rgba(29,78,216,0.22)]">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/70">Company</p>
+                    <p className="mt-3 text-base font-semibold">{formData.companyName || 'Add company name'}</p>
+                  </div>
+                  <div className="rounded-[1.2rem] bg-[linear-gradient(135deg,#0B4D63,#0F766E)] p-4 text-white shadow-[0_18px_38px_rgba(15,118,110,0.2)]">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/70">Business Type</p>
+                    <p className="mt-3 text-base font-semibold">{formData.businessType || 'Select type'}</p>
+                  </div>
+                  <div className="rounded-[1.2rem] bg-[linear-gradient(135deg,#5B21B6,#7C3AED)] p-4 text-white shadow-[0_18px_38px_rgba(124,58,237,0.2)]">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/70">Readiness</p>
+                    <p className="mt-3 text-base font-semibold">{sellerReadinessScore}% ready</p>
+                  </div>
+                  <div className="rounded-[1.2rem] border border-[var(--portal-border)] bg-white/80 p-4 shadow-[0_14px_28px_rgba(15,23,32,0.05)]">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--portal-muted)]">Location</p>
+                    <p className="portal-heading mt-3 text-sm font-semibold leading-6">
+                      {formData.locationAddress || (hasValidLocation ? `${formData.locationLat}, ${formData.locationLng}` : 'Add address or map pin')}
+                    </p>
+                  </div>
+                </div>
+              </section>
+            ) : null}
+
+            <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.08fr)_340px]">
             <section className="portal-card overflow-hidden">
               <div className="border-b border-[var(--portal-border)] bg-[linear-gradient(135deg,#18232f,#283749)] px-5 py-4 sm:px-6">
                 <h2 className="text-lg font-semibold text-white">
@@ -861,8 +1190,57 @@ export default function Profile () {
                 </div>
               </section>
             </aside>
-          </div>
+            </div>
+            </div>
+          ) : null}
         </div>
+
+        {isSeller && isMobileViewport ? (
+          <nav
+            className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 shadow-[0_-10px_35px_rgba(15,23,32,0.08)] backdrop-blur md:hidden"
+            style={{ paddingBottom: 'max(0px, env(safe-area-inset-bottom))' }}
+          >
+            <div className="mx-auto grid max-w-md grid-cols-5">
+              <SellerProfileNavItem href="/dashboard/seller" label="Home">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="h-5 w-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 10.5 12 4l8 6.5" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.5 10v8.5h11V10" />
+                </svg>
+              </SellerProfileNavItem>
+              <SellerProfileNavItem href="/inquiries" label="Messages">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="h-5 w-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6.5h16v10H8l-4 3V6.5Z" />
+                </svg>
+              </SellerProfileNavItem>
+              <Link
+                href="/dashboard/seller/new-product"
+                className="relative flex flex-col items-center justify-center gap-0 py-1"
+                aria-label="Open advanced product form"
+              >
+                <span className="flex h-12 w-12 -translate-y-3 items-center justify-center rounded-full bg-[linear-gradient(135deg,#6D28D9,#8B5CF6,#A855F7)] text-white shadow-[0_18px_36px_rgba(124,58,237,0.34)] transition">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="h-5 w-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
+                  </svg>
+                </span>
+                <span className="mt-[-6px] text-[9px] font-semibold uppercase tracking-[0.1em] text-[#7C3AED]">
+                  Post
+                </span>
+              </Link>
+              <SellerProfileNavItem href="/dashboard/seller/products" label="Store">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="h-5 w-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 7h14l-1 11H6L5 7Z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 7a3 3 0 1 1 6 0" />
+                </svg>
+              </SellerProfileNavItem>
+              <SellerProfileNavItem href="/profile" label="Account" active>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="h-5 w-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 12a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5.5 19a6.5 6.5 0 0 1 13 0" />
+                </svg>
+              </SellerProfileNavItem>
+            </div>
+          </nav>
+        ) : null}
 
         {showPasswordModal ? (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F1720]/55 p-4 backdrop-blur-sm">

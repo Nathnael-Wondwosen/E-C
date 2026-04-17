@@ -12,7 +12,7 @@ import {
 import { getCategories } from '../../utils/heroDataService';
 import { STATIC_NAVBAR_LINKS } from '../../constants/navbarLinks';
 import AccountDropdown from './AccountDropdown';
-import { clearCustomerSession, getCustomerSessionState } from '../../utils/session';
+import { clearCustomerSession, getCustomerSessionState, hasCustomerAuthToken } from '../../utils/session';
 
 const supportedLocales = ['en', 'es', 'fr', 'de'];
 
@@ -134,11 +134,19 @@ export default function Header({ isMenuOpen, setIsMenuOpen, categories = [], mob
 
   const loadHeaderCounts = useCallback(async () => {
     if (typeof window === 'undefined') return;
-    const userId = localStorage.getItem('userId');
-    if (!userId) return;
+    const session = getCustomerSessionState();
+    const userId = String(session.userId || '').trim();
+    if (!session.loggedIn || !userId) return;
+
+    if (!hasCustomerAuthToken()) {
+      setCartCount(0);
+      setWishlistCount(0);
+      setInquiryNotificationCount(0);
+      return;
+    }
 
     try {
-      const currentType = getUserType();
+      const currentType = session.userType || getUserType();
       const [cartData, wishlistData, inquiryResult] = await Promise.all([
         getUserCart(userId),
         getUserWishlist(userId),
