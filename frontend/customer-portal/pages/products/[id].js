@@ -16,6 +16,7 @@ import {
   getPreviewWishlist,
   submitProductReview,
   submitProductInquiry,
+  getUserInquirySent,
   getUserWishlist,
   removeFromWishlist,
   removePreviewFromWishlist
@@ -29,6 +30,12 @@ const formatMoney = (value) => {
 const formatEtbCompact = (value) => {
   const amount = Number(value || 0);
   return `ETB ${amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+};
+
+const formatDateTime = (value) => {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleString();
 };
 
 const toText = (value, fallback = '-') => {
@@ -118,6 +125,7 @@ export default function ProductDetails() {
   const [isRelatedLoading, setIsRelatedLoading] = useState(false);
   const [supplierProfile, setSupplierProfile] = useState(null);
   const [supplierProfileLoading, setSupplierProfileLoading] = useState(false);
+  const [buyerThreadMeta, setBuyerThreadMeta] = useState({ threadId: '', unreadCount: 0 });
   const touchStartXRef = useRef(0);
   const touchStartYRef = useRef(0);
   const [inquiry, setInquiry] = useState({
@@ -348,6 +356,7 @@ export default function ProductDetails() {
   const effectiveAverageRating = reviewSummary?.averageRating > 0 ? Number(reviewSummary.averageRating) : averageRating;
   const effectiveReviewCount = Number(reviewSummary?.totalReviews || 0) > 0 ? Number(reviewSummary.totalReviews) : reviewCount;
   const responseHours = normalizePositiveNumber(supplierProfile?.responseHours || product?.responseHours, 4);
+  const defaultBuyerMessage = `Hi, I'm interested in ${product?.name || 'this product'}. Is it available?`;
 
   useEffect(() => {
     if (!supplierOwnerUserId || product?.isPreview) {
@@ -493,6 +502,66 @@ export default function ProductDetails() {
     return userId;
   };
 
+  const findMatchingBuyerThread = (entries = []) => {
+    const normalizedProductId = String(product?.id || '').trim();
+    const normalizedSupplierId = String(resolvedSupplierContactId || '').trim();
+    const normalizedProductName = String(product?.name || '').trim().toLowerCase();
+
+    return entries
+      .filter((entry) => {
+        const entryProductId = String(entry?.productId || '').trim();
+        const entrySellerId = String(entry?.sellerId || entry?.toUserId || entry?.supplierId || '').trim();
+        const entryProductName = String(entry?.productName || '').trim().toLowerCase();
+
+        const matchesProduct =
+          (normalizedProductId && entryProductId === normalizedProductId) ||
+          (normalizedProductName && entryProductName === normalizedProductName);
+        const matchesSeller = !normalizedSupplierId || !entrySellerId || entrySellerId === normalizedSupplierId;
+
+        return matchesProduct && matchesSeller;
+      })
+      .sort(
+        (a, b) =>
+          new Date(b?.updatedAt || b?.createdAt || 0).getTime() -
+          new Date(a?.updatedAt || a?.createdAt || 0).getTime()
+      )[0] || null;
+  };
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !product?.id || !resolvedSupplierContactId) {
+      setBuyerThreadMeta({ threadId: '', unreadCount: 0 });
+      return;
+    }
+
+    const userId = localStorage.getItem('userId');
+    const isLoggedIn = localStorage.getItem('userLoggedIn') === 'true';
+    if (!userId || !isLoggedIn) {
+      setBuyerThreadMeta({ threadId: '', unreadCount: 0 });
+      return;
+    }
+
+    let mounted = true;
+    const loadBuyerThreadMeta = async () => {
+      try {
+        const result = await getUserInquirySent(userId);
+        if (!mounted) return;
+        const existingThread = findMatchingBuyerThread(Array.isArray(result?.inquiries) ? result.inquiries : []);
+        setBuyerThreadMeta({
+          threadId: String(existingThread?.id || existingThread?._id || '').trim(),
+          unreadCount: Number(existingThread?.unreadCount || 0)
+        });
+      } catch {
+        if (!mounted) return;
+        setBuyerThreadMeta({ threadId: '', unreadCount: 0 });
+      }
+    };
+
+    loadBuyerThreadMeta();
+    return () => {
+      mounted = false;
+    };
+  }, [product?.id, product?.name, resolvedSupplierContactId]);
+
   const refreshWishlist = async (userId) => {
     const result = await getUserWishlist(userId);
     const previewItems = getPreviewWishlist(userId);
@@ -573,6 +642,46 @@ export default function ProductDetails() {
     setMessage('Inquiry sent to this product owner successfully.');
     setInquiry((prev) => ({ ...prev, message: '' }));
     return true;
+  };
+
+  const handleOpenBuyerMessages = async () => {
+    if (!product?.id) return;
+    const userId = ensureLoggedInUser();
+    if (!userId) return;
+
+    if (!resolvedSupplierContactId) {
+      setMessage('Supplier contact is not configured for this product yet.');
+      return;
+    }
+
+    try {
+      const result = await getUserInquirySent(userId);
+      const inquiries = Array.isArray(result?.inquiries) ? result.inquiries : [];
+      const existingThread = findMatchingBuyerThread(inquiries);
+
+      if (existingThread) {
+        const threadId = String(existingThread?.id || existingThread?._id || '').trim();
+        setBuyerThreadMeta({
+          threadId,
+          unreadCount: Number(existingThread?.unreadCount || 0)
+        });
+        const query = threadId ? `?thread=${encodeURIComponent(threadId)}` : '';
+        router.push(`/inquiries${query}`);
+        return;
+      }
+
+      setInquiry((prev) => ({
+        ...prev,
+        message: String(prev.message || '').trim() ? prev.message : defaultBuyerMessage
+      }));
+      setIsMobileMessageOpen(true);
+    } catch (_error) {
+      setInquiry((prev) => ({
+        ...prev,
+        message: String(prev.message || '').trim() ? prev.message : defaultBuyerMessage
+      }));
+      setIsMobileMessageOpen(true);
+    }
   };
 
   const handleRequestCallBack = async () => {
@@ -1165,11 +1274,16 @@ export default function ProductDetails() {
                 </p>
                 <button
                   type="button"
-                  onClick={() => setIsMobileMessageOpen(true)}
+                  onClick={handleOpenBuyerMessages}
                   disabled={!resolvedSupplierContactId}
-                  className="mt-2.5 w-full rounded bg-[linear-gradient(135deg,#D946EF,#FB7185_52%,#FB923C)] px-4 py-2 text-sm font-semibold text-white transition-transform hover:brightness-105 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="mt-2.5 flex w-full items-center justify-center gap-2 rounded bg-[linear-gradient(135deg,#D946EF,#FB7185_52%,#FB923C)] px-4 py-2 text-sm font-semibold text-white transition-transform hover:brightness-105 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {resolvedSupplierContactId ? 'Message Seller' : 'Seller Contact Unavailable'}
+                  <span>{resolvedSupplierContactId ? (buyerThreadMeta.threadId ? 'Open Messages' : 'Message Seller') : 'Seller Contact Unavailable'}</span>
+                  {buyerThreadMeta.unreadCount > 0 ? (
+                    <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-white/20 px-1.5 py-0.5 text-[11px] font-bold text-white">
+                      {buyerThreadMeta.unreadCount > 9 ? '9+' : buyerThreadMeta.unreadCount}
+                    </span>
+                  ) : null}
                 </button>
               </div>
             </div>
@@ -1582,7 +1696,7 @@ export default function ProductDetails() {
         <div className="mx-auto grid max-w-md grid-cols-5">
           <button
             type="button"
-            onClick={() => setIsMobileMessageOpen(true)}
+            onClick={handleOpenBuyerMessages}
             disabled={!resolvedSupplierContactId}
             className="relative flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -1590,6 +1704,11 @@ export default function ProductDetails() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M5 17h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
             </svg>
             Message
+            {buyerThreadMeta.unreadCount > 0 ? (
+              <span className="absolute right-3 top-1 inline-flex min-w-[16px] items-center justify-center rounded-full bg-[#16A34A] px-1 text-[9px] font-semibold text-white">
+                {buyerThreadMeta.unreadCount > 9 ? '9+' : buyerThreadMeta.unreadCount}
+              </span>
+            ) : null}
           </button>
           <button
             type="button"
@@ -1696,7 +1815,7 @@ export default function ProductDetails() {
                   value={inquiry.message}
                   onChange={(e) => setInquiry((prev) => ({ ...prev, message: e.target.value }))}
                   className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                  placeholder="Write your message to the seller..."
+                  placeholder={defaultBuyerMessage}
                 />
               </div>
               <div className="rounded-md border border-[#F5D0FE] bg-[#FDF4FF] px-3 py-2.5">

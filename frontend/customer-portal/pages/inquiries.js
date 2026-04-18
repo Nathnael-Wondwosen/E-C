@@ -115,6 +115,7 @@ function SellerMessagesHeader ({
   isRefreshing = false,
   threadContactName = '',
   threadContactInitials = '',
+  threadProductName = '',
   showThreadHeader = false
 }) {
   return (
@@ -137,7 +138,14 @@ function SellerMessagesHeader ({
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#9FD3A4] bg-[#8DD490] text-xs font-semibold text-white">
                 {threadContactInitials || 'U'}
               </div>
-              <p className="truncate text-[15px] font-semibold text-[#2A3D50]">{threadContactName || title}</p>
+              <div className="min-w-0">
+                <p className="truncate text-[15px] font-semibold text-[#2A3D50]">{threadContactName || title}</p>
+                {threadProductName ? (
+                  <span className="mt-0.5 inline-flex max-w-full items-center rounded-full border border-[#D4C4FF] bg-[#F6F1FF] px-2 py-0.5 text-[10px] font-semibold text-[#6D28D9]">
+                    <span className="truncate">{threadProductName}</span>
+                  </span>
+                ) : null}
+              </div>
             </div>
             <button
               type="button"
@@ -225,6 +233,7 @@ export default function InquiryCenterPage () {
   const [refreshError, setRefreshError] = useState('');
   const [isMobileThreadOpen, setIsMobileThreadOpen] = useState(false);
   const chatScrollRef = useRef(null);
+  const requestedThreadId = String(router.query?.thread || '').trim();
 
   const loadInquiries = useCallback(
     async ({ showLoader = false, silent = false } = {}) => {
@@ -488,6 +497,17 @@ export default function InquiryCenterPage () {
     }
   }, [visibleThreads, activeInquiryId]);
 
+  useEffect(() => {
+    if (!requestedThreadId || !visibleThreads.length) return;
+
+    const requestedThread = visibleThreads.find((entry) => getInquiryKey(entry) === requestedThreadId);
+    if (!requestedThread) return;
+
+    setActiveInquiryId(getInquiryKey(requestedThread));
+    setActiveContactKey(requestedThread.contactKey || '');
+    setIsMobileThreadOpen(true);
+  }, [requestedThreadId, visibleThreads]);
+
   const activeInquiry = useMemo(
     () => visibleThreads.find((entry) => getInquiryKey(entry) === activeInquiryId) || null,
     [visibleThreads, activeInquiryId]
@@ -669,6 +689,7 @@ export default function InquiryCenterPage () {
             showThreadHeader={Boolean(userType === 'seller' && isMobileThreadOpen && activeInquiry)}
             threadContactName={activeInquiry?.counterpartName || ''}
             threadContactInitials={activeInquiryInitials}
+            threadProductName={activeInquiry?.productName || ''}
           />
           )
         : <Header />}
@@ -783,7 +804,16 @@ export default function InquiryCenterPage () {
                             <p className="line-clamp-1 text-[13px] font-semibold text-[#1E3447]">{thread?.counterpartName || initials}</p>
                             <span className="shrink-0 pt-0.5 text-[10px] text-[#607D94]">{formatTime(thread?.updatedAt || thread?.createdAt)}</span>
                           </div>
-                          <p className="mt-0.5 line-clamp-1 text-[11px] font-medium text-[#35536C]">{thread?.productName || `Product ${thread?.productId || '-'}`}</p>
+                          <div className="mt-1 flex items-center gap-1.5">
+                            <span className="inline-flex max-w-[72%] items-center rounded-full border border-[#D8CCFF] bg-[#F6F1FF] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6D28D9]">
+                              <span className="truncate">{thread?.productName || `Product ${thread?.productId || '-'}`}</span>
+                            </span>
+                            {Number(thread?.mergedThreadCount || 0) > 1 ? (
+                              <span className="inline-flex items-center rounded-full bg-[#ECFDF3] px-1.5 py-0.5 text-[10px] font-semibold text-[#159C43]">
+                                {thread.mergedThreadCount} msgs
+                              </span>
+                            ) : null}
+                          </div>
                           <div className="mt-0.5 flex items-center justify-between gap-2">
                             <p className="line-clamp-1 text-[11px] text-[#6A879D]">{lastText}</p>
                             {Number(thread?.unreadCount || 0) > 0 ? (
@@ -828,15 +858,20 @@ export default function InquiryCenterPage () {
                       )}
                       <div className="min-w-0">
                         <p className="line-clamp-1 text-[12px] font-semibold text-[#4B5563] sm:text-[13px]">{activeInquiry?.productName || `Product ${activeInquiry?.productId || '-'}`}</p>
-                        {getProductPriceLabel(activeInquiry) ? (
-                          <div className="mt-0.5 inline-flex items-center rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 sm:text-[11px]">
-                            {getProductPriceLabel(activeInquiry)}
-                          </div>
-                        ) : (
-                          <div className="mt-0.5 inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 sm:text-[11px]">
-                            Price on request
-                          </div>
-                        )}
+                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                          <span className="inline-flex items-center rounded-full border border-[#D8CCFF] bg-[#F6F1FF] px-2 py-0.5 text-[10px] font-semibold text-[#6D28D9] sm:text-[11px]">
+                            Product thread
+                          </span>
+                          {getProductPriceLabel(activeInquiry) ? (
+                            <div className="inline-flex items-center rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 sm:text-[11px]">
+                              {getProductPriceLabel(activeInquiry)}
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 sm:text-[11px]">
+                              Price on request
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="flex w-full flex-wrap items-center justify-end gap-1.5 sm:w-auto sm:gap-2">
