@@ -675,8 +675,8 @@ export default function InquiryCenterPage () {
   return (
     <div className="portal-page min-h-screen">
       <Head>
-        <title>Inquiry Center | B2B E-Commerce Platform</title>
-        <meta name="description" content="Inquiry center with separated inquiry detail and message thread views" />
+        <title>Messages Center | B2B E-Commerce Platform</title>
+        <meta name="description" content="Message center with separated inquiry detail and thread views" />
       </Head>
       {userType === 'seller'
         ? (
@@ -789,6 +789,9 @@ export default function InquiryCenterPage () {
                       onClick={() => {
                         setActiveContactKey(thread.contactKey || '');
                         setActiveInquiryId(threadId);
+                        if (threadId) {
+                          router.push(`/inquiries?thread=${encodeURIComponent(threadId)}`, undefined, { shallow: true });
+                        }
                         setIsMobileThreadOpen(true);
                       }}
                       className={`w-full border-b border-[#D4DEE6] px-2 py-1.5 text-left transition sm:px-2.5 sm:py-2 ${

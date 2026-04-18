@@ -1270,7 +1270,7 @@ export default function ProductDetails() {
 
               <div className="rounded-xl border border-[#dfe3e8] bg-white p-3">
                 <p className="text-xs text-slate-600">
-                  Need details, pricing, or availability updates? Message the seller directly.
+                  Need details, pricing, or availability updates? Chat the seller directly.
                 </p>
                 <button
                   type="button"
@@ -1278,7 +1278,7 @@ export default function ProductDetails() {
                   disabled={!resolvedSupplierContactId}
                   className="mt-2.5 flex w-full items-center justify-center gap-2 rounded bg-[linear-gradient(135deg,#D946EF,#FB7185_52%,#FB923C)] px-4 py-2 text-sm font-semibold text-white transition-transform hover:brightness-105 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <span>{resolvedSupplierContactId ? (buyerThreadMeta.threadId ? 'Open Messages' : 'Message Seller') : 'Seller Contact Unavailable'}</span>
+                  <span>{resolvedSupplierContactId ? (buyerThreadMeta.threadId ? 'Open Chat' : 'Chat Seller') : 'Seller Contact Unavailable'}</span>
                   {buyerThreadMeta.unreadCount > 0 ? (
                     <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-white/20 px-1.5 py-0.5 text-[11px] font-bold text-white">
                       {buyerThreadMeta.unreadCount > 9 ? '9+' : buyerThreadMeta.unreadCount}
@@ -1381,7 +1381,7 @@ export default function ProductDetails() {
                 placeholder={`Min ${moq}`}
               />
 
-              <label className="block text-xs font-semibold text-slate-600">Message</label>
+              <label className="block text-xs font-semibold text-slate-600">Chat</label>
               <textarea
                 rows={4}
                 value={inquiry.message}
@@ -1703,7 +1703,7 @@ export default function ProductDetails() {
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M5 17h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
             </svg>
-            Message
+            Chat
             {buyerThreadMeta.unreadCount > 0 ? (
               <span className="absolute right-3 top-1 inline-flex min-w-[16px] items-center justify-center rounded-full bg-[#16A34A] px-1 text-[9px] font-semibold text-white">
                 {buyerThreadMeta.unreadCount > 9 ? '9+' : buyerThreadMeta.unreadCount}
@@ -1746,7 +1746,7 @@ export default function ProductDetails() {
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 8h10M7 12h7m-9 8h14a2 2 0 002-2V8a2 2 0 00-2-2h-2l-2-2H9L7 6H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
-            Inquiry
+            Message
           </button>
           <button
             type="button"
@@ -1771,7 +1771,7 @@ export default function ProductDetails() {
           />
           <div className="absolute inset-x-0 bottom-0 max-h-[82vh] overflow-y-auto rounded-t-2xl bg-white p-4 shadow-2xl">
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-bold uppercase tracking-[0.08em] text-slate-800">Message Seller</h3>
+              <h3 className="text-sm font-bold uppercase tracking-[0.08em] text-slate-800">Chat with Seller</h3>
               <button
                 type="button"
                 onClick={() => setIsMobileMessageOpen(false)}
@@ -1809,7 +1809,7 @@ export default function ProductDetails() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-600">Message</label>
+                <label className="mb-1 block text-xs font-semibold text-slate-600">Chat</label>
                 <textarea
                   rows={4}
                   value={inquiry.message}
@@ -1834,7 +1834,7 @@ export default function ProductDetails() {
                 disabled={!resolvedSupplierContactId}
                 className="w-full rounded bg-[linear-gradient(135deg,#D946EF,#FB7185_52%,#FB923C)] px-4 py-2.5 text-sm font-semibold text-white transition-transform hover:brightness-105 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {resolvedSupplierContactId ? 'Send Message' : 'Seller Contact Unavailable'}
+                {resolvedSupplierContactId ? 'Send Chat' : 'Seller Contact Unavailable'}
               </button>
             </form>
           </div>
@@ -1851,7 +1851,7 @@ export default function ProductDetails() {
           />
           <div className="absolute inset-x-0 bottom-0 max-h-[78vh] overflow-y-auto rounded-t-2xl bg-white p-4 shadow-2xl">
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-bold uppercase tracking-[0.08em] text-slate-800">Quick Inquiry</h3>
+              <h3 className="text-sm font-bold uppercase tracking-[0.08em] text-slate-800">Quick Message</h3>
               <button
                 type="button"
                 onClick={() => setIsMobileInquiryOpen(false)}
@@ -1902,13 +1902,13 @@ export default function ProductDetails() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-600">Inquiry</label>
+                <label className="mb-1 block text-xs font-semibold text-slate-600">Message</label>
                 <textarea
                   rows={3}
                   value={quickInquiryText}
                   onChange={(e) => setQuickInquiryText(e.target.value)}
                   className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                  placeholder="Write your inquiry..."
+                  placeholder="Write your message..."
                 />
               </div>
               <button
@@ -1916,7 +1916,7 @@ export default function ProductDetails() {
                 disabled={!resolvedSupplierContactId}
                 className="w-full rounded bg-[linear-gradient(135deg,#D946EF,#FB7185_52%,#FB923C)] px-4 py-2.5 text-sm font-semibold text-white transition-transform hover:brightness-105 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {resolvedSupplierContactId ? 'Send Inquiry' : 'Seller Contact Unavailable'}
+                {resolvedSupplierContactId ? 'Send Message' : 'Seller Contact Unavailable'}
               </button>
             </form>
           </div>
